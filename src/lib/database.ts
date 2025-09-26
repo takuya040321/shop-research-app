@@ -16,13 +16,13 @@ export interface DatabaseResult<T> {
  */
 export function handleDatabaseError<T>(
   data: T | null,
-  error: any
+  error: unknown
 ): DatabaseResult<T> {
   if (error) {
     console.error("Database error:", error)
     return {
       data: null,
-      error: error.message || "データベースエラーが発生しました",
+      error: error instanceof Error ? error.message : "データベースエラーが発生しました",
     }
   }
 
