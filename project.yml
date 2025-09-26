@@ -1,0 +1,55 @@
+# Serena MCP Project Configuration for Shop Research App
+name: shop-research-app
+description: Amazon販売事業者向けの商品リサーチ・利益計算システム
+version: "1.0.0"
+
+# 言語設定
+languages:
+  - typescript
+  - javascript
+  - css
+  - markdown
+  - json
+  - yaml
+
+# プロジェクト構造
+source_paths:
+  - src/
+  - docs/
+  - "*.md"
+  - "*.json"
+  - "*.ts"
+  - "*.js"
+
+# 除外パス
+exclude_paths:
+  - node_modules/
+  - .next/
+  - .git/
+  - dist/
+  - build/
+  - out/
+
+# TypeScript設定
+typescript_config: tsconfig.json
+
+# プロジェクト固有設定
+project_type: nextjs
+framework: next.js
+database: supabase
+ui_framework: tailwindcss
+component_library: shadcn/ui
+
+# 開発フェーズ
+current_phase: "Phase 1: 基盤構築"
+development_status: "初期設定中"
+
+# 重要ファイル
+important_files:
+  - CLAUDE.md
+  - docs/requirements.md
+  - docs/technical_spec.md
+  - docs/system_design.md
+  - docs/implementation_plan.md
+  - package.json
+  - tsconfig.json
