@@ -46,3 +46,6 @@ next-env.d.ts
 
 # serena mcp
 .serena/
+
+# mcp configuration
+.mcp.json
