@@ -9,6 +9,23 @@ const fs = require("fs")
 const path = require("path")
 const { execSync } = require("child_process")
 
+// .env.localファイルを読み込み
+function loadEnvironment() {
+  const envPath = path.join(process.cwd(), ".env.local")
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, "utf8")
+    envContent.split("\n").forEach(line => {
+      const match = line.match(/^([^=]+)=(.*)$/)
+      if (match) {
+        const [, key, value] = match
+        if (!process.env[key]) {
+          process.env[key] = value
+        }
+      }
+    })
+  }
+}
+
 const CONFIG_FILE = ".mcp.json"
 const ENV_FILE = ".env.local"
 
@@ -117,6 +134,7 @@ function showNextSteps() {
 // メイン実行
 async function main() {
   try {
+    loadEnvironment() // 環境変数を先に読み込み
     checkDependencies()
     setupMcpConfig()
     checkEnvironmentVariables()
