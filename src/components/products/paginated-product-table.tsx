@@ -304,7 +304,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
               has_official: false,
               is_dangerous: false,
               is_per_carry_ng: false
-            })
+            } as never)
             .select()
             .single<Asin>()
 
