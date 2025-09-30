@@ -26,21 +26,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
 })
 
-// サーバーサイド用クライアント（Service Role Key使用）
-export const createServerSupabaseClient = () => {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!serviceRoleKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEYが設定されていません")
-  }
-
-  return createClient<Database>(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
-}
 
 // 型安全なヘルパー関数
 export const getSupabaseClient = () => supabase
