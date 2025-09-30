@@ -29,39 +29,50 @@ Shop Research appは、個人のAmazon販売事業者が複数のECサイトか�
 ## 主な機能
 
 ### 📦 商品情報収集
-- **公式サイトスクレイピング**: VT Cosmetics、DHC、innisfree
-- **楽天市場API**: 無印良品、VT、innisfree等のブランド商品
-- **Yahoo!ショッピングAPI**: LOHACO、ZOZOTOWN等の階層型ショップ
+- **公式サイトスクレイピング**: ✅ VT Cosmetics（全カテゴリ一括取得）
+  - ⏳ DHC、innisfree（未実装）
+- **楽天市場API**: ⏳ 未実装
+- **Yahoo!ショッピングAPI**: ⏳ 未実装
 
 ### 🔗 ASIN管理
-- ASIN情報の一括アップロード（Excel/CSV）
-- 商品とASINの手動紐付け
-- 商品コピー機能（1商品に複数ASIN対応）
+- ✅ 商品とASINのインライン紐付け
+- ✅ ASIN情報の直接入力・編集
+- ✅ 商品コピー機能（1商品に複数ASIN対応）
+- ⏳ ASIN一括アップロード（Excel/CSV）- 未実装
 
 ### 💰 利益計算
-- 利益額・利益率・ROI の自動計算
-- ショップ別割引設定（パーセンテージ・固定額）
-- Amazon手数料（販売手数料率・FBA手数料）の考慮
+- ✅ 利益額・利益率・ROI の自動計算
+- ✅ ショップ別割引設定対応（shop_discountsテーブル）
+- ✅ Amazon手数料（販売手数料率・FBA手数料）の考慮
+- ✅ リアルタイム計算（商品取得時に自動実行）
 
 ### 📊 商品管理
-- 固定ヘッダー付きスクロールテーブル
-- インライン編集機能
-- ソート・フィルタリング機能
-- 画像プレビュー機能
+- ✅ スクロール可能なテーブル（列幅固定）
+- ✅ 全列インライン編集機能
+- ✅ 全列ソート機能
+- ✅ 高度なフィルタリング（テキスト、価格、利益率、ROI、ASIN設定状況）
+- ✅ 画像ホバー拡大プレビュー
+- ✅ 右クリックメニュー（コピー、削除）
+- ✅ Toaster通知システム
+
+### 🔧 データ管理
+- ✅ 重複商品自動削除（スクレイピング後）
+- ✅ 重複商品手動削除API（`/api/products/deduplicate`）
 
 ### ⚙️ 設定管理
-- 表示設定（デフォルト表示列、列幅）
-- ソート設定（初期ソート列・方向）
-- ショップ別割引設定
+- ⏳ 表示設定（デフォルト表示列、列幅）- 未実装
+- ⏳ ソート設定（初期ソート列・方向）- 未実装
+- ⏳ ショップ別割引設定UI - 未実装（テーブルは存在）
 
 ## 技術スタック
 
 ### フロントエンド
 - **Next.js 15** (App Router)
-- **React 18**
+- **React 19**
 - **TypeScript**
 - **Tailwind CSS**
 - **shadcn/ui** (Radix UI)
+- **Sonner** (Toast通知)
 
 ### バックエンド
 - **Next.js API Routes**
@@ -69,15 +80,14 @@ Shop Research appは、個人のAmazon販売事業者が複数のECサイトか�
 - **Puppeteer** (スクレイピング)
 - **Cheerio** (HTMLパース)
 
-### 状態管理・フォーム
-- **Zustand** (状態管理)
-- **React Hook Form** (フォーム管理)
-- **Zod** (バリデーション)
+### 開発ツール
+- **Serena MCP** (コードベース理解・検索)
+- **Supabase MCP** (データベース操作)
 
-### その他
-- **SheetJS** (Excel/CSV処理)
-- **楽天市場API**
-- **Yahoo!ショッピングAPI**
+### その他（未使用/予定）
+- ⏳ **SheetJS** (Excel/CSV処理)
+- ⏳ **楽天市場API**
+- ⏳ **Yahoo!ショッピングAPI**
 
 ## セットアップ
 
@@ -195,29 +205,46 @@ npm run dev
 ```
 shop-research-app/
 ├── src/
-│   ├── app/              # Next.js App Router
-│   │   ├── (auth)/      # 認証ページ
-│   │   ├── page.tsx     # ホーム
-│   │   ├── products/    # 全商品一覧
-│   │   ├── official/    # 公式サイト
-│   │   ├── rakuten/     # 楽天市場
-│   │   ├── yahoo/       # Yahoo!ショッピング
-│   │   ├── asins/       # ASIN管理
-│   │   ├── settings/    # 設定
-│   │   └── api/         # API Routes
-│   ├── components/       # UIコンポーネント
-│   ├── hooks/           # カスタムフック
-│   ├── lib/             # ユーティリティ
-│   ├── store/           # 状態管理
-│   ├── types/           # 型定義
-│   └── constants/       # 定数
-├── docs/                # ドキュメント
-│   ├── requirement.md
+│   ├── app/                      # Next.js App Router
+│   │   ├── page.tsx             # ホーム（ダッシュボード予定）
+│   │   ├── layout.tsx           # ルートレイアウト
+│   │   ├── official/            # ✅ 公式サイト（VT Cosmetics）
+│   │   │   └── page.tsx
+│   │   └── api/                 # API Routes
+│   │       ├── products/        # 商品操作API
+│   │       │   ├── copy/        # 商品コピー
+│   │       │   ├── delete/      # 商品削除
+│   │       │   └── deduplicate/ # 重複削除
+│   │       └── scrape/          # スクレイピングAPI
+│   │           └── vt/          # VT Cosmetics
+│   ├── components/              # UIコンポーネント
+│   │   ├── layout/              # レイアウト関連
+│   │   │   └── sidebar.tsx      # サイドバー
+│   │   ├── products/            # 商品関連
+│   │   │   ├── product-table.tsx
+│   │   │   └── product-search.tsx
+│   │   └── ui/                  # shadcn/ui コンポーネント
+│   ├── lib/                     # ユーティリティ
+│   │   ├── supabase.ts          # Supabaseクライアント
+│   │   ├── products.ts          # 商品操作・利益計算
+│   │   ├── deduplication.ts     # 重複削除
+│   │   ├── scraper.ts           # スクレイパー基底クラス
+│   │   ├── scrapers/            # 各ブランドスクレイパー
+│   │   │   └── vt-cosmetics-scraper.ts
+│   │   ├── proxy.ts             # プロキシ設定
+│   │   └── brand-config.ts      # ブランド設定
+│   └── types/                   # 型定義
+│       └── database.ts          # データベース型定義
+├── database/                    # データベーススキーマ
+│   └── schema.sql
+├── docs/                        # ドキュメント
+│   ├── requirements.md
 │   ├── technical_spec.md
 │   ├── system_design.md
-│   ├── CONTRIBUTING.md
-│   └── implementation_plan.md
-└── public/              # 静的ファイル
+│   ├── implementation_plan.md
+│   ├── SUPABASE_MCP_SETUP.md
+│   └── CLAUDE.md
+└── public/                      # 静的ファイル
 ```
 
 ## 開発ガイド
@@ -268,13 +295,40 @@ npm run build
 npm start
 ```
 
+## 実装状況
+
+### Phase 1: 基盤構築 ✅
+- ✅ Next.js 15 + TypeScript環境構築
+- ✅ Supabaseデータベースセットアップ
+- ✅ 基本レイアウト・サイドバー実装
+- ✅ プロキシ制御実装
+- ✅ Serena MCP・Supabase MCP統合
+
+### Phase 2: 公式サイト対応（部分完了）
+- ✅ **商品テーブルコンポーネント**: 全機能実装完了
+- ✅ **商品管理機能**: 検索、フィルター、編集、コピー、削除
+- ✅ **VT Cosmeticsスクレイピング**: 全カテゴリ対応完了
+- ✅ **ASIN管理機能**: インライン編集完全対応
+- ✅ **利益計算機能**: リアルタイム自動計算
+- ✅ **重複削除機能**: 自動・手動実行対応
+- ⏳ DHC/innisfreeスクレイピング（未実装）
+
+### Phase 3: API統合（未着手）
+- ⏳ 楽天市場API統合
+- ⏳ Yahoo!ショッピングAPI統合
+
+### Phase 4: 高度機能（未着手）
+- ⏳ 認証システム（Google OAuth）
+- ⏳ ダッシュボード
+- ⏳ 全体設定・割引設定UI
+
 ## ドキュメント
 
-- [要件定義書](./docs/requirement.md)
+- [要件定義書](./docs/requirements.md)
 - [技術仕様書](./docs/technical_spec.md)
 - [システム設計書](./docs/system_design.md)
-- [開発ガイドライン](./docs/CONTRIBUTING.md)
 - [実装計画書](./docs/implementation_plan.md)
+- [Supabase MCP設定ガイド](./docs/SUPABASE_MCP_SETUP.md)
 - [Claude開発ガイド](./CLAUDE.md)
 
 ## 貢献
