@@ -53,6 +53,17 @@ export async function POST(request: NextRequest) {
       .eq("user_id", userId)
       .neq("memo", "コピー商品")
       .order("created_at")
+      .returns<Array<{
+        id: string
+        name: string
+        shop_type: string | null
+        shop_name: string | null
+        created_at: string
+        product_asins: Array<{
+          asin_id: string
+          asins: { asin: string }
+        }> | null
+      }>>()
 
     let filteredProducts = productsWithAsins || []
     if (shopName) {
@@ -68,7 +79,7 @@ export async function POST(request: NextRequest) {
       const hasAsin = product.product_asins && product.product_asins.length > 0
       let key: string
 
-      if (hasAsin) {
+      if (hasAsin && product.product_asins) {
         // ASINありの場合：shop_type + shop_name + name + asin
         const asin = product.product_asins[0]?.asins?.asin
         key = `${product.shop_type}-${product.shop_name}-${product.name}-${asin}`
@@ -99,13 +110,13 @@ export async function POST(request: NextRequest) {
             .in("id", idsToDelete)
 
           if (deleteError) {
-            errors.push(`商品「${products[0].name}」の重複削除でエラー: ${deleteError.message}`)
+            errors.push(`商品「${products[0]?.name || "不明"}」の重複削除でエラー: ${deleteError.message}`)
           } else {
             deletedCount += idsToDelete.length
-            console.log(`商品「${products[0].name}」の重複 ${idsToDelete.length}件を削除`)
+            console.log(`商品「${products[0]?.name || "不明"}」の重複 ${idsToDelete.length}件を削除`)
           }
         } catch (error) {
-          errors.push(`商品「${products[0].name}」の処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
+          errors.push(`商品「${products[0]?.name || "不明"}」の処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
         }
       }
     }

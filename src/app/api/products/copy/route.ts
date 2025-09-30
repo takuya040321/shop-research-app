@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
     const copiedProduct = {
       id: newProductId,
       user_id: userId,
-      shop_category_id: originalProduct.shop_category_id,
       shop_type: originalProduct.shop_type,
       shop_name: originalProduct.shop_name,
       name: originalProduct.name,
@@ -59,7 +58,7 @@ export async function POST(request: NextRequest) {
     // 新しい商品を挿入
     const { data: newProduct, error: insertError } = await supabase
       .from("products")
-      .insert(copiedProduct)
+      .insert(copiedProduct as never)
       .select()
       .single()
 
