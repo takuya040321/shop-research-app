@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 import { randomUUID } from "crypto"
+import type { Product } from "@/types/database"
 
 // POST /api/products/copy
 export async function POST(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .eq("id", productId)
       .eq("user_id", userId)
-      .single()
+      .single<Product>()
 
     if (fetchError || !originalProduct) {
       return NextResponse.json(

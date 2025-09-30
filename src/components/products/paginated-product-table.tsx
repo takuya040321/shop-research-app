@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
+import type { Asin } from "@/types/database"
 import {
   ChevronUpIcon,
   ChevronDownIcon,
@@ -305,7 +306,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
               is_per_carry_ng: false
             })
             .select()
-            .single()
+            .single<Asin>()
 
           if (createAsinError || !newAsin) {
             throw new Error("ASIN作成に失敗しました")

@@ -36,7 +36,7 @@ interface ProductSearchProps {
   filteredCount: number
 }
 
-export function ProductSearch({ filters, onFiltersChange, totalCount, filteredCount }: ProductSearchProps) {
+export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) {
   const [isFilterExpanded, setIsFilterExpanded] = useState(false)
 
   // 検索テキストの変更
@@ -48,7 +48,7 @@ export function ProductSearch({ filters, onFiltersChange, totalCount, filteredCo
   }
 
   // フィルター値の変更
-  const handleFilterChange = (key: keyof ProductFilters, value: any) => {
+  const handleFilterChange = (key: keyof ProductFilters, value: string | number | boolean | null) => {
     onFiltersChange({
       ...filters,
       [key]: value

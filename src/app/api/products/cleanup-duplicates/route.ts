@@ -5,6 +5,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 
+type ProductWithAsins = {
+  id: string
+  name: string
+  shop_type: string | null
+  shop_name: string | null
+  created_at: string
+  product_asins: Array<{
+    asin_id: string
+    asins: {
+      asin: string
+    } | null
+  }> | null
+}
+
 // POST /api/products/cleanup-duplicates
 export async function POST(request: NextRequest) {
   try {
@@ -40,16 +54,16 @@ export async function POST(request: NextRequest) {
       .neq("memo", "コピー商品")
       .order("created_at")
 
+    let filteredProducts = productsWithAsins || []
     if (shopName) {
       // 特定ショップの場合はフィルタリング
-      const filteredProducts = productsWithAsins?.filter(p => p.shop_name === shopName)
-      productsWithAsins.splice(0, productsWithAsins.length, ...filteredProducts || [])
+      filteredProducts = filteredProducts.filter(p => p.shop_name === shopName)
     }
 
     // 重複グループを検出（正確なキーで）
-    const duplicateGroups = new Map<string, any[]>()
+    const duplicateGroups = new Map<string, ProductWithAsins[]>()
 
-    for (const product of productsWithAsins || []) {
+    for (const product of filteredProducts) {
       // ASINが関連付けられているかチェック
       const hasAsin = product.product_asins && product.product_asins.length > 0
       let key: string
@@ -73,7 +87,7 @@ export async function POST(request: NextRequest) {
     const errors: string[] = []
 
     // 各重複グループから最古のもの以外を削除
-    for (const [key, products] of duplicateGroups) {
+    for (const [, products] of duplicateGroups) {
       if (products.length > 1) {
         // 最古のもの以外を削除対象とする
         const idsToDelete = products.slice(1).map(p => p.id)

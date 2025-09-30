@@ -17,14 +17,10 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import {
   ChevronUpIcon,
   ChevronDownIcon,
-  EyeIcon,
-  EyeOffIcon,
-  ExternalLinkIcon,
   EditIcon,
   SaveIcon,
   XIcon,
@@ -322,26 +318,6 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
       console.error("編集保存エラー:", err)
       setError("更新中にエラーが発生しました")
     }
-  }
-
-  // 全選択/解除
-  const toggleSelectAll = () => {
-    if (selectedProducts.size === filteredAndSortedProducts.length) {
-      setSelectedProducts(new Set())
-    } else {
-      setSelectedProducts(new Set(filteredAndSortedProducts.map(p => p.id)))
-    }
-  }
-
-  // 個別選択切り替え
-  const toggleSelectProduct = (productId: string) => {
-    const newSelection = new Set(selectedProducts)
-    if (newSelection.has(productId)) {
-      newSelection.delete(productId)
-    } else {
-      newSelection.add(productId)
-    }
-    setSelectedProducts(newSelection)
   }
 
   // 商品コピー

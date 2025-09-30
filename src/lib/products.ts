@@ -68,7 +68,7 @@ export async function getProductsWithAsinAndProfits(userId: string): Promise<Ext
     })
 
     // 商品データを変換
-    const extendedProducts: ExtendedProduct[] = productData.map((product: any) => {
+    const extendedProducts: ExtendedProduct[] = productData.map((product: Product & { product_asins?: Array<{ asins?: Asin }> }) => {
       const extendedProduct: ExtendedProduct = { ...product }
 
       // ASIN情報を設定
@@ -96,7 +96,7 @@ export async function getProductsWithAsinAndProfits(userId: string): Promise<Ext
 /**
  * 商品に紐付くASIN情報を取得
  */
-async function getProductAsinInfo(productId: string, userId: string): Promise<Asin | null> {
+export async function getProductAsinInfo(productId: string, userId: string): Promise<Asin | null> {
   try {
     const { data: productAsinData, error: productAsinError } = await supabase
       .from("product_asins")
@@ -196,7 +196,7 @@ function calculateProfitOptimized(
 /**
  * 利益計算（レガシー版）- 既存の更新機能との互換性のため残す
  */
-async function calculateProfit(
+export async function calculateProfit(
   product: Product,
   asin: Asin | null,
   userId: string
@@ -294,7 +294,7 @@ export async function updateProduct(
   userId: string
 ): Promise<boolean> {
   try {
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("products")
       .update(updates)
       .eq("id", productId)
@@ -317,7 +317,7 @@ export async function updateAsin(
   userId: string
 ): Promise<boolean> {
   try {
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("asins")
       .update(updates)
       .eq("id", asinId)
