@@ -15,55 +15,10 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      shop_categories: {
-        Row: {
-          id: string
-          user_id: string
-          type: "official" | "rakuten" | "yahoo"
-          name: string
-          display_name: string
-          parent_type: string | null
-          hierarchy_level: number
-          sort_order: number
-          is_enabled: boolean
-          config: Json | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          type: "official" | "rakuten" | "yahoo"
-          name: string
-          display_name: string
-          parent_type?: string | null
-          hierarchy_level?: number
-          sort_order?: number
-          is_enabled?: boolean
-          config?: Json | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          type?: "official" | "rakuten" | "yahoo"
-          name?: string
-          display_name?: string
-          parent_type?: string | null
-          hierarchy_level?: number
-          sort_order?: number
-          is_enabled?: boolean
-          config?: Json | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
       products: {
         Row: {
           id: string
           user_id: string
-          shop_category_id: string | null
           shop_type: "official" | "rakuten" | "yahoo" | null
           shop_name: string | null
           name: string
@@ -80,7 +35,6 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
-          shop_category_id?: string | null
           shop_type?: "official" | "rakuten" | "yahoo" | null
           shop_name?: string | null
           name: string
@@ -97,7 +51,6 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
-          shop_category_id?: string | null
           shop_type?: "official" | "rakuten" | "yahoo" | null
           shop_name?: string | null
           name?: string
@@ -277,21 +230,18 @@ export type TablesInsert<T extends keyof Database["public"]["Tables"]> = Databas
 export type TablesUpdate<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Update"]
 
 // 具体的な型エイリアス
-export type ShopCategory = Tables<"shop_categories">
 export type Product = Tables<"products">
 export type Asin = Tables<"asins">
 export type ProductAsin = Tables<"product_asins">
 export type ShopDiscount = Tables<"shop_discounts">
 export type ApiSetting = Tables<"api_settings">
 
-export type ShopCategoryInsert = TablesInsert<"shop_categories">
 export type ProductInsert = TablesInsert<"products">
 export type AsinInsert = TablesInsert<"asins">
 export type ProductAsinInsert = TablesInsert<"product_asins">
 export type ShopDiscountInsert = TablesInsert<"shop_discounts">
 export type ApiSettingInsert = TablesInsert<"api_settings">
 
-export type ShopCategoryUpdate = TablesUpdate<"shop_categories">
 export type ProductUpdate = TablesUpdate<"products">
 export type AsinUpdate = TablesUpdate<"asins">
 export type ProductAsinUpdate = TablesUpdate<"product_asins">

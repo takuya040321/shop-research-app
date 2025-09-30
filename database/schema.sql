@@ -1,5 +1,5 @@
--- Shop Research App データベーススキーマ
--- Supabase PostgreSQL用
+-- Shop Research App 本番用データベーススキーマ
+-- Supabase PostgreSQL用（RLSポリシー付き）
 
 -- updated_at自動更新関数の作成
 CREATE OR REPLACE FUNCTION update_updated_at_column()
