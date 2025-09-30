@@ -32,7 +32,7 @@ export const BRAND_CONFIGS: Record<string, BrandConfig> = {
     color: "text-orange-600",
     borderColor: "border-orange-200",
     description: "DHC公式サイトから取得した商品の管理・編集",
-    hasScrapingAPI: false
+    hasScrapingAPI: true
   },
   innisfree: {
     id: "innisfree",
