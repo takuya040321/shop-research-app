@@ -4,9 +4,11 @@
 
 ### 1.1 アーキテクチャ構成
 - **アプリケーション形態**: フルスタックWebアプリケーション
-- **デプロイメント**: Next.js フルスタックアプリケーション
+- **実行環境**: ローカル環境のみ
 - **アーキテクチャパターン**: モノリシック構成
 - **レンダリング方式**: SSR（Server-Side Rendering）+ CSR（Client-Side Rendering）
+
+**注意**: このシステムはローカル環境のみでの使用を想定しており、デプロイや認証機能は実装していません。
 
 ### 1.2 技術選定理由
 
@@ -15,14 +17,13 @@
 - **App Router**: 最新のファイルベースルーティング
 - **パフォーマンス**: 自動最適化機能
 - **TypeScript統合**: 型安全性の確保
-- **デプロイ容易性**: Vercel等での簡単デプロイ
+- **ローカル開発**: 開発サーバーの高速起動
 
 #### 1.2.2 Supabase選定理由
 - **PostgreSQL**: 高性能リレーショナルデータベース
-- **認証統合**: Google OAuth標準対応
 - **リアルタイム**: リアルタイム更新機能
 - **REST API**: 自動生成API
-- **スケーラビリティ**: クラウドネイティブ設計
+- **クラウドDB**: セットアップ不要のクラウドデータベース
 
 ## 2. 開発環境仕様
 
@@ -105,8 +106,6 @@
 ### 4.2 API構造
 ```
 /api/
-├── auth/
-│   └── callback/           # Google OAuth コールバック
 ├── products/
 │   ├── index.ts           # 商品一覧取得・作成
 │   ├── [id].ts           # 商品詳細・更新・削除
@@ -148,8 +147,7 @@
 ### 5.1 Supabase設定
 - **バージョン**: PostgreSQL 15+
 - **接続方式**: REST API + リアルタイム購読
-- **認証**: Supabase Auth（Google OAuth）
-- **行レベルセキュリティ**: 有効化
+- **ローカル使用**: 単一ユーザー向け設定
 
 ### 5.2 接続設定
 ```typescript
@@ -185,44 +183,11 @@ export interface Database {
 
 ## 6. セキュリティ仕様
 
-### 6.1 認証・認可
-#### 6.1.1 Google OAuth設定
-- **プロバイダー**: Google OAuth 2.0
-- **スコープ**: email, profile
-- **セッション管理**: 1ヶ月（2,592,000秒）
-- **リフレッシュトークン**: 自動更新
-
-#### 6.1.2 認証フロー
-1. Google認証リダイレクト
-2. 認証成功時のコールバック処理
-3. Supabaseセッション作成
-4. クライアント側セッション保存
-5. 保護されたページへのリダイレクト
-
-### 6.2 データセキュリティ
-#### 6.2.1 行レベルセキュリティ（RLS）
-```sql
--- products テーブルのRLSポリシー
-CREATE POLICY "Users can only access their own products" 
-ON products FOR ALL 
-USING (auth.uid() = user_id);
-
--- asins テーブルのRLSポリシー
-CREATE POLICY "Users can only access their own asins" 
-ON asins FOR ALL 
-USING (auth.uid() = user_id);
-```
-
-#### 6.2.2 環境変数セキュリティ
+### 6.1 データセキュリティ
+#### 6.1.1 環境変数セキュリティ
 - **機密情報**: .env.local で管理
 - **公開情報**: NEXT_PUBLIC_ プレフィックス
-- **本番環境**: Vercel環境変数
-
-### 6.3 通信セキュリティ
-- **HTTPS**: 全通信の暗号化
-- **CORS**: 適切なオリジン制御
-- **CSP**: コンテンツセキュリティポリシー
-- **CSRF**: トークンベース保護
+- **ローカル環境**: ローカルファイルで管理
 
 ## 7. 環境設定
 
@@ -234,12 +199,8 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-# Google OAuth設定
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-
-# プロキシ設定
-USE_PROXY=true
+# プロキシ設定（オプション）
+USE_PROXY=false
 PROXY_HOST=your_proxy_host
 PROXY_PORT=your_proxy_port
 PROXY_USERNAME=your_proxy_username
@@ -371,12 +332,11 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-### 10.3 デプロイメント
-- **推奨プラットフォーム**: Vercel
-- **代替プラットフォーム**: Railway, Render
-- **環境変数**: プラットフォーム設定画面で管理
-- **ビルドコマンド**: npm run build
-- **開始コマンド**: npm start
+### 10.3 ローカル実行
+- **開発サーバー**: npm run dev
+- **環境変数**: .env.local で管理
+- **ポート**: 3000（デフォルト）
+- **注意**: ローカル環境のみでの使用を想定
 
 ## 11. 監視・ログ仕様
 

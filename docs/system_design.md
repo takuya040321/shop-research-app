@@ -175,15 +175,11 @@ shop-research-app/
 #### 3.2.1 ページコンポーネント階層
 ```
 App Layout
-├── AuthLayout (認証ページ用)
-│   ├── LoginPage
-│   └── CallbackPage
 └── DashboardLayout (メイン機能用)
     ├── Header
     ├── Sidebar
     │   ├── NavigationMenu
-    │   ├── ShopLinks
-    │   └── UserProfile
+    │   └── ShopLinks
     └── MainContent
         ├── DashboardHome (全体概要)
         │   ├── SummaryCards
@@ -250,25 +246,21 @@ App Layout
 
 ### 4.1 REST API エンドポイント設計
 
-#### 4.1.1 認証API
-- **GET /api/auth/user**: ユーザー情報取得
-- **POST /api/auth/signout**: ログアウト処理
-
-#### 4.1.2 商品API
+#### 4.1.1 商品API
 - **GET /api/products**: 商品一覧取得（検索・ソート・フィルター対応）
 - **POST /api/products**: 商品作成
 - **PUT /api/products/[id]**: 商品更新
 - **DELETE /api/products/[id]**: 商品削除
 - **POST /api/products/[id]/copy**: 商品コピー
 
-#### 4.1.3 ASIN API
+#### 4.1.2 ASIN API
 - **GET /api/asins**: ASIN一覧取得
 - **POST /api/asins**: ASIN作成
 - **PUT /api/asins/[id]**: ASIN更新
 - **POST /api/asins/upload**: ASIN一括アップロード
 - **POST /api/products/[productId]/asins/[asinId]/link**: ASIN紐付け
 
-#### 4.1.4 ショップ別スクレイピングAPI
+#### 4.1.3 ショップ別スクレイピングAPI
 - **POST /api/scraping/official/vt**: VTスクレイピング
 - **POST /api/scraping/official/dhc**: DHCスクレイピング
 - **POST /api/scraping/official/innisfree**: innisfreeスクレイピング
@@ -277,12 +269,12 @@ App Layout
 - **POST /api/scraping/yahoo/lohaco/dhc**: Yahoo-LOHACO-DHCAPI取得
 - **POST /api/scraping/yahoo/zozotown/vt**: Yahoo-ZOZOTOWN-VTAPI取得
 
-#### 4.1.5 統計API
+#### 4.1.4 統計API
 - **GET /api/shops/[shopType]/stats**: カテゴリ別統計
 - **GET /api/shops/[shopType]/[shopName]/stats**: ショップ別統計
 - **GET /api/shops/[shopType]/[shopName]/products**: ショップ別商品一覧
 
-#### 4.1.6 設定API
+#### 4.1.5 設定API
 - **GET /api/settings/discount**: 割引設定取得
 - **PUT /api/settings/discount**: 割引設定更新
 - **GET /api/settings/rakuten**: 楽天設定取得
@@ -570,21 +562,12 @@ Supabase Authが自動管理（参照のみ使用）
 
 ## 9. セキュリティ設計
 
-### 9.1 認証フロー設計
-- **Google OAuth 2.0**: メイン認証方式
-- **セッション管理**: 1ヶ月間の長期保持
-- **セキュアCookie**: HttpOnly、Secure、SameSite設定
-- **トークンリフレッシュ**: 自動トークン更新
+**注意**: このシステムはローカル環境のみでの使用を想定しており、認証機能は実装していません。
 
-### 9.2 ルート保護設計
-- **認証チェック**: 全ダッシュボードページで認証確認
-- **セッション検証**: API呼び出し時のトークン検証
-- **リダイレクト**: 未認証時の自動ログインページ遷移
-
-### 9.3 API認証設計
-- **Bearer Token**: Authorization ヘッダーでのトークン送信
-- **ユーザー特定**: トークンからユーザーID抽出
-- **権限チェック**: リソースアクセス権限の検証
+### 9.1 データセキュリティ
+- **環境変数管理**: .env.local で機密情報を管理
+- **ローカル使用**: 単一ユーザー向けローカル環境専用
+- **データ保護**: ローカルストレージによる設定保存
 
 ## 10. パフォーマンス最適化設計
 
@@ -660,11 +643,11 @@ Supabase Authが自動管理（参照のみ使用）
 
 ## 14. 運用設計
 
-### 14.1 デプロイメント
-- **Vercel**: 推奨デプロイプラットフォーム
-- **環境変数**: プラットフォーム設定画面で管理
-- **自動ビルド**: Git プッシュ時の自動デプロイ
-- **プレビューデプロイ**: プルリクエスト用プレビュー
+### 14.1 ローカル実行
+- **開発環境**: npm run dev でローカル起動
+- **環境変数**: .env.local で管理
+- **ポート**: 3000（デフォルト）
+- **注意**: ローカル環境のみでの使用を想定
 
 ### 14.2 監視・メンテナンス
 - **ヘルスチェック**: 基本的な生存監視
@@ -728,10 +711,10 @@ Supabase Authが自動管理（参照のみ使用）
 ## 16. 開発フェーズ設計
 
 ### 16.1 Phase 1: 基盤構築
-- 認証システム実装
 - 基本データベース設計
 - サイドバー・ナビゲーション
 - 商品一覧テーブル
+- 基本レイアウト実装
 
 ### 16.2 Phase 2: 公式サイト対応
 - VT Cosmetics スクレイピング
@@ -1527,16 +1510,12 @@ shop-research-app/
 #### 3.2.1 ページコンポーネント階層
 ```
 App Layout
-├── AuthLayout (認証ページ用)
-│   ├── LoginPage
-│   └── CallbackPage
 └── DashboardLayout (メイン機能用)
     ├── Header
     ├── Sidebar
     │   ├── NavigationMenu
     │   ├── ShopLinks
-    │   ├── SettingsLinks
-    │   └── UserProfile
+    │   └── SettingsLinks
     └── MainContent
         ├── DashboardHome (全体概要)
         │   ├── SummaryCards
@@ -1612,28 +1591,7 @@ App Layout
 
 ### 4.1 REST API エンドポイント設計
 
-#### 4.1.1 認証API
-```typescript
-// GET /api/auth/user
-// レスポンス: ユーザー情報取得
-interface AuthUserResponse {
-  user: {
-    id: string
-    email: string
-    name: string
-    picture: string
-  } | null
-  session: Session | null
-}
-
-// POST /api/auth/signout
-// レスポンス: ログアウト処理
-interface AuthSignoutResponse {
-  success: boolean
-}
-```
-
-#### 4.1.2 商品API
+#### 4.1.1 商品API
 ```typescript
 // GET /api/products
 // クエリ: ?search=&sortBy=&sortOrder=&limit=&offset=
@@ -1673,7 +1631,7 @@ interface ProductCopyResponse {
 }
 ```
 
-#### 4.1.3 ASIN API
+#### 4.1.2 ASIN API
 ```typescript
 // GET /api/asins
 interface AsinsGetResponse {
@@ -1718,7 +1676,7 @@ interface AsinLinkRequest {
 }
 ```
 
-#### 4.1.4 ショップ別スクレイピングAPI
+#### 4.1.3 ショップ別スクレイピングAPI
 ```typescript
 // POST /api/scraping/vt
 interface VTScrapingRequest {
@@ -2237,20 +2195,6 @@ interface AsinState {
   deleteAsin: (id: string) => Promise<void>
   uploadAsins: (file: File) => Promise<void>
   linkAsin: (productId: string, asinId: string) => Promise<void>
-}
-```
-
-#### 7.1.3 認証ストア
-```typescript
-// store/authStore.ts
-interface AuthState {
-  user: User | null
-  session: Session | null
-  isLoading: boolean
-  
-  signIn: () => Promise<void>
-  signOut: () => Promise<void>
-  checkAuth: () => Promise<void>
 }
 ```
 
