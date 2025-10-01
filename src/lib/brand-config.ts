@@ -42,7 +42,7 @@ export const BRAND_CONFIGS: Record<string, BrandConfig> = {
     color: "text-green-600",
     borderColor: "border-green-200",
     description: "innisfree公式サイトから取得した商品の管理・編集",
-    hasScrapingAPI: false
+    hasScrapingAPI: true
   }
 }
 

@@ -319,7 +319,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
               user_id: userId,
               product_id: productId,
               asin_id: newAsin.id
-            })
+            } as never)
 
           if (linkError) {
             throw new Error("商品-ASIN紐付けに失敗しました")
