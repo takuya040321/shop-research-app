@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useQuery } from "@tanstack/react-query"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,35 +19,25 @@ import {
   DollarSign,
   Percent,
 } from "lucide-react"
-import { getDashboardSummary, getShopStats, type DashboardSummary, type ShopStats } from "@/lib/dashboard"
+import { getDashboardSummary, getShopStats } from "@/lib/dashboard"
 import { formatPrice, formatPercentage } from "@/lib/products"
 
 const TEST_USER_ID = "test-user-id"
 
 export default function Home() {
-  const [summary, setSummary] = useState<DashboardSummary | null>(null)
-  const [shopStats, setShopStats] = useState<ShopStats[]>([])
-  const [loading, setLoading] = useState(true)
+  // ダッシュボードサマリーデータ取得
+  const { data: summary, isLoading: summaryLoading } = useQuery({
+    queryKey: ["dashboardSummary", TEST_USER_ID],
+    queryFn: () => getDashboardSummary(TEST_USER_ID),
+  })
 
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
+  // ショップ統計データ取得
+  const { data: shopStats = [], isLoading: statsLoading } = useQuery({
+    queryKey: ["shopStats", TEST_USER_ID],
+    queryFn: () => getShopStats(TEST_USER_ID),
+  })
 
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true)
-      const [summaryData, statsData] = await Promise.all([
-        getDashboardSummary(TEST_USER_ID),
-        getShopStats(TEST_USER_ID)
-      ])
-      setSummary(summaryData)
-      setShopStats(statsData)
-    } catch (error) {
-      console.error("ダッシュボードデータ読み込みエラー:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const loading = summaryLoading || statsLoading
 
   return (
     <MainLayout>

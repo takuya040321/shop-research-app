@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,7 +30,7 @@ import {
   toggleDiscountEnabled
 } from "@/lib/discounts"
 import { validateDiscountValue } from "@/types/discount"
-import type { DiscountSetting, DiscountType } from "@/types/discount"
+import type { DiscountType } from "@/types/discount"
 import { showSuccess, showError } from "@/lib/toast"
 
 const TEST_USER_ID = "test-user-id"
@@ -41,32 +42,59 @@ interface NewDiscount {
 }
 
 export default function DiscountsPage() {
-  const [discounts, setDiscounts] = useState<DiscountSetting[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [newDiscount, setNewDiscount] = useState<NewDiscount>({
     shopName: "",
     discountType: "percentage",
     discountValue: ""
   })
 
-  useEffect(() => {
-    loadDiscounts()
-  }, [])
+  // 割引設定一覧取得
+  const { data: discounts = [], isLoading: loading } = useQuery({
+    queryKey: ["discounts", TEST_USER_ID],
+    queryFn: () => getAllDiscounts(TEST_USER_ID),
+  })
 
-  const loadDiscounts = async () => {
-    try {
-      setLoading(true)
-      const data = await getAllDiscounts(TEST_USER_ID)
-      setDiscounts(data)
-    } catch (error) {
-      console.error("割引設定読み込みエラー:", error)
-      showError("割引設定の読み込みに失敗しました")
-    } finally {
-      setLoading(false)
-    }
-  }
+  // 割引設定作成のミューテーション
+  const createMutation = useMutation({
+    mutationFn: (discount: { shopName: string; discountType: DiscountType; discountValue: number }) =>
+      createDiscount(TEST_USER_ID, discount),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discounts", TEST_USER_ID] })
+      showSuccess("割引設定を追加しました")
+      setNewDiscount({ shopName: "", discountType: "percentage", discountValue: "" })
+    },
+    onError: () => {
+      showError("割引設定の追加に失敗しました")
+    },
+  })
 
-  const handleAdd = async () => {
+  // 割引設定削除のミューテーション
+  const deleteMutation = useMutation({
+    mutationFn: (shopName: string) => deleteDiscount(TEST_USER_ID, shopName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discounts", TEST_USER_ID] })
+      showSuccess("割引設定を削除しました")
+    },
+    onError: () => {
+      showError("割引設定の削除に失敗しました")
+    },
+  })
+
+  // 割引設定切り替えのミューテーション
+  const toggleMutation = useMutation({
+    mutationFn: ({ shopName, isEnabled }: { shopName: string; isEnabled: boolean }) =>
+      toggleDiscountEnabled(TEST_USER_ID, shopName, isEnabled),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["discounts", TEST_USER_ID] })
+      showSuccess(`割引設定を${variables.isEnabled ? "有効" : "無効"}にしました`)
+    },
+    onError: () => {
+      showError("割引設定の切り替えに失敗しました")
+    },
+  })
+
+  const handleAdd = () => {
     const value = parseFloat(newDiscount.discountValue)
 
     if (!newDiscount.shopName) {
@@ -79,45 +107,23 @@ export default function DiscountsPage() {
       return
     }
 
-    const result = await createDiscount(TEST_USER_ID, {
+    createMutation.mutate({
       shopName: newDiscount.shopName,
       discountType: newDiscount.discountType,
       discountValue: value
     })
-
-    if (result) {
-      showSuccess("割引設定を追加しました")
-      setNewDiscount({ shopName: "", discountType: "percentage", discountValue: "" })
-      loadDiscounts()
-    } else {
-      showError("割引設定の追加に失敗しました")
-    }
   }
 
-  const handleDelete = async (shopName: string) => {
+  const handleDelete = (shopName: string) => {
     if (!confirm(`${shopName}の割引設定を削除しますか？`)) {
       return
     }
 
-    const result = await deleteDiscount(TEST_USER_ID, shopName)
-
-    if (result) {
-      showSuccess("割引設定を削除しました")
-      loadDiscounts()
-    } else {
-      showError("割引設定の削除に失敗しました")
-    }
+    deleteMutation.mutate(shopName)
   }
 
-  const handleToggle = async (shopName: string, isEnabled: boolean) => {
-    const result = await toggleDiscountEnabled(TEST_USER_ID, shopName, isEnabled)
-
-    if (result) {
-      showSuccess(`割引設定を${isEnabled ? "有効" : "無効"}にしました`)
-      loadDiscounts()
-    } else {
-      showError("割引設定の切り替えに失敗しました")
-    }
+  const handleToggle = (shopName: string, isEnabled: boolean) => {
+    toggleMutation.mutate({ shopName, isEnabled })
   }
 
   return (
