@@ -59,6 +59,7 @@ const navigation = [
       { name: "全体設定", href: "/settings" },
       { name: "割引設定", href: "/settings/discounts" },
       { name: "エラーログ", href: "/settings/logs" },
+      { name: "システム情報", href: "/settings/system" },
     ],
   },
 ]
