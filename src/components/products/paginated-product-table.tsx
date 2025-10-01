@@ -45,6 +45,7 @@ import {
 } from "@/lib/products"
 import { supabase } from "@/lib/supabase"
 import { ProductSearch, type ProductFilters } from "./product-search"
+import { loadSettings } from "@/lib/settings"
 
 // ソート方向の型
 type SortDirection = "asc" | "desc" | null
@@ -64,11 +65,14 @@ interface PaginatedProductTableProps {
 }
 
 export function PaginatedProductTable({ userId, className, shopFilter, pageSize = 50 }: PaginatedProductTableProps) {
+  // 設定読み込み
+  const settings = loadSettings()
+
   const [products, setProducts] = useState<ExtendedProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<string | null>(null)
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null)
+  const [sortField, setSortField] = useState<string | null>(settings.sort.defaultSortColumn)
+  const [sortDirection, setSortDirection] = useState<SortDirection>(settings.sort.defaultSortDirection)
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null)
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
