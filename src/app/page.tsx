@@ -1,14 +1,54 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Button } from "@/components/ui/button"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Package,
   Database,
   Search,
-  TrendingUp,
   DollarSign,
+  Percent,
 } from "lucide-react"
+import { getDashboardSummary, getShopStats, type DashboardSummary, type ShopStats } from "@/lib/dashboard"
+import { formatPrice, formatPercentage } from "@/lib/products"
+
+const TEST_USER_ID = "test-user-id"
 
 export default function Home() {
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [shopStats, setShopStats] = useState<ShopStats[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadDashboardData()
+  }, [])
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true)
+      const [summaryData, statsData] = await Promise.all([
+        getDashboardSummary(TEST_USER_ID),
+        getShopStats(TEST_USER_ID)
+      ])
+      setSummary(summaryData)
+      setShopStats(statsData)
+    } catch (error) {
+      console.error("ダッシュボードデータ読み込みエラー:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -25,9 +65,11 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  登録商品数
+                  総商品数
                 </p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">
+                  {loading ? "..." : summary?.totalProducts.toLocaleString() || 0}
+                </p>
               </div>
               <Package className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -37,9 +79,11 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  ASIN数
+                  ASIN紐付け済み
                 </p>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">
+                  {loading ? "..." : summary?.productsWithAsin.toLocaleString() || 0}
+                </p>
               </div>
               <Database className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -49,9 +93,11 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  今月の利益予想
+                  総利益額（予測）
                 </p>
-                <p className="text-2xl font-bold">¥0</p>
+                <p className="text-2xl font-bold">
+                  {loading ? "..." : formatPrice(summary?.totalProfitAmount || 0)}
+                </p>
               </div>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -61,59 +107,96 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  成長率
+                  平均利益率
                 </p>
-                <p className="text-2xl font-bold">+0%</p>
+                <p className="text-2xl font-bold">
+                  {loading ? "..." : formatPercentage(summary?.averageProfitRate || 0)}
+                </p>
               </div>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <Percent className="h-4 w-4 text-muted-foreground" />
             </div>
           </div>
         </div>
 
-        {/* クイックアクション */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg border bg-card p-6">
-            <h3 className="font-semibold mb-2">商品リサーチ</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              公式サイト・楽天・Yahooで商品をリサーチ
+        {/* ショップ別概要 */}
+        <div className="rounded-lg border bg-card p-6">
+          <h3 className="font-semibold mb-4">ショップ別概要</h3>
+          {loading ? (
+            <p className="text-center py-8 text-muted-foreground">読み込み中...</p>
+          ) : shopStats.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">
+              データがありません
             </p>
-            <Button className="w-full">
-              <Search className="h-4 w-4 mr-2" />
-              リサーチ開始
-            </Button>
-          </div>
-
-          <div className="rounded-lg border bg-card p-6">
-            <h3 className="font-semibold mb-2">商品管理</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              登録済み商品の管理・編集
-            </p>
-            <Button variant="outline" className="w-full">
-              <Package className="h-4 w-4 mr-2" />
-              商品一覧
-            </Button>
-          </div>
-
-          <div className="rounded-lg border bg-card p-6">
-            <h3 className="font-semibold mb-2">ASIN管理</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Amazon ASINの管理・更新
-            </p>
-            <Button variant="outline" className="w-full">
-              <Database className="h-4 w-4 mr-2" />
-              ASIN一覧
-            </Button>
-          </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ショップ</TableHead>
+                  <TableHead className="text-right">商品数</TableHead>
+                  <TableHead className="text-right">ASIN紐付け率</TableHead>
+                  <TableHead className="text-right">平均利益率</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shopStats.map((stat, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{stat.shopName}</TableCell>
+                    <TableCell className="text-right">
+                      {stat.productCount.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatPercentage(stat.asinLinkRate)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatPercentage(stat.averageProfitRate)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
 
-        {/* 最近の活動 */}
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="font-semibold mb-4">最近の活動</h3>
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">
-              まだ活動履歴がありません
-            </p>
-          </div>
+        {/* クイックアクション */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Link href="/official">
+            <div className="rounded-lg border bg-card p-6 hover:bg-accent transition-colors cursor-pointer">
+              <h3 className="font-semibold mb-2">公式サイト</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                VT、DHC、innisfreeの公式サイト商品
+              </p>
+              <Button className="w-full">
+                <Search className="h-4 w-4 mr-2" />
+                商品を見る
+              </Button>
+            </div>
+          </Link>
+
+          <Link href="/rakuten/muji">
+            <div className="rounded-lg border bg-card p-6 hover:bg-accent transition-colors cursor-pointer">
+              <h3 className="font-semibold mb-2">楽天市場</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                楽天市場の商品をリサーチ
+              </p>
+              <Button variant="outline" className="w-full">
+                <Package className="h-4 w-4 mr-2" />
+                商品を見る
+              </Button>
+            </div>
+          </Link>
+
+          <Link href="/settings">
+            <div className="rounded-lg border bg-card p-6 hover:bg-accent transition-colors cursor-pointer">
+              <h3 className="font-semibold mb-2">設定</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                表示設定・ソート設定・通知設定
+              </p>
+              <Button variant="outline" className="w-full">
+                <Database className="h-4 w-4 mr-2" />
+                設定を開く
+              </Button>
+            </div>
+          </Link>
         </div>
       </div>
     </MainLayout>
