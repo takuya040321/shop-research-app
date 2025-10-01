@@ -48,6 +48,21 @@ export async function getDashboardSummary(userId: string): Promise<DashboardSumm
       ? (uniqueProductsWithAsin / totalProducts) * 100
       : 0
 
+    // 割引設定を取得
+    const { data: discounts } = await supabase
+      .from("shop_discounts")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_enabled", true)
+
+    const discountMap = new Map<string, { type: string; value: number }>()
+    if (discounts) {
+      for (const discount of discounts) {
+        const d = discount as { shop_name: string; discount_type: string; discount_value: number }
+        discountMap.set(d.shop_name, { type: d.discount_type, value: d.discount_value })
+      }
+    }
+
     // 商品とASINのデータを取得して利益計算
     const { data: products } = await supabase
       .from("products")
@@ -67,6 +82,7 @@ export async function getDashboardSummary(userId: string): Promise<DashboardSumm
     if (products) {
       for (const product of products) {
         const productData = product as {
+          shop_name: string | null
           sale_price: number | null
           price: number | null
           product_asins?: Array<{
@@ -81,7 +97,18 @@ export async function getDashboardSummary(userId: string): Promise<DashboardSumm
         const asinData = productData.product_asins?.[0]?.asins
         if (!asinData) continue
 
-        const purchasePrice = productData.sale_price || productData.price || 0
+        // 実効価格を計算（割引適用後）
+        let purchasePrice = productData.sale_price || productData.price || 0
+        const discount = productData.shop_name ? discountMap.get(productData.shop_name) : null
+
+        if (discount) {
+          if (discount.type === "percentage") {
+            purchasePrice = purchasePrice * (1 - discount.value / 100)
+          } else {
+            purchasePrice = purchasePrice - discount.value
+          }
+        }
+
         const amazonPrice = asinData.amazon_price || 0
         const feeRate = asinData.fee_rate || 0
         const fbaFee = asinData.fba_fee || 0
@@ -124,6 +151,21 @@ export async function getDashboardSummary(userId: string): Promise<DashboardSumm
  */
 export async function getShopStats(userId: string): Promise<ShopStats[]> {
   try {
+    // 割引設定を取得
+    const { data: discounts } = await supabase
+      .from("shop_discounts")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_enabled", true)
+
+    const discountMap = new Map<string, { type: string; value: number }>()
+    if (discounts) {
+      for (const discount of discounts) {
+        const d = discount as { shop_name: string; discount_type: string; discount_value: number }
+        discountMap.set(d.shop_name, { type: d.discount_type, value: d.discount_value })
+      }
+    }
+
     // 全商品を取得
     const { data: products } = await supabase
       .from("products")
@@ -193,7 +235,18 @@ export async function getShopStats(userId: string): Promise<ShopStats[]> {
       if (asinData) {
         stats.asinCount++
 
-        const purchasePrice = productData.sale_price || productData.price || 0
+        // 実効価格を計算（割引適用後）
+        let purchasePrice = productData.sale_price || productData.price || 0
+        const discount = discountMap.get(productData.shop_name)
+
+        if (discount) {
+          if (discount.type === "percentage") {
+            purchasePrice = purchasePrice * (1 - discount.value / 100)
+          } else {
+            purchasePrice = purchasePrice - discount.value
+          }
+        }
+
         const amazonPrice = asinData.amazon_price || 0
         const feeRate = asinData.fee_rate || 0
         const fbaFee = asinData.fba_fee || 0

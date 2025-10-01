@@ -55,6 +55,10 @@ const navigation = [
     name: "設定",
     href: "/settings",
     icon: Settings,
+    children: [
+      { name: "全体設定", href: "/settings" },
+      { name: "割引設定", href: "/settings/discounts" },
+    ],
   },
 ]
 
