@@ -29,16 +29,15 @@ Shop Research appは、個人のAmazon販売事業者が複数のECサイトか�
 ## 主な機能
 
 ### 📦 商品情報収集
-- **公式サイトスクレイピング**: ✅ VT Cosmetics（全カテゴリ一括取得）
-  - ⏳ DHC、innisfree（未実装）
-- **楽天市場API**: ⏳ 未実装
-- **Yahoo!ショッピングAPI**: ⏳ 未実装
+- **公式サイトスクレイピング**: ✅ VT Cosmetics、DHC、innisfree（全カテゴリ一括取得）
+- **楽天市場API**: ✅ 実装完了
+- **Yahoo!ショッピングAPI**: ✅ 実装完了
 
 ### 🔗 ASIN管理
 - ✅ 商品とASINのインライン紐付け
 - ✅ ASIN情報の直接入力・編集
 - ✅ 商品コピー機能（1商品に複数ASIN対応）
-- ⏳ ASIN一括アップロード（Excel/CSV）- 未実装
+- ✅ ASIN一括アップロード（Excel/CSV）
 
 ### 💰 利益計算
 - ✅ 利益額・利益率・ROI の自動計算
@@ -84,10 +83,10 @@ Shop Research appは、個人のAmazon販売事業者が複数のECサイトか�
 - **Serena MCP** (コードベース理解・検索)
 - **Supabase MCP** (データベース操作)
 
-### その他（未使用/予定）
-- ⏳ **SheetJS** (Excel/CSV処理)
-- ⏳ **楽天市場API**
-- ⏳ **Yahoo!ショッピングAPI**
+### その他
+- ✅ **SheetJS** (Excel/CSV処理)
+- ✅ **楽天市場API**
+- ✅ **Yahoo!ショッピングAPI**
 
 ## セットアップ
 
@@ -95,7 +94,8 @@ Shop Research appは、個人のAmazon販売事業者が複数のECサイトか�
 - Node.js v20.x 以上
 - npm v9.0.0 以上
 - Supabaseアカウント
-- Google Cloud Platform アカウント（OAuth用）
+
+**注意**: このシステムはローカル環境のみでの使用を想定しており、デプロイや認証機能は実装していません。
 
 ### インストール手順
 
@@ -121,10 +121,6 @@ cp .env.example .env.local
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Google OAuth
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # プロキシ（オプション）
 USE_PROXY=false
@@ -154,24 +150,21 @@ npm run dev
 
 ### 基本的なワークフロー
 
-1. **ログイン**
-   - Google認証でログイン
-
-2. **スクレイピング実行**
+1. **スクレイピング実行**
    - サイドバーからショップを選択
    - スクレイピング実行ボタンをクリック
    - 商品データが自動取得・保存される
 
-3. **ASIN紐付け**
+2. **ASIN紐付け**
    - ASIN管理ページでExcel/CSVをアップロード
    - または手動でASIN情報を入力
    - 商品とASINを紐付け
 
-4. **利益確認**
+3. **利益確認**
    - 商品一覧テーブルで利益額・利益率・ROIを確認
    - インライン編集でAmazon価格や手数料を調整
 
-5. **設定カスタマイズ**
+4. **設定カスタマイズ**
    - 全体設定で表示列・ソート順を設定
    - ショップ別割引設定で利益計算を最適化
 
@@ -304,21 +297,21 @@ npm start
 - ✅ プロキシ制御実装
 - ✅ Serena MCP・Supabase MCP統合
 
-### Phase 2: 公式サイト対応（部分完了）
+### Phase 2: 公式サイト対応 ✅
 - ✅ **商品テーブルコンポーネント**: 全機能実装完了
 - ✅ **商品管理機能**: 検索、フィルター、編集、コピー、削除
 - ✅ **VT Cosmeticsスクレイピング**: 全カテゴリ対応完了
-- ✅ **ASIN管理機能**: インライン編集完全対応
+- ✅ **DHCスクレイピング**: 全カテゴリ対応完了
+- ✅ **innisfreeスクレイピング**: 全カテゴリ対応完了
+- ✅ **ASIN管理機能**: インライン編集・一括アップロード完全対応
 - ✅ **利益計算機能**: リアルタイム自動計算
 - ✅ **重複削除機能**: 自動・手動実行対応
-- ⏳ DHC/innisfreeスクレイピング（未実装）
 
-### Phase 3: API統合（未着手）
-- ⏳ 楽天市場API統合
-- ⏳ Yahoo!ショッピングAPI統合
+### Phase 3: API統合 ✅
+- ✅ 楽天市場API統合
+- ✅ Yahoo!ショッピングAPI統合
 
 ### Phase 4: 高度機能（未着手）
-- ⏳ 認証システム（Google OAuth）
 - ⏳ ダッシュボード
 - ⏳ 全体設定・割引設定UI
 
