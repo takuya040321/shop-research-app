@@ -7,13 +7,12 @@
  */
 
 import { useParams } from "next/navigation"
-import { useState } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { toast } from "sonner"
 import { PaginatedProductTable } from "@/components/products/paginated-product-table"
+import { useYahooPage } from "@/hooks/yahoo/use-yahoo-page"
 
 // Yahoo階層設定
 const YAHOO_CONFIG: Record<string, {
@@ -55,11 +54,23 @@ export default function YahooHierarchyPage() {
   const configKey = slug.join("-")
   const config = YAHOO_CONFIG[configKey]
 
-  const [query, setQuery] = useState(config?.defaultQuery || "")
-  const [sellerId, setSellerId] = useState(config?.sellerId || "")
-  const [categoryId, setCategoryId] = useState(config?.categoryId || "")
-  const [loading, setLoading] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
+  // カスタムフックから全てのロジックを取得
+  const {
+    query,
+    sellerId,
+    categoryId,
+    loading,
+    refreshKey,
+    setQuery,
+    setSellerId,
+    setCategoryId,
+    handleSearch
+  } = useYahooPage({
+    defaultQuery: config?.defaultQuery,
+    defaultSellerId: config?.sellerId,
+    defaultCategoryId: config?.categoryId,
+    shopName: config?.displayName || ""
+  })
 
   if (!config) {
     return (
@@ -75,56 +86,6 @@ export default function YahooHierarchyPage() {
         </main>
       </div>
     )
-  }
-
-  const handleSearch = async () => {
-    if (!query && !sellerId && !categoryId) {
-      toast.error("検索条件を入力してください", {
-        description: "クエリ、ストアID、カテゴリIDのいずれかを入力してください"
-      })
-      return
-    }
-
-    setLoading(true)
-
-    try {
-      const response = await fetch("/api/yahoo/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          userId: "test-user-id", // 仮のユーザーID
-          query: query || undefined,
-          sellerId: sellerId || undefined,
-          categoryId: categoryId || undefined,
-          shopName: config.displayName,
-          hits: 30,
-          offset: 1
-        })
-      })
-
-      const data = await response.json()
-
-      if (response.ok && data.success) {
-        toast.success("商品検索完了", {
-          description: `${data.data.savedCount}件の商品を保存しました（${data.data.skippedCount}件スキップ）`
-        })
-        // 商品テーブルを再読み込み
-        setRefreshKey(prev => prev + 1)
-      } else {
-        toast.error("商品検索失敗", {
-          description: data.message || "エラーが発生しました"
-        })
-      }
-    } catch (error) {
-      console.error("商品検索エラー:", error)
-      toast.error("商品検索失敗", {
-        description: "ネットワークエラーが発生しました"
-      })
-    } finally {
-      setLoading(false)
-    }
   }
 
   return (

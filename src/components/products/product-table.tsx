@@ -5,7 +5,7 @@
  * 商品情報とASIN情報を結合して表示し、インライン編集機能を提供
  */
 
-import { useState, useEffect, useMemo } from "react"
+import { useState } from "react"
 import Image from "next/image"
 import {
   Table,
@@ -29,29 +29,10 @@ import {
 } from "lucide-react"
 
 import type { ExtendedProduct } from "@/lib/products"
-import {
-  getProductsWithAsinAndProfits,
-  updateProduct,
-  updateAsin,
-  copyProduct,
-  deleteProduct,
-  formatPrice,
-  formatPercentage
-} from "@/lib/products"
-import { supabase } from "@/lib/supabase"
-import { ProductSearch, type ProductFilters } from "./product-search"
+import { formatPrice, formatPercentage } from "@/lib/products"
+import { ProductSearch } from "./product-search"
 import { ContextMenu, useContextMenu } from "@/components/ui/context-menu"
-import { toast } from "sonner"
-
-// ソート方向の型
-type SortDirection = "asc" | "desc" | null
-
-// 編集中のセル情報
-interface EditingCell {
-  productId: string
-  field: string
-  value: string
-}
+import { useProductTable } from "@/hooks/products/use-product-table"
 
 interface ProductTableProps {
   userId: string
@@ -60,311 +41,33 @@ interface ProductTableProps {
 }
 
 export function ProductTable({ userId, className, shopFilter }: ProductTableProps) {
-  const [products, setProducts] = useState<ExtendedProduct[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<string | null>(null)
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null)
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null)
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
-  const [filters, setFilters] = useState<ProductFilters>({
-    searchText: "",
-    minPrice: null,
-    maxPrice: null,
-    minProfitRate: null,
-    maxProfitRate: null,
-    minROI: null,
-    maxROI: null,
-    asinStatus: "all"
-  })
   const [selectedProductForMenu, setSelectedProductForMenu] = useState<ExtendedProduct | null>(null)
   const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu()
 
-  // データ読み込み
-  useEffect(() => {
-    loadProducts()
-  }, [userId, shopFilter]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadProducts = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await getProductsWithAsinAndProfits(userId)
-      setProducts(data)
-    } catch (err) {
-      console.error("商品データ読み込みエラー:", err)
-      setError("商品データの読み込みに失敗しました")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-
-  // フィルタリング・ソート機能
-  const filteredAndSortedProducts = useMemo(() => {
-    // 1. フィルタリング
-    let filtered = products
-
-    // shopFilterが指定されている場合
-    if (shopFilter) {
-      filtered = filtered.filter(product => product.shop_name === shopFilter)
-    }
-
-    // 検索テキストフィルター
-    if (filters.searchText) {
-      const searchLower = filters.searchText.toLowerCase()
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchLower) ||
-        product.asin?.asin.toLowerCase().includes(searchLower) ||
-        product.asin?.amazon_name?.toLowerCase().includes(searchLower)
-      )
-    }
-
-    // 価格フィルター
-    if (filters.minPrice !== null) {
-      filtered = filtered.filter(product =>
-        (product.sale_price || product.price || 0) >= filters.minPrice!
-      )
-    }
-    if (filters.maxPrice !== null) {
-      filtered = filtered.filter(product =>
-        (product.sale_price || product.price || 0) <= filters.maxPrice!
-      )
-    }
-
-    // 利益率フィルター
-    if (filters.minProfitRate !== null) {
-      filtered = filtered.filter(product =>
-        (product.profit_rate || 0) >= filters.minProfitRate!
-      )
-    }
-    if (filters.maxProfitRate !== null) {
-      filtered = filtered.filter(product =>
-        (product.profit_rate || 0) <= filters.maxProfitRate!
-      )
-    }
-
-    // ROIフィルター
-    if (filters.minROI !== null) {
-      filtered = filtered.filter(product =>
-        (product.roi || 0) >= filters.minROI!
-      )
-    }
-    if (filters.maxROI !== null) {
-      filtered = filtered.filter(product =>
-        (product.roi || 0) <= filters.maxROI!
-      )
-    }
-
-    // ASIN設定状況フィルター
-    if (filters.asinStatus === "with_asin") {
-      filtered = filtered.filter(product => product.asin)
-    } else if (filters.asinStatus === "without_asin") {
-      filtered = filtered.filter(product => !product.asin)
-    }
-
-    // 2. ソート
-    if (!sortField || !sortDirection) return filtered
-
-    return [...filtered].sort((a, b) => {
-      let aValue: unknown = a[sortField as keyof ExtendedProduct]
-      let bValue: unknown = b[sortField as keyof ExtendedProduct]
-
-      // ASIN関連のフィールドの場合
-      if (sortField.startsWith("asin_")) {
-        const asinField = sortField.replace("asin_", "")
-        aValue = a.asin?.[asinField as keyof typeof a.asin]
-        bValue = b.asin?.[asinField as keyof typeof b.asin]
-      }
-
-      // null/undefinedの処理
-      if (aValue == null) aValue = ""
-      if (bValue == null) bValue = ""
-
-      // 数値の場合
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortDirection === "asc" ? aValue - bValue : bValue - aValue
-      }
-
-      // 文字列の場合
-      const aStr = String(aValue).toLowerCase()
-      const bStr = String(bValue).toLowerCase()
-
-      if (sortDirection === "asc") {
-        return aStr.localeCompare(bStr, "ja")
-      } else {
-        return bStr.localeCompare(aStr, "ja")
-      }
-    })
-  }, [products, filters, shopFilter, sortField, sortDirection])
-
-  // ソートハンドラー
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc")
-      } else if (sortDirection === "desc") {
-        setSortField(null)
-        setSortDirection(null)
-      } else {
-        setSortDirection("asc")
-      }
-    } else {
-      setSortField(field)
-      setSortDirection("asc")
-    }
-  }
-
-  // 編集開始
-  const startEditing = (productId: string, field: string, currentValue: unknown) => {
-    setEditingCell({
-      productId,
-      field,
-      value: String(currentValue || "")
-    })
-  }
-
-  // 編集キャンセル
-  const cancelEditing = () => {
-    setEditingCell(null)
-  }
-
-  // 編集保存
-  const saveEdit = async () => {
-    if (!editingCell) return
-
-    try {
-      const { productId, field, value } = editingCell
-      const product = products.find(p => p.id === productId)
-      if (!product) return
-
-      let success = false
-
-      // ASIN関連フィールドの場合
-      if (field.startsWith("asin_")) {
-        const asinField = field.replace("asin_", "")
-
-        // ASINが存在しない場合は新規作成
-        if (!product.asin && asinField === "asin" && value) {
-          // 新規ASIN作成
-          const { data: newAsin, error: createAsinError } = await supabase
-            .from("asins")
-            .insert({
-              user_id: userId,
-              asin: value,
-              has_amazon: false,
-              has_official: false,
-              is_dangerous: false,
-              is_per_carry_ng: false
-            })
-            .select()
-            .single()
-
-          if (createAsinError || !newAsin) {
-            throw new Error("ASIN作成に失敗しました")
-          }
-
-          // 商品-ASIN紐付けを作成
-          const { error: linkError } = await supabase
-            .from("product_asins")
-            .insert({
-              user_id: userId,
-              product_id: productId,
-              asin_id: newAsin.id
-            })
-
-          if (linkError) {
-            throw new Error("商品-ASIN紐付けに失敗しました")
-          }
-
-          success = true
-        } else if (product.asin) {
-          // 既存ASIN更新
-          const updates: Record<string, unknown> = {}
-
-          // 数値フィールドの処理
-          if (["amazon_price", "monthly_sales", "fee_rate", "fba_fee", "complaint_count"].includes(asinField)) {
-            updates[asinField] = value ? parseFloat(value) : null
-          } else if (["has_amazon", "has_official", "is_dangerous", "is_per_carry_ng"].includes(asinField)) {
-            updates[asinField] = value === "true"
-          } else {
-            updates[asinField] = value || null
-          }
-
-          success = await updateAsin(product.asin.id, updates, userId)
-        }
-      } else {
-        // 商品フィールドの場合
-        const updates: Record<string, unknown> = {}
-
-        if (["price", "sale_price"].includes(field)) {
-          updates[field] = value ? parseFloat(value) : null
-        } else if (field === "is_hidden") {
-          updates[field] = value === "true"
-        } else {
-          updates[field] = value || null
-        }
-
-        success = await updateProduct(productId, updates, userId)
-      }
-
-      if (success) {
-        setEditingCell(null)
-        await loadProducts() // データを再読み込み
-      } else {
-        setError("更新に失敗しました")
-      }
-    } catch (err) {
-      console.error("編集保存エラー:", err)
-      setError("更新中にエラーが発生しました")
-    }
-  }
-
-  // 商品コピー
-  const handleCopyProduct = async (product: ExtendedProduct) => {
-    try {
-      const success = await copyProduct(product.id, userId)
-      if (success) {
-        await loadProducts()
-        toast.success("商品をコピーしました", {
-          description: `「${product.name}」をコピーしました`,
-        })
-      } else {
-        toast.error("コピーに失敗しました", {
-          description: "商品のコピー中にエラーが発生しました",
-        })
-      }
-    } catch (err) {
-      console.error("商品コピーエラー:", err)
-      toast.error("コピーに失敗しました", {
-        description: "商品のコピー中にエラーが発生しました",
-      })
-    }
-  }
-
-  // 商品削除
-  const handleDeleteProduct = async (product: ExtendedProduct) => {
-    if (!confirm(`「${product.name}」を削除しますか？この操作は取り消せません。`)) {
-      return
-    }
-
-    try {
-      const success = await deleteProduct(product.id, userId)
-      if (success) {
-        await loadProducts() // データを再読み込み
-        // 選択状態からも削除
-        const newSelection = new Set(selectedProducts)
-        newSelection.delete(product.id)
-        setSelectedProducts(newSelection)
-        setError(null)
-      } else {
-        setError("商品の削除に失敗しました")
-      }
-    } catch (err) {
-      console.error("商品削除エラー:", err)
-      setError("商品の削除中にエラーが発生しました")
-    }
-  }
+  // カスタムフックから全てのロジックを取得（ページネーション無しで全件表示）
+  const {
+    allProducts,
+    totalProductsCount,
+    loading,
+    error,
+    sortField,
+    sortDirection,
+    editingCell,
+    filters,
+    setFilters,
+    setEditingCell,
+    handleSort,
+    startEditing,
+    cancelEditing,
+    saveEdit,
+    handleCopyProduct,
+    handleDeleteProduct,
+    getSortIcon,
+  } = useProductTable({
+    userId,
+    shopFilter,
+    pageSize: 9999 // 全件表示するため大きな値を設定
+  })
 
   // 右クリックメニューの項目
   const getContextMenuItems = (product: ExtendedProduct) => {
@@ -394,12 +97,13 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
   }
 
   // ソートアイコンを表示するヘルパー
-  const getSortIcon = (field: string) => {
-    if (sortField !== field) return null
+  const renderSortIcon = (field: string) => {
+    const direction = getSortIcon(field)
+    if (!direction) return null
 
-    if (sortDirection === "asc") {
+    if (direction === "asc") {
       return <ChevronUpIcon className="w-4 h-4 ml-1" />
-    } else if (sortDirection === "desc") {
+    } else if (direction === "desc") {
       return <ChevronDownIcon className="w-4 h-4 ml-1" />
     }
     return null
@@ -479,9 +183,6 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
       <Card className={className}>
         <div className="p-6 text-center">
           <p className="text-red-600 mb-4">{error}</p>
-          <Button onClick={loadProducts} variant="outline">
-            再試行
-          </Button>
         </div>
       </Card>
     )
@@ -493,8 +194,8 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
       <ProductSearch
         filters={filters}
         onFiltersChange={setFilters}
-        totalCount={products.length}
-        filteredCount={filteredAndSortedProducts.length}
+        totalCount={allProducts.length}
+        filteredCount={allProducts.length}
       />
 
       <Card>
@@ -508,7 +209,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   画像
-                  {getSortIcon("image_url")}
+                  {renderSortIcon("image_url")}
                 </div>
               </TableHead>
 
@@ -518,7 +219,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   商品名
-                  {getSortIcon("name")}
+                  {renderSortIcon("name")}
                 </div>
               </TableHead>
 
@@ -528,7 +229,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   価格
-                  {getSortIcon("price")}
+                  {renderSortIcon("price")}
                 </div>
               </TableHead>
 
@@ -538,7 +239,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   仕入価格
-                  {getSortIcon("effective_price")}
+                  {renderSortIcon("effective_price")}
                 </div>
               </TableHead>
 
@@ -549,7 +250,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   ASIN
-                  {getSortIcon("asin_asin")}
+                  {renderSortIcon("asin_asin")}
                 </div>
               </TableHead>
 
@@ -559,7 +260,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   Amazon商品名
-                  {getSortIcon("asin_amazon_name")}
+                  {renderSortIcon("asin_amazon_name")}
                 </div>
               </TableHead>
 
@@ -569,7 +270,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   Amazon価格
-                  {getSortIcon("asin_amazon_price")}
+                  {renderSortIcon("asin_amazon_price")}
                 </div>
               </TableHead>
 
@@ -579,7 +280,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   月間売上
-                  {getSortIcon("asin_monthly_sales")}
+                  {renderSortIcon("asin_monthly_sales")}
                 </div>
               </TableHead>
 
@@ -589,7 +290,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   手数料率
-                  {getSortIcon("asin_fee_rate")}
+                  {renderSortIcon("asin_fee_rate")}
                 </div>
               </TableHead>
 
@@ -599,7 +300,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   FBA料
-                  {getSortIcon("asin_fba_fee")}
+                  {renderSortIcon("asin_fba_fee")}
                 </div>
               </TableHead>
 
@@ -609,7 +310,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   JANコード
-                  {getSortIcon("asin_jan_code")}
+                  {renderSortIcon("asin_jan_code")}
                 </div>
               </TableHead>
 
@@ -620,7 +321,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   利益額
-                  {getSortIcon("profit_amount")}
+                  {renderSortIcon("profit_amount")}
                 </div>
               </TableHead>
 
@@ -630,7 +331,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   利益率
-                  {getSortIcon("profit_rate")}
+                  {renderSortIcon("profit_rate")}
                 </div>
               </TableHead>
 
@@ -640,7 +341,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   ROI
-                  {getSortIcon("roi")}
+                  {renderSortIcon("roi")}
                 </div>
               </TableHead>
 
@@ -650,7 +351,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   非表示
-                  {getSortIcon("is_hidden")}
+                  {renderSortIcon("is_hidden")}
                 </div>
               </TableHead>
 
@@ -660,7 +361,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   Amazon有
-                  {getSortIcon("asin_has_amazon")}
+                  {renderSortIcon("asin_has_amazon")}
                 </div>
               </TableHead>
 
@@ -670,7 +371,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   公式有
-                  {getSortIcon("asin_has_official")}
+                  {renderSortIcon("asin_has_official")}
                 </div>
               </TableHead>
 
@@ -680,7 +381,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   クレーム数
-                  {getSortIcon("asin_complaint_count")}
+                  {renderSortIcon("asin_complaint_count")}
                 </div>
               </TableHead>
 
@@ -690,7 +391,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   危険品
-                  {getSortIcon("asin_is_dangerous")}
+                  {renderSortIcon("asin_is_dangerous")}
                 </div>
               </TableHead>
 
@@ -700,7 +401,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   パーキャリNG
-                  {getSortIcon("asin_is_per_carry_ng")}
+                  {renderSortIcon("asin_is_per_carry_ng")}
                 </div>
               </TableHead>
 
@@ -710,7 +411,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
               >
                 <div className="flex items-center justify-center">
                   ASINメモ
-                  {getSortIcon("asin_memo")}
+                  {renderSortIcon("asin_memo")}
                 </div>
               </TableHead>
 
@@ -718,7 +419,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
           </TableHeader>
 
           <TableBody>
-            {filteredAndSortedProducts.map((product) => (
+            {allProducts.map((product) => (
               <TableRow
                 key={product.id}
                 className="hover:bg-gray-50 h-24 cursor-pointer"
@@ -1043,14 +744,14 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
         </Table>
       </div>
 
-        {filteredAndSortedProducts.length === 0 && products.length > 0 && (
+        {allProducts.length === 0 && totalProductsCount > 0 && (
           <div className="p-8 text-center text-gray-500">
             <p>条件に一致する商品がありません</p>
             <p className="text-sm mt-1">検索条件やフィルターを変更してください</p>
           </div>
         )}
 
-        {products.length === 0 && (
+        {totalProductsCount === 0 && (
           <div className="p-8 text-center text-gray-500">
             <p>商品データがありません</p>
             <p className="text-sm mt-1">スクレイピングを実行して商品を取得してください</p>

@@ -5,7 +5,7 @@
  * 大量データのパフォーマンス最適化のためページネーションを実装
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useCallback } from "react"
 import Image from "next/image"
 import {
   Table,
@@ -18,7 +18,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import type { Asin } from "@/types/database"
 import {
   ChevronUpIcon,
   ChevronDownIcon,
@@ -35,27 +34,11 @@ import {
 
 import type { ExtendedProduct } from "@/lib/products"
 import {
-  getProductsWithAsinAndProfits,
-  updateProduct,
-  updateAsin,
-  copyProduct,
-  deleteProduct,
   formatPrice,
   formatPercentage
 } from "@/lib/products"
-import { supabase } from "@/lib/supabase"
-import { ProductSearch, type ProductFilters } from "./product-search"
-import { loadSettings } from "@/lib/settings"
-
-// ソート方向の型
-type SortDirection = "asc" | "desc" | null
-
-// 編集中のセル情報
-interface EditingCell {
-  productId: string
-  field: string
-  value: string
-}
+import { ProductSearch } from "./product-search"
+import { useProductTable } from "@/hooks/products/use-product-table"
 
 interface PaginatedProductTableProps {
   userId: string
@@ -65,362 +48,50 @@ interface PaginatedProductTableProps {
 }
 
 export function PaginatedProductTable({ userId, className, shopFilter, pageSize = 50 }: PaginatedProductTableProps) {
-  // 設定読み込み
-  const settings = loadSettings()
+  // カスタムフックから全てのロジックを取得
+  const {
+    products: currentPageProducts,
+    allProducts: filteredAndSortedProducts,
+    totalProductsCount,
+    loading,
+    error,
+    editingCell,
+    selectedProducts,
+    currentPage,
+    totalPages,
+    startIndex,
+    endIndex,
+    filters,
+    setFilters,
+    setEditingCell,
+    loadProducts,
+    handleSelectProduct,
+    handleSort,
+    goToFirstPage,
+    goToPreviousPage,
+    goToNextPage,
+    goToLastPage,
+    toggleSelectAll,
+    startEditing,
+    cancelEditing,
+    saveEdit,
+    handleCopyProduct,
+    handleDeleteProduct,
+    getSortIcon
+  } = useProductTable({ userId, shopFilter, pageSize })
 
-  const [products, setProducts] = useState<ExtendedProduct[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<string | null>(settings.sort.defaultSortColumn)
-  const [sortDirection, setSortDirection] = useState<SortDirection>(settings.sort.defaultSortDirection)
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null)
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
-  const [currentPage, setCurrentPage] = useState(1)
-  const [filters, setFilters] = useState<ProductFilters>({
-    searchText: "",
-    minPrice: null,
-    maxPrice: null,
-    minProfitRate: null,
-    maxProfitRate: null,
-    minROI: null,
-    maxROI: null,
-    asinStatus: "all"
-  })
+  // ソートアイコンを描画するヘルパー
+  const renderSortIcon = useCallback((field: string) => {
+    const direction = getSortIcon(field)
+    if (!direction) return null
 
-  // データ読み込み
-  useEffect(() => {
-    loadProducts()
-  }, [userId, shopFilter])
-
-  const loadProducts = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      console.time('商品データ読み込み（ページネーション）')
-      const data = await getProductsWithAsinAndProfits(userId)
-      console.timeEnd('商品データ読み込み（ページネーション）')
-      console.log(`${data.length}件の商品データを読み込みました（ページネーション対応）`)
-      setProducts(data)
-      setCurrentPage(1) // データ更新時はページを最初に戻す
-    } catch (err) {
-      console.error("商品データ読み込みエラー:", err)
-      setError("商品データの読み込みに失敗しました")
-    } finally {
-      setLoading(false)
-    }
-  }, [userId])
-
-  // フィルタリング・ソート機能
-  const filteredAndSortedProducts = useMemo(() => {
-    // 1. フィルタリング
-    let filtered = products
-
-    // shopFilterが指定されている場合
-    if (shopFilter) {
-      filtered = filtered.filter(product => product.shop_name === shopFilter)
-    }
-
-    // 検索テキストフィルター
-    if (filters.searchText) {
-      const searchLower = filters.searchText.toLowerCase()
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchLower) ||
-        product.asin?.asin.toLowerCase().includes(searchLower) ||
-        product.asin?.amazon_name?.toLowerCase().includes(searchLower)
-      )
-    }
-
-    // 価格フィルター
-    if (filters.minPrice !== null) {
-      filtered = filtered.filter(product =>
-        (product.sale_price || product.price || 0) >= filters.minPrice!
-      )
-    }
-    if (filters.maxPrice !== null) {
-      filtered = filtered.filter(product =>
-        (product.sale_price || product.price || 0) <= filters.maxPrice!
-      )
-    }
-
-    // 利益率フィルター
-    if (filters.minProfitRate !== null) {
-      filtered = filtered.filter(product =>
-        (product.profit_rate || 0) >= filters.minProfitRate!
-      )
-    }
-    if (filters.maxProfitRate !== null) {
-      filtered = filtered.filter(product =>
-        (product.profit_rate || 0) <= filters.maxProfitRate!
-      )
-    }
-
-    // ROIフィルター
-    if (filters.minROI !== null) {
-      filtered = filtered.filter(product =>
-        (product.roi || 0) >= filters.minROI!
-      )
-    }
-    if (filters.maxROI !== null) {
-      filtered = filtered.filter(product =>
-        (product.roi || 0) <= filters.maxROI!
-      )
-    }
-
-    // ASIN設定状況フィルター
-    if (filters.asinStatus === "with_asin") {
-      filtered = filtered.filter(product => product.asin)
-    } else if (filters.asinStatus === "without_asin") {
-      filtered = filtered.filter(product => !product.asin)
-    }
-
-    // 2. ソート
-    if (!sortField || !sortDirection) return filtered
-
-    return [...filtered].sort((a, b) => {
-      let aValue: unknown = a[sortField as keyof ExtendedProduct]
-      let bValue: unknown = b[sortField as keyof ExtendedProduct]
-
-      // ASIN関連のフィールドの場合
-      if (sortField.startsWith("asin_")) {
-        const asinField = sortField.replace("asin_", "")
-        aValue = a.asin?.[asinField as keyof typeof a.asin]
-        bValue = b.asin?.[asinField as keyof typeof b.asin]
-      }
-
-      // null/undefinedの処理
-      if (aValue == null) aValue = ""
-      if (bValue == null) bValue = ""
-
-      // 数値の場合
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortDirection === "asc" ? aValue - bValue : bValue - aValue
-      }
-
-      // 文字列の場合
-      const aStr = String(aValue).toLowerCase()
-      const bStr = String(bValue).toLowerCase()
-
-      if (sortDirection === "asc") {
-        return aStr.localeCompare(bStr, "ja")
-      } else {
-        return bStr.localeCompare(aStr, "ja")
-      }
-    })
-  }, [products, filters, shopFilter, sortField, sortDirection])
-
-  // ページネーション計算
-  const totalPages = Math.ceil(filteredAndSortedProducts.length / pageSize)
-  const startIndex = (currentPage - 1) * pageSize
-  const endIndex = Math.min(startIndex + pageSize, filteredAndSortedProducts.length)
-  const currentPageProducts = filteredAndSortedProducts.slice(startIndex, endIndex)
-
-  // フィルター変更時にページを最初に戻す
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [filters, shopFilter])
-
-  // ハンドラー関数
-  const handleSelectProduct = useCallback((productId: string) => {
-    const newSelection = new Set(selectedProducts)
-    if (newSelection.has(productId)) {
-      newSelection.delete(productId)
-    } else {
-      newSelection.add(productId)
-    }
-    setSelectedProducts(newSelection)
-  }, [selectedProducts])
-
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc")
-      } else if (sortDirection === "desc") {
-        setSortField(null)
-        setSortDirection(null)
-      } else {
-        setSortDirection("asc")
-      }
-    } else {
-      setSortField(field)
-      setSortDirection("asc")
-    }
-    setCurrentPage(1) // ソート変更時はページを最初に戻す
-  }, [sortField, sortDirection])
-
-  // ページネーション操作
-  const goToFirstPage = () => setCurrentPage(1)
-  const goToPreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1))
-  const goToNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1))
-  const goToLastPage = () => setCurrentPage(totalPages)
-
-  // 全選択/解除（現在のページのみ）
-  const toggleSelectAll = useCallback(() => {
-    const currentPageProductIds = currentPageProducts.map(p => p.id)
-    const allCurrentPageSelected = currentPageProductIds.every(id => selectedProducts.has(id))
-
-    const newSelection = new Set(selectedProducts)
-    if (allCurrentPageSelected) {
-      // 現在のページをすべて選択解除
-      currentPageProductIds.forEach(id => newSelection.delete(id))
-    } else {
-      // 現在のページをすべて選択
-      currentPageProductIds.forEach(id => newSelection.add(id))
-    }
-    setSelectedProducts(newSelection)
-  }, [selectedProducts, currentPageProducts])
-
-  // 編集機能
-  const startEditing = useCallback((productId: string, field: string, currentValue: unknown) => {
-    setEditingCell({
-      productId,
-      field,
-      value: String(currentValue || "")
-    })
-  }, [])
-
-  const cancelEditing = useCallback(() => {
-    setEditingCell(null)
-  }, [])
-
-  const saveEdit = useCallback(async () => {
-    if (!editingCell) return
-
-    try {
-      const { productId, field, value } = editingCell
-      const product = products.find(p => p.id === productId)
-      if (!product) return
-
-      let success = false
-
-      // ASIN関連フィールドの場合
-      if (field.startsWith("asin_")) {
-        const asinField = field.replace("asin_", "")
-
-        // ASINが存在しない場合は新規作成
-        if (!product.asin && asinField === "asin" && value) {
-          // 新規ASIN作成
-          const { data: newAsin, error: createAsinError } = await supabase
-            .from("asins")
-            .insert({
-              user_id: userId,
-              asin: value,
-              has_amazon: false,
-              has_official: false,
-              is_dangerous: false,
-              is_per_carry_ng: false
-            } as never)
-            .select()
-            .single<Asin>()
-
-          if (createAsinError || !newAsin) {
-            throw new Error("ASIN作成に失敗しました")
-          }
-
-          // 商品-ASIN紐付けを作成
-          const { error: linkError } = await supabase
-            .from("product_asins")
-            .insert({
-              user_id: userId,
-              product_id: productId,
-              asin_id: newAsin.id
-            } as never)
-
-          if (linkError) {
-            throw new Error("商品-ASIN紐付けに失敗しました")
-          }
-
-          success = true
-        } else if (product.asin) {
-          // 既存ASIN更新
-          const updates: Record<string, unknown> = {}
-
-          // 数値フィールドの処理
-          if (["amazon_price", "monthly_sales", "fee_rate", "fba_fee", "complaint_count"].includes(asinField)) {
-            updates[asinField] = value ? parseFloat(value) : null
-          } else if (["has_amazon", "has_official", "is_dangerous", "is_per_carry_ng"].includes(asinField)) {
-            updates[asinField] = value === "true"
-          } else {
-            updates[asinField] = value || null
-          }
-
-          success = await updateAsin(product.asin.id, updates, userId)
-        }
-      } else {
-        // 商品フィールドの場合
-        const updates: Record<string, unknown> = {}
-
-        if (["price", "sale_price"].includes(field)) {
-          updates[field] = value ? parseFloat(value) : null
-        } else if (field === "is_hidden") {
-          updates[field] = value === "true"
-        } else {
-          updates[field] = value || null
-        }
-
-        success = await updateProduct(productId, updates, userId)
-      }
-
-      if (success) {
-        setEditingCell(null)
-        await loadProducts() // データを再読み込み
-      } else {
-        setError("更新に失敗しました")
-      }
-    } catch (err) {
-      console.error("編集保存エラー:", err)
-      setError("更新中にエラーが発生しました")
-    }
-  }, [editingCell, products, userId, loadProducts])
-
-  // 商品操作
-  const handleCopyProduct = useCallback(async (product: ExtendedProduct) => {
-    try {
-      const success = await copyProduct(product.id, userId)
-      if (success) {
-        await loadProducts()
-        setError(null)
-      } else {
-        setError("商品のコピーに失敗しました")
-      }
-    } catch (err) {
-      console.error("商品コピーエラー:", err)
-      setError("商品のコピー中にエラーが発生しました")
-    }
-  }, [userId, loadProducts])
-
-  const handleDeleteProduct = useCallback(async (product: ExtendedProduct) => {
-    if (!confirm(`「${product.name}」を削除しますか？この操作は取り消せません。`)) {
-      return
-    }
-
-    try {
-      const success = await deleteProduct(product.id, userId)
-      if (success) {
-        await loadProducts()
-        const newSelection = new Set(selectedProducts)
-        newSelection.delete(product.id)
-        setSelectedProducts(newSelection)
-        setError(null)
-      } else {
-        setError("商品の削除に失敗しました")
-      }
-    } catch (err) {
-      console.error("商品削除エラー:", err)
-      setError("商品の削除中にエラーが発生しました")
-    }
-  }, [userId, loadProducts, selectedProducts])
-
-  // ソートアイコンを表示するヘルパー
-  const getSortIcon = useCallback((field: string) => {
-    if (sortField !== field) return null
-
-    if (sortDirection === "asc") {
+    if (direction === "asc") {
       return <ChevronUpIcon className="w-4 h-4 ml-1" />
-    } else if (sortDirection === "desc") {
+    } else if (direction === "desc") {
       return <ChevronDownIcon className="w-4 h-4 ml-1" />
     }
     return null
-  }, [sortField, sortDirection])
+  }, [getSortIcon])
 
   // 編集可能なセルを描画
   const renderEditableCell = useCallback((
@@ -478,7 +149,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
         <EditIcon className="w-3 h-3 opacity-0 group-hover:opacity-50" />
       </div>
     )
-  }, [editingCell, startEditing, saveEdit, cancelEditing])
+  }, [editingCell, setEditingCell, startEditing, saveEdit, cancelEditing])
 
   if (loading) {
     return (
@@ -510,7 +181,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
       <ProductSearch
         filters={filters}
         onFiltersChange={setFilters}
-        totalCount={products.length}
+        totalCount={totalProductsCount}
         filteredCount={filteredAndSortedProducts.length}
       />
 
@@ -531,10 +202,10 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
         </div>
 
         {/* パフォーマンス情報 */}
-        {products.length > 0 && (
+        {totalProductsCount > 0 && (
           <div className="p-2 bg-blue-50 border-b border-blue-200 text-xs text-blue-700">
             <strong>パフォーマンス情報:</strong>
-            全{products.length}件中{filteredAndSortedProducts.length}件を表示。
+            全{totalProductsCount}件中{filteredAndSortedProducts.length}件を表示。
             ページサイズ: {pageSize}件/ページ。
             現在のページ: {currentPage}/{totalPages}
           </div>
@@ -563,7 +234,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     画像
-                    {getSortIcon("image_url")}
+                    {renderSortIcon("image_url")}
                   </div>
                 </TableHead>
 
@@ -573,7 +244,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     商品名
-                    {getSortIcon("name")}
+                    {renderSortIcon("name")}
                   </div>
                 </TableHead>
 
@@ -583,7 +254,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     価格
-                    {getSortIcon("price")}
+                    {renderSortIcon("price")}
                   </div>
                 </TableHead>
 
@@ -593,7 +264,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     仕入価格
-                    {getSortIcon("effective_price")}
+                    {renderSortIcon("effective_price")}
                   </div>
                 </TableHead>
 
@@ -604,7 +275,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     ASIN
-                    {getSortIcon("asin_asin")}
+                    {renderSortIcon("asin_asin")}
                   </div>
                 </TableHead>
 
@@ -614,7 +285,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     Amazon商品名
-                    {getSortIcon("asin_amazon_name")}
+                    {renderSortIcon("asin_amazon_name")}
                   </div>
                 </TableHead>
 
@@ -624,7 +295,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     Amazon価格
-                    {getSortIcon("asin_amazon_price")}
+                    {renderSortIcon("asin_amazon_price")}
                   </div>
                 </TableHead>
 
@@ -635,7 +306,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     利益額
-                    {getSortIcon("profit_amount")}
+                    {renderSortIcon("profit_amount")}
                   </div>
                 </TableHead>
 
@@ -645,7 +316,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     利益率
-                    {getSortIcon("profit_rate")}
+                    {renderSortIcon("profit_rate")}
                   </div>
                 </TableHead>
 
@@ -655,7 +326,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
                 >
                   <div className="flex items-center">
                     ROI
-                    {getSortIcon("roi")}
+                    {renderSortIcon("roi")}
                   </div>
                 </TableHead>
 
@@ -880,14 +551,14 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
           </div>
         )}
 
-        {filteredAndSortedProducts.length === 0 && products.length > 0 && (
+        {filteredAndSortedProducts.length === 0 && totalProductsCount > 0 && (
           <div className="p-8 text-center text-gray-500">
             <p>条件に一致する商品がありません</p>
             <p className="text-sm mt-1">検索条件やフィルターを変更してください</p>
           </div>
         )}
 
-        {products.length === 0 && (
+        {totalProductsCount === 0 && (
           <div className="p-8 text-center text-gray-500">
             <p>商品データがありません</p>
             <p className="text-sm mt-1">スクレイピングを実行して商品を取得してください</p>

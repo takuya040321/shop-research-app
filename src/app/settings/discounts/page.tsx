@@ -1,7 +1,5 @@
 "use client"
 
-import { useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,108 +21,22 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Plus, Trash2 } from "lucide-react"
-import {
-  getAllDiscounts,
-  createDiscount,
-  deleteDiscount,
-  toggleDiscountEnabled
-} from "@/lib/discounts"
-import { validateDiscountValue } from "@/types/discount"
 import type { DiscountType } from "@/types/discount"
-import { showSuccess, showError } from "@/lib/toast"
+import { useDiscounts } from "@/hooks/discounts/use-discounts"
 
 const TEST_USER_ID = "test-user-id"
 
-interface NewDiscount {
-  shopName: string
-  discountType: DiscountType
-  discountValue: string
-}
-
 export default function DiscountsPage() {
-  const queryClient = useQueryClient()
-  const [newDiscount, setNewDiscount] = useState<NewDiscount>({
-    shopName: "",
-    discountType: "percentage",
-    discountValue: ""
-  })
-
-  // 割引設定一覧取得
-  const { data: discounts = [], isLoading: loading } = useQuery({
-    queryKey: ["discounts", TEST_USER_ID],
-    queryFn: () => getAllDiscounts(TEST_USER_ID),
-  })
-
-  // 割引設定作成のミューテーション
-  const createMutation = useMutation({
-    mutationFn: (discount: { shopName: string; discountType: DiscountType; discountValue: number }) =>
-      createDiscount(TEST_USER_ID, discount),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["discounts", TEST_USER_ID] })
-      showSuccess("割引設定を追加しました")
-      setNewDiscount({ shopName: "", discountType: "percentage", discountValue: "" })
-    },
-    onError: () => {
-      showError("割引設定の追加に失敗しました")
-    },
-  })
-
-  // 割引設定削除のミューテーション
-  const deleteMutation = useMutation({
-    mutationFn: (shopName: string) => deleteDiscount(TEST_USER_ID, shopName),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["discounts", TEST_USER_ID] })
-      showSuccess("割引設定を削除しました")
-    },
-    onError: () => {
-      showError("割引設定の削除に失敗しました")
-    },
-  })
-
-  // 割引設定切り替えのミューテーション
-  const toggleMutation = useMutation({
-    mutationFn: ({ shopName, isEnabled }: { shopName: string; isEnabled: boolean }) =>
-      toggleDiscountEnabled(TEST_USER_ID, shopName, isEnabled),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["discounts", TEST_USER_ID] })
-      showSuccess(`割引設定を${variables.isEnabled ? "有効" : "無効"}にしました`)
-    },
-    onError: () => {
-      showError("割引設定の切り替えに失敗しました")
-    },
-  })
-
-  const handleAdd = () => {
-    const value = parseFloat(newDiscount.discountValue)
-
-    if (!newDiscount.shopName) {
-      showError("ショップ名を入力してください")
-      return
-    }
-
-    if (isNaN(value) || !validateDiscountValue(newDiscount.discountType, value)) {
-      showError("正しい割引値を入力してください")
-      return
-    }
-
-    createMutation.mutate({
-      shopName: newDiscount.shopName,
-      discountType: newDiscount.discountType,
-      discountValue: value
-    })
-  }
-
-  const handleDelete = (shopName: string) => {
-    if (!confirm(`${shopName}の割引設定を削除しますか？`)) {
-      return
-    }
-
-    deleteMutation.mutate(shopName)
-  }
-
-  const handleToggle = (shopName: string, isEnabled: boolean) => {
-    toggleMutation.mutate({ shopName, isEnabled })
-  }
+  // カスタムフックから全てのロジックを取得
+  const {
+    discounts,
+    loading,
+    newDiscount,
+    setNewDiscount,
+    handleAdd,
+    handleDelete,
+    handleToggle
+  } = useDiscounts({ userId: TEST_USER_ID })
 
   return (
     <MainLayout>
