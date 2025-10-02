@@ -4,9 +4,9 @@
  * システム情報・運用機能ページ
  */
 
-import { MainLayout } from "@/components/layout/main-layout"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { MainLayout } from "@/components/layout/MainLayout"
+import { Button } from "@/components/ui/Button"
+import { Card } from "@/components/ui/Card"
 import {
   Download,
   Upload,
@@ -15,7 +15,7 @@ import {
   Info,
   Package,
 } from "lucide-react"
-import { useSystem } from "@/hooks/system/use-system"
+import { useSystem } from "@/hooks/system/useSystem"
 
 const TEST_USER_ID = "test-user-id"
 

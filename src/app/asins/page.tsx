@@ -5,8 +5,8 @@
  * ASINの一覧表示、編集、一括アップロード機能を提供
  */
 
-import { Sidebar } from "@/components/layout/sidebar"
-import { AsinBulkUpload } from "@/components/asins/asin-bulk-upload"
+import { Sidebar } from "@/components/layout/Sidebar"
+import { AsinBulkUpload } from "@/components/asins/AsinBulkUpload"
 
 export default function AsinsPage() {
   // 仮のユーザーID（実際は認証から取得）

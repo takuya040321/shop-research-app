@@ -4,8 +4,8 @@
  * エラーログ表示ページ
  */
 
-import { MainLayout } from "@/components/layout/main-layout"
-import { Button } from "@/components/ui/button"
+import { MainLayout } from "@/components/layout/MainLayout"
+import { Button } from "@/components/ui/Button"
 import {
   Table,
   TableBody,
@@ -13,17 +13,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/Table"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/Select"
 import { AlertCircle, AlertTriangle, Info, Trash2 } from "lucide-react"
 import type { ErrorLog } from "@/lib/error-logger"
-import { useLogs } from "@/hooks/logs/use-logs"
+import { useLogs } from "@/hooks/logs/useLogs"
 
 export default function LogsPage() {
   // カスタムフックから全てのロジックを取得

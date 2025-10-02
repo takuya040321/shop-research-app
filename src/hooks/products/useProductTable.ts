@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import type { ExtendedProduct } from "@/lib/products"
-import type { ProductFilters } from "@/components/products/product-search"
+import type { ProductFilters } from "@/components/products/ProductSearch"
 import {
   getProductsWithAsinAndProfits,
   updateProduct,

@@ -4,19 +4,19 @@
  * 設定ページ
  */
 
-import { Sidebar } from "@/components/layout/sidebar"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import { Sidebar } from "@/components/layout/Sidebar"
+import { Button } from "@/components/ui/Button"
+import { Card } from "@/components/ui/Card"
+import { Label } from "@/components/ui/Label"
+import { Switch } from "@/components/ui/Switch"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useSettingsPage } from "@/hooks/settings/use-settings-page"
+} from "@/components/ui/Select"
+import { useSettingsPage } from "@/hooks/settings/useSettingsPage"
 
 export default function SettingsPage() {
   // カスタムフックから全てのロジックを取得

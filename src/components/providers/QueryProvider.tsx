@@ -31,8 +31,6 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             retry: false, // ミューテーションはリトライしない
           },
         },
-        queryCache: undefined,
-        mutationCache: undefined,
       })
   )
 

@@ -5,10 +5,10 @@
  */
 
 import { useParams, notFound } from "next/navigation"
-import { MainLayout } from "@/components/layout/main-layout"
-import { ProductTable } from "@/components/products/product-table"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { MainLayout } from "@/components/layout/MainLayout"
+import { ProductTable } from "@/components/products/ProductTable"
+import { Button } from "@/components/ui/Button"
+import { Badge } from "@/components/ui/Badge"
 import {
   RefreshCwIcon,
   DownloadIcon,
@@ -16,7 +16,7 @@ import {
   GlobeIcon
 } from "lucide-react"
 import { getBrandConfig, isValidBrand } from "@/lib/brand-config"
-import { useOfficialBrandPage } from "@/hooks/official/use-official-brand-page"
+import { useOfficialBrandPage } from "@/hooks/official/useOfficialBrandPage"
 
 export default function BrandPage() {
   const params = useParams()

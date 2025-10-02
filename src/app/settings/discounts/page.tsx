@@ -1,10 +1,10 @@
 "use client"
 
-import { MainLayout } from "@/components/layout/main-layout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import { MainLayout } from "@/components/layout/MainLayout"
+import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
+import { Label } from "@/components/ui/Label"
+import { Switch } from "@/components/ui/Switch"
 import {
   Table,
   TableBody,
@@ -12,17 +12,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/Table"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/Select"
 import { Plus, Trash2 } from "lucide-react"
 import type { DiscountType } from "@/types/discount"
-import { useDiscounts } from "@/hooks/discounts/use-discounts"
+import { useDiscounts } from "@/hooks/discounts/useDiscounts"
 
 const TEST_USER_ID = "test-user-id"
 

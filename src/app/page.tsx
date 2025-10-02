@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { MainLayout } from "@/components/layout/main-layout"
-import { Button } from "@/components/ui/button"
+import { MainLayout } from "@/components/layout/MainLayout"
+import { Button } from "@/components/ui/Button"
 import {
   Table,
   TableBody,
@@ -10,7 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/Table"
 import {
   Package,
   Database,
@@ -19,7 +19,7 @@ import {
   Percent,
 } from "lucide-react"
 import { formatPrice, formatPercentage } from "@/lib/products"
-import { useDashboard } from "@/hooks/dashboard/use-dashboard"
+import { useDashboard } from "@/hooks/dashboard/useDashboard"
 
 const TEST_USER_ID = "test-user-id"
 

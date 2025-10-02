@@ -4,17 +4,17 @@
  * 公式サイト商品一覧ページ
  */
 
-import { MainLayout } from "@/components/layout/main-layout"
-import { ProductTable } from "@/components/products/product-table"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { MainLayout } from "@/components/layout/MainLayout"
+import { ProductTable } from "@/components/products/ProductTable"
+import { Button } from "@/components/ui/Button"
+import { Card } from "@/components/ui/Card"
+import { Badge } from "@/components/ui/Badge"
 import {
   RefreshCwIcon,
   DownloadIcon,
   SettingsIcon
 } from "lucide-react"
-import { useOfficialPage } from "@/hooks/official/use-official-page"
+import { useOfficialPage } from "@/hooks/official/useOfficialPage"
 
 export default function OfficialPage() {
   // カスタムフックから全てのロジックを取得

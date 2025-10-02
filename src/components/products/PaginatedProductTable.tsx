@@ -14,10 +14,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
+} from "@/components/ui/Table"
+import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
+import { Card } from "@/components/ui/Card"
 import {
   ChevronUpIcon,
   ChevronDownIcon,
@@ -37,8 +37,8 @@ import {
   formatPrice,
   formatPercentage
 } from "@/lib/products"
-import { ProductSearch } from "./product-search"
-import { useProductTable } from "@/hooks/products/use-product-table"
+import { ProductSearch } from "./ProductSearch"
+import { useProductTable } from "@/hooks/products/useProductTable"
 
 interface PaginatedProductTableProps {
   userId: string

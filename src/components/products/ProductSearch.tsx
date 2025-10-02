@@ -4,10 +4,10 @@
  * 商品検索・フィルターコンポーネント
  */
 
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/Input"
+import { Button } from "@/components/ui/Button"
+import { Card } from "@/components/ui/Card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import {
   SearchIcon,
   FilterIcon,
@@ -15,7 +15,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon
 } from "lucide-react"
-import { useProductSearch, type ProductFilters } from "@/hooks/products/use-product-search"
+import { useProductSearch, type ProductFilters } from "@/hooks/products/useProductSearch"
 
 export type { ProductFilters }
 

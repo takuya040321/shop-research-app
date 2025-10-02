@@ -5,12 +5,12 @@
  * Excel/CSVファイルからASINデータを一括登録
  */
 
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/Button"
+import { Card } from "@/components/ui/Card"
 import { UploadIcon, FileIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
-import { useAsinBulkUpload } from "@/hooks/asins/use-asin-bulk-upload"
+import { useAsinBulkUpload } from "@/hooks/asins/useAsinBulkUpload"
 
 interface AsinBulkUploadProps {
   userId: string
