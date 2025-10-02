@@ -53,13 +53,16 @@ export async function getProductsWithAsinAndProfits(userId: string): Promise<Ext
     if (productsError) throw productsError
     if (!productData) return []
 
+    // 型アサーション
+    const products = productData as unknown as (Product & { product_asins?: Array<{ asins?: Asin }> })[]
+
     // ショップ割引情報を一括取得
-    const shopNames = [...new Set(productData.map(p => p.shop_name).filter(Boolean))]
+    const shopNames = [...new Set(products.map(p => p.shop_name).filter(Boolean))]
     const { data: discounts } = await supabase
       .from("shop_discounts")
       .select("*")
       .eq("user_id", userId)
-      .in("shop_name", shopNames)
+      .in("shop_name", shopNames) as { data: ShopDiscount[] | null }
 
     // ショップ割引のマップを作成
     const discountMap = new Map<string, ShopDiscount>()
@@ -68,16 +71,19 @@ export async function getProductsWithAsinAndProfits(userId: string): Promise<Ext
     })
 
     // 商品データを変換
-    const extendedProducts: ExtendedProduct[] = productData.map((product: Product & { product_asins?: Array<{ asins?: Asin }> }) => {
+    const extendedProducts: ExtendedProduct[] = products.map((product) => {
       const extendedProduct: ExtendedProduct = { ...product }
 
       // ASIN情報を設定
-      if (product.product_asins && product.product_asins.length > 0 && product.product_asins[0].asins) {
-        extendedProduct.asin = product.product_asins[0].asins
+      if (product.product_asins && product.product_asins.length > 0) {
+        const firstAsin = product.product_asins[0]
+        if (firstAsin?.asins) {
+          extendedProduct.asin = firstAsin.asins
+        }
       }
 
       // 利益計算を実行（最適化版）
-      const profitInfo = calculateProfitOptimized(product, extendedProduct.asin, discountMap)
+      const profitInfo = calculateProfitOptimized(product, extendedProduct.asin ?? null, discountMap)
       extendedProduct.profit_amount = profitInfo.amount
       extendedProduct.profit_rate = profitInfo.rate
       extendedProduct.roi = profitInfo.roi
@@ -296,7 +302,7 @@ export async function updateProduct(
   try {
     const { error } = await supabase
       .from("products")
-      .update(updates)
+      .update(updates as never)
       .eq("id", productId)
       .eq("user_id", userId)
 
@@ -319,7 +325,7 @@ export async function updateAsin(
   try {
     const { error } = await supabase
       .from("asins")
-      .update(updates)
+      .update(updates as never)
       .eq("id", asinId)
       .eq("user_id", userId)
 

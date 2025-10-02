@@ -91,7 +91,10 @@ export async function POST(request: NextRequest) {
       if (!duplicateGroups.has(key)) {
         duplicateGroups.set(key, [])
       }
-      duplicateGroups.get(key)!.push(product)
+      const group = duplicateGroups.get(key)
+      if (group) {
+        group.push(product)
+      }
     }
 
     let deletedCount = 0
