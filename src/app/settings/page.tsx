@@ -4,13 +4,11 @@
  * 設定ページ
  */
 
-import { useState, useEffect } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { toast } from "sonner"
 import {
   Select,
   SelectContent,
@@ -18,38 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { loadSettings, saveSettings, resetSettings } from "@/lib/settings"
-import { GlobalSettings, DEFAULT_SETTINGS } from "@/types/settings"
+import { useSettingsPage } from "@/hooks/settings/use-settings-page"
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<GlobalSettings>(DEFAULT_SETTINGS)
-  const [loading, setLoading] = useState(true)
-
-  // 設定読み込み
-  useEffect(() => {
-    const loaded = loadSettings()
-    setSettings(loaded)
-    setLoading(false)
-  }, [])
-
-  // 設定保存
-  const handleSave = () => {
-    const success = saveSettings(settings)
-    if (success) {
-      toast.success("設定を保存しました")
-    } else {
-      toast.error("設定の保存に失敗しました")
-    }
-  }
-
-  // 設定リセット
-  const handleReset = () => {
-    if (confirm("設定をデフォルトに戻しますか？")) {
-      resetSettings()
-      setSettings(DEFAULT_SETTINGS)
-      toast.success("設定をリセットしました")
-    }
-  }
+  // カスタムフックから全てのロジックを取得
+  const {
+    settings,
+    loading,
+    setSettings,
+    handleSave,
+    handleReset
+  } = useSettingsPage()
 
   if (loading) {
     return (
