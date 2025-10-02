@@ -137,19 +137,6 @@ function parseNumber(value: any): number | null {
   return isNaN(num) ? null : num
 }
 
-/**
- * 真偽値パース
- */
-function parseBoolean(value: any, defaultValue: boolean = false): boolean {
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'string') {
-    const lower = value.toLowerCase()
-    if (lower === 'true' || lower === '1' || lower === 'yes') return true
-    if (lower === 'false' || lower === '0' || lower === 'no') return false
-  }
-  return defaultValue
-}
-
 // POST /api/asins/bulk-upload
 export async function POST(request: NextRequest) {
   try {

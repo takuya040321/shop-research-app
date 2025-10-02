@@ -104,7 +104,7 @@ export function importSettingsFromJSON(file: File): Promise<unknown> {
         const content = e.target?.result as string
         const settings = JSON.parse(content)
         resolve(settings)
-      } catch (error) {
+      } catch {
         reject(new Error("設定ファイルの読み込みに失敗しました"))
       }
     }
