@@ -18,13 +18,7 @@ const AsinSchema = z.object({
   monthly_sales: z.number().min(0).optional().nullable(),
   fee_rate: z.number().min(0).max(100).optional().nullable(),
   fba_fee: z.number().min(0).optional().nullable(),
-  jan_code: z.string().optional().nullable(),
-  has_amazon: z.boolean().optional(),
-  has_official: z.boolean().optional(),
-  complaint_count: z.number().min(0).optional(),
-  is_dangerous: z.boolean().optional(),
-  is_per_carry_ng: z.boolean().optional(),
-  memo: z.string().optional().nullable()
+  jan_code: z.string().optional().nullable()
 })
 
 type AsinData = z.infer<typeof AsinSchema>
@@ -84,7 +78,7 @@ function normalizeAndValidate(rawData: any[], userId: string): {
     const rowNumber = index + 2 // ヘッダー行を考慮
 
     try {
-      // データ正規化
+      // データ正規化（商品コード: EAN列までを使用）
       const normalized: AsinData = {
         asin: String(row.ASIN || row.asin || '').trim().toUpperCase(),
         amazon_name: row['Amazon商品名'] || row.amazon_name || null,
@@ -92,19 +86,13 @@ function normalizeAndValidate(rawData: any[], userId: string): {
         monthly_sales: parseNumber(row['月間売上数'] || row.monthly_sales),
         fee_rate: parseNumber(row['手数料率'] || row.fee_rate),
         fba_fee: parseNumber(row['FBA料'] || row.fba_fee),
-        jan_code: row['JANコード'] || row.jan_code || null,
-        has_amazon: parseBoolean(row['Amazon有'] || row.has_amazon, false),
-        has_official: parseBoolean(row['公式有'] || row.has_official, false),
-        complaint_count: parseNumber(row['クレーム数'] || row.complaint_count) || 0,
-        is_dangerous: parseBoolean(row['危険品'] || row.is_dangerous, false),
-        is_per_carry_ng: parseBoolean(row['パーキャリNG'] || row.is_per_carry_ng, false),
-        memo: row['メモ'] || row.memo || null
+        jan_code: row['JANコード'] || row['商品コード: EAN'] || row.jan_code || null
       }
 
       // バリデーション
       const validated = AsinSchema.parse(normalized)
 
-      // AsinInsert形式に変換
+      // AsinInsert形式に変換（デフォルト値を設定）
       const asinInsert: AsinInsert = {
         user_id: userId,
         asin: validated.asin,
@@ -114,12 +102,12 @@ function normalizeAndValidate(rawData: any[], userId: string): {
         fee_rate: validated.fee_rate || null,
         fba_fee: validated.fba_fee || null,
         jan_code: validated.jan_code || null,
-        has_amazon: validated.has_amazon ?? false,
-        has_official: validated.has_official ?? false,
-        complaint_count: validated.complaint_count ?? 0,
-        is_dangerous: validated.is_dangerous ?? false,
-        is_per_carry_ng: validated.is_per_carry_ng ?? false,
-        memo: validated.memo || null
+        has_amazon: false,
+        has_official: false,
+        complaint_count: 0,
+        is_dangerous: false,
+        is_per_carry_ng: false,
+        memo: null
       }
       validData.push(asinInsert)
     } catch (error) {

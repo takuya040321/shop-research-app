@@ -1,116 +1,4 @@
-## 2. ディレクトリ構造
-
-```
-shop-research-app/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── (auth)/            # 認証関連ページ
-│   │   │   ├── login/
-│   │   │   │   └── page.tsx
-│   │   │   └── callback/
-│   │   │       └── page.tsx
-│   │   ├── layout.tsx         # 共通レイアウト（サイドバー含む）
-│   │   ├── page.tsx           # ホーム（ダッシュボード）
-│   │   ├── products/          # 全商品一覧
-│   │   │   └── page.tsx
-│   │   ├── asins/             # ASIN管理
-│   │   │   └── page.tsx
-│   │   ├── settings/          # 全体設定
-│   │   │   └── page.tsx
-│   │   ├── official/          # 公式サイト
-│   │   │   ├── page.tsx       # 公式サイト一覧
-│   │   │   ├── vt/
-│   │   │   │   └── page.tsx
-│   │   │   ├── dhc/
-│   │   │   │   └── page.tsx
-│   │   │   └── innisfree/
-│   │   │       └── page.tsx
-│   │   ├── rakuten/           # 楽天市場
-│   │   │   ├── page.tsx       # 楽天一覧
-│   │   │   ├── muji/
-│   │   │   │   └── page.tsx
-│   │   │   ├── vt/
-│   │   │   │   └── page.tsx
-│   │   │   └── innisfree/
-│   │   │       └── page.tsx
-│   │   ├── yahoo/             # Yahoo!ショッピング
-│   │   │   ├── page.tsx       # Yahoo一覧
-│   │   │   ├── lohaco/
-│   │   │   │   ├── page.tsx
-│   │   │   │   ├── dhc/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   └── vt/
-│   │   │   │       └── page.tsx
-│   │   │   ├── zozotown/
-│   │   │   │   ├── page.tsx
-│   │   │   │   ├── dhc/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   └── vt/
-│   │   │   │       └── page.tsx
-│   │   │   └── vt/
-│   │   │       └── page.tsx
-│   │   └── api/               # API Routes
-│   │       ├── auth/
-│   │       ├── products/
-│   │       ├── asins/
-│   │       ├── settings/
-│   │       └── scraping/
-│   │           ├── official/
-│   │           │   ├── vt/
-│   │           │   ├── dhc/
-│   │           │   └── innisfree/
-│   │           ├── rakuten/
-│   │           │   ├── muji/
-│   │           │   ├── vt/
-│   │           │   └── innisfree/
-│   │           └── yahoo/
-│   │               ├── lohaco/
-│   │               │   ├── dhc/
-│   │               │   └── vt/
-│   │               ├── zozotown/
-│   │               │   ├── dhc/
-│   │               │   └── vt/
-│   │               └── vt/
-│   ├── components/            # UIコンポーネント
-│   │   ├── ui/               # shadcn/uiコンポーネント
-│   │   ├── forms/            # フォームコンポーネント
-│   │   ├── tables/           # テーブルコンポーネント
-│   │   ├── shops/            # ショップ固有コンポーネント
-│   │   │   ├── official/
-│   │   │   ├── rakuten/
-│   │   │   └── yahoo/
-│   │   ├── navigation/       # ナビゲーション関連
-│   │   └── layouts/          # レイアウトコンポーネント
-│   ├── hooks/                # カスタムフック
-│   │   └── shops/           # ショップ固有フック
-│   │       ├── official/
-│   │       ├── rakuten/
-│   │       └── yahoo/
-│   ├── lib/                  # ユーティリティ関数
-│   │   ├── supabase.ts
-│   │   ├── auth.ts
-│   │   ├── scraper/         # スクレイピング関連
-│   │   │   ├── base.ts
-│   │   │   └── official/
-│   │   ├── api/             # API統合
-│   │   │   ├── rakuten.ts
-│   │   │   └── yahoo.ts
-│   │   ├── utils.ts
-│   │   └── validations.ts
-│   ├── store/                # Zustand Store
-│   │   └── shops/           # ショップ固有ストア
-│   │       ├── official/
-│   │       ├── rakuten/
-│   │       └── yahoo/
-│   ├── types/                # 型定義
-│   └── constants/            # 定数
-├── public/                   # 静的ファイル
-├── .env.local               # 環境変数
-├── next.config.js
-├── tailwind.config.js
-├── tsconfig.json
-└── package.json
-```# 開発ガイドライン
+# 開発ガイドライン
 
 ## 1. コーディング規約
 
@@ -133,119 +21,6 @@ shop-research-app/
 - **mermaid記法**: 図表作成に使用可能
 - **構造化された日本語**: 可読性を重視したドキュメント作成
 
-## 2. ディレクトリ構造
-
-```
-shop-research-app/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── (auth)/            # 認証関連ページ
-│   │   │   ├── login/
-│   │   │   └── callback/
-│   │   ├── (dashboard)/       # ダッシュボード関連ページ
-│   │   │   ├── dashboard/     # ダッシュボードホーム
-│   │   │   ├── products/      # 全商品一覧
-│   │   │   ├── shops/         # ショップ別ページ
-│   │   │   │   ├── official/  # 公式サイト
-│   │   │   │   │   ├── page.tsx
-│   │   │   │   │   ├── vt/
-│   │   │   │   │   │   └── page.tsx
-│   │   │   │   │   ├── dhc/
-│   │   │   │   │   │   └── page.tsx
-│   │   │   │   │   └── innisfree/
-│   │   │   │   │       └── page.tsx
-│   │   │   │   ├── rakuten/   # 楽天市場
-│   │   │   │   │   ├── page.tsx
-│   │   │   │   │   ├── muji/
-│   │   │   │   │   │   └── page.tsx
-│   │   │   │   │   ├── vt/
-│   │   │   │   │   │   └── page.tsx
-│   │   │   │   │   └── innisfree/
-│   │   │   │   │       └── page.tsx
-│   │   │   │   └── yahoo/     # Yahoo!ショッピング
-│   │   │   │       ├── page.tsx
-│   │   │   │       ├── lohaco/
-│   │   │   │       │   ├── page.tsx
-│   │   │   │       │   ├── dhc/
-│   │   │   │       │   │   └── page.tsx
-│   │   │   │       │   └── vt/
-│   │   │   │       │       └── page.tsx
-│   │   │   │       ├── zozotown/
-│   │   │   │       │   ├── page.tsx
-│   │   │   │       │   ├── dhc/
-│   │   │   │       │   │   └── page.tsx
-│   │   │   │       │   └── vt/
-│   │   │   │       │       └── page.tsx
-│   │   │   │       └── vt/
-│   │   │   │           └── page.tsx
-│   │   │   ├── asins/         # ASIN管理
-│   │   │   ├── settings/      # 全体設定
-│   │   │   └── layout.tsx
-│   │   ├── api/               # API Routes
-│   │   │   ├── auth/
-│   │   │   ├── products/
-│   │   │   ├── asins/
-│   │   │   ├── settings/
-│   │   │   └── scraping/
-│   │   │       ├── official/
-│   │   │       │   ├── vt/
-│   │   │       │   ├── dhc/
-│   │   │       │   └── innisfree/
-│   │   │       ├── rakuten/
-│   │   │       │   ├── muji/
-│   │   │       │   ├── vt/
-│   │   │       │   └── innisfree/
-│   │   │       └── yahoo/
-│   │   │           ├── lohaco/
-│   │   │           │   ├── dhc/
-│   │   │           │   └── vt/
-│   │   │           ├── zozotown/
-│   │   │           │   ├── dhc/
-│   │   │           │   └── vt/
-│   │   │           └── vt/
-│   │   ├── globals.css
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── components/            # UIコンポーネント
-│   │   ├── ui/               # shadcn/uiコンポーネント
-│   │   ├── forms/            # フォームコンポーネント
-│   │   ├── tables/           # テーブルコンポーネント
-│   │   ├── shops/            # ショップ固有コンポーネント
-│   │   │   ├── official/
-│   │   │   ├── rakuten/
-│   │   │   └── yahoo/
-│   │   ├── navigation/       # ナビゲーション関連
-│   │   └── layouts/          # レイアウトコンポーネント
-│   ├── hooks/                # カスタムフック
-│   │   └── shops/           # ショップ固有フック
-│   │       ├── official/
-│   │       ├── rakuten/
-│   │       └── yahoo/
-│   ├── lib/                  # ユーティリティ関数
-│   │   ├── supabase.ts
-│   │   ├── auth.ts
-│   │   ├── scraper/         # スクレイピング関連
-│   │   │   ├── base.ts
-│   │   │   └── official/
-│   │   ├── api/             # API統合
-│   │   │   ├── rakuten.ts
-│   │   │   └── yahoo.ts
-│   │   ├── utils.ts
-│   │   └── validations.ts
-│   ├── store/                # Zustand Store
-│   │   └── shops/           # ショップ固有ストア
-│   │       ├── official/
-│   │       ├── rakuten/
-│   │       └── yahoo/
-│   ├── types/                # 型定義
-│   └── constants/            # 定数
-├── public/                   # 静的ファイル
-├── .env.local               # 環境変数
-├── next.config.js
-├── tailwind.config.js
-├── tsconfig.json
-└── package.json
-```
 
 ## 3. Git運用規則（GitHub Flow）
 
@@ -433,24 +208,23 @@ npm run dev
 ### 4.4 環境変数設定
 `.env.local`に以下の環境変数を設定:
 ```env
-# Supabase
+# Supabase（必須）
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-# Google OAuth
-GOOGLE_CLIENT_ID=your_client_id
-GOOGLE_CLIENT_SECRET=your_client_secret
+# MCP設定用（開発ツール用途・オプション）
+SUPABASE_ACCESS_TOKEN=your_supabase_access_token
+SUPABASE_PROJECT_REF=your_supabase_project_ref
 
 # プロキシ（オプション）
 USE_PROXY=false
 PROXY_HOST=your_proxy_host
 PROXY_PORT=your_proxy_port
 
-# 楽天API
+# 楽天API（オプション）
 RAKUTEN_APP_ID=your_app_id
 
-# Yahoo API
+# Yahoo API（オプション）
 YAHOO_CLIENT_ID=your_client_id
 YAHOO_CLIENT_SECRET=your_client_secret
 ```
@@ -503,25 +277,10 @@ npm test -- <test-file-name>
 npm run test:coverage
 ```
 
-## 7. デプロイメント
 
-### 7.1 デプロイフロー
-1. `main`ブランチへのマージ
-2. 自動ビルド・デプロイ（Vercel）
-3. デプロイ確認
-4. 問題があればロールバック
+## 7. トラブルシューティング
 
-### 7.2 デプロイ前チェックリスト
-- [ ] 全テストパス
-- [ ] TypeScriptエラーなし
-- [ ] リントエラーなし
-- [ ] ビルド成功
-- [ ] 環境変数設定確認
-- [ ] データベースマイグレーション実行済み
-
-## 8. トラブルシューティング
-
-### 8.1 よくある問題
+### 7.1 よくある問題
 
 #### 問題: npm installが失敗する
 **解決策**:
@@ -546,7 +305,7 @@ Cmd/Ctrl + Shift + P → "TypeScript: Restart TS Server"
 - SupabaseダッシュボードでAPIキーを再確認
 - ネットワーク接続を確認
 
-### 8.2 ログ確認
+### 7.2 ログ確認
 開発時のログ確認方法:
 ```bash
 # 開発サーバーログ
@@ -559,9 +318,9 @@ npm run dev
 # ターミナルに出力される console.log を確認
 ```
 
-## 9. レビュー基準
+## 8. レビュー基準
 
-### 9.1 コードレビューチェックリスト
+### 8.1 コードレビューチェックリスト
 - [ ] コーディング規約に準拠
 - [ ] 適切な命名（変数、関数、コンポーネント）
 - [ ] 適切なエラーハンドリング
@@ -570,7 +329,7 @@ npm run dev
 - [ ] セキュリティリスクなし
 - [ ] テストカバレッジ十分
 
-### 9.2 レビューコメント例
+### 8.2 レビューコメント例
 **良い例**:
 - 「この関数は○○の責務も持っているので、分割を検討してください」
 - 「エラーハンドリングが不足しています。try-catchを追加してください」
@@ -579,16 +338,16 @@ npm run dev
 - 「これは良くない」（具体性なし）
 - 「前のやり方の方が良かった」（代案なし）
 
-## 10. 参考リソース
+## 9. 参考リソース
 
-### 10.1 公式ドキュメント
+### 9.1 公式ドキュメント
 - [Next.js 15 Documentation](https://nextjs.org/docs)
 - [React Documentation](https://react.dev)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
 - [Tailwind CSS](https://tailwindcss.com/docs)
 - [Supabase Documentation](https://supabase.com/docs)
 
-### 10.2 プロジェクト関連
+### 9.2 プロジェクト関連
 - 要件定義書: `./docs/requirement.md`
 - 技術仕様書: `./docs/technical_spec.md`
 - システム設計書: `./docs/system_design.md`

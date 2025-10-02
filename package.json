@@ -7,10 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "setup-mcp": "node scripts/setup-mcp.js",
-    "db:seed": "node scripts/seed-test-data.js seed",
-    "db:reset": "node scripts/seed-test-data.js reset",
-    "db:reset-and-seed": "node scripts/seed-test-data.js reset-and-seed"
+    "setup-mcp": "node scripts/setup-mcp.js"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",

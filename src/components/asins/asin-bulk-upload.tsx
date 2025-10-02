@@ -133,13 +133,7 @@ export function AsinBulkUpload({ userId }: AsinBulkUploadProps) {
         "月間売上数": 100,
         "手数料率": 15,
         "FBA料": 400,
-        "JANコード": "4901234567890",
-        "Amazon有": "TRUE",
-        "公式有": "FALSE",
-        "クレーム数": 0,
-        "危険品": "FALSE",
-        "パーキャリNG": "FALSE",
-        "メモ": "サンプルメモ"
+        "商品コード: EAN": "4901234567890"
       }
     ]
 
