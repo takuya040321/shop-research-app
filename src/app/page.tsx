@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { useQuery } from "@tanstack/react-query"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,25 +18,14 @@ import {
   DollarSign,
   Percent,
 } from "lucide-react"
-import { getDashboardSummary, getShopStats } from "@/lib/dashboard"
 import { formatPrice, formatPercentage } from "@/lib/products"
+import { useDashboard } from "@/hooks/dashboard/use-dashboard"
 
 const TEST_USER_ID = "test-user-id"
 
 export default function Home() {
-  // ダッシュボードサマリーデータ取得
-  const { data: summary, isLoading: summaryLoading } = useQuery({
-    queryKey: ["dashboardSummary", TEST_USER_ID],
-    queryFn: () => getDashboardSummary(TEST_USER_ID),
-  })
-
-  // ショップ統計データ取得
-  const { data: shopStats = [], isLoading: statsLoading } = useQuery({
-    queryKey: ["shopStats", TEST_USER_ID],
-    queryFn: () => getShopStats(TEST_USER_ID),
-  })
-
-  const loading = summaryLoading || statsLoading
+  // カスタムフックから全てのロジックを取得
+  const { summary, shopStats, loading } = useDashboard({ userId: TEST_USER_ID })
 
   return (
     <MainLayout>
