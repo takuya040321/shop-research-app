@@ -4,7 +4,6 @@
  * 商品検索・フィルターコンポーネント
  */
 
-import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -16,18 +15,9 @@ import {
   ChevronDownIcon,
   ChevronUpIcon
 } from "lucide-react"
+import { useProductSearch, type ProductFilters } from "@/hooks/products/use-product-search"
 
-// フィルター条件の型定義
-export interface ProductFilters {
-  searchText: string
-  minPrice: number | null
-  maxPrice: number | null
-  minProfitRate: number | null
-  maxProfitRate: number | null
-  minROI: number | null
-  maxROI: number | null
-  asinStatus: "all" | "with_asin" | "without_asin"
-}
+export type { ProductFilters }
 
 interface ProductSearchProps {
   filters: ProductFilters
@@ -37,45 +27,17 @@ interface ProductSearchProps {
 }
 
 export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) {
-  const [isFilterExpanded, setIsFilterExpanded] = useState(false)
+  // カスタムフックから全てのロジックを取得
+  const {
+    isFilterExpanded,
+    setIsFilterExpanded,
+    handleSearchChange,
+    handleFilterChange,
+    clearFilters,
+    getActiveFilterCount
+  } = useProductSearch()
 
-  // 検索テキストの変更
-  const handleSearchChange = (value: string) => {
-    onFiltersChange({
-      ...filters,
-      searchText: value
-    })
-  }
-
-  // フィルター値の変更
-  const handleFilterChange = (key: keyof ProductFilters, value: string | number | boolean | null) => {
-    onFiltersChange({
-      ...filters,
-      [key]: value
-    })
-  }
-
-  // フィルターのクリア
-  const clearFilters = () => {
-    onFiltersChange({
-      searchText: "",
-      minPrice: null,
-      maxPrice: null,
-      minProfitRate: null,
-      maxProfitRate: null,
-      minROI: null,
-      maxROI: null,
-      asinStatus: "all"
-    })
-  }
-
-  // アクティブなフィルター数をカウント
-  const activeFilterCount = Object.entries(filters).reduce((count, [key, value]) => {
-    if (key === "searchText" && value) return count + 1
-    if (key === "asinStatus" && value !== "all") return count + 1
-    if (typeof value === "number" && value !== null) return count + 1
-    return count
-  }, 0)
+  const activeFilterCount = getActiveFilterCount(filters)
 
   return (
     <Card className="p-4 mb-4">
@@ -86,7 +48,7 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
           <Input
             placeholder="商品名、ASIN、Amazon商品名で検索..."
             value={filters.searchText}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => handleSearchChange(filters, onFiltersChange, e.target.value)}
             className="pl-10"
           />
         </div>
@@ -113,7 +75,7 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
         {activeFilterCount > 0 && (
           <Button
             variant="ghost"
-            onClick={clearFilters}
+            onClick={() => clearFilters(onFiltersChange)}
             className="flex items-center gap-2 text-gray-600"
           >
             <XIcon className="w-4 h-4" />
@@ -135,7 +97,7 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
                   type="number"
                   placeholder="最低価格"
                   value={filters.minPrice || ""}
-                  onChange={(e) => handleFilterChange("minPrice", e.target.value ? parseFloat(e.target.value) : null)}
+                  onChange={(e) => handleFilterChange(filters, onFiltersChange, "minPrice", e.target.value ? parseFloat(e.target.value) : null)}
                   className="text-sm"
                 />
                 <span className="text-gray-400">〜</span>
@@ -143,7 +105,7 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
                   type="number"
                   placeholder="最高価格"
                   value={filters.maxPrice || ""}
-                  onChange={(e) => handleFilterChange("maxPrice", e.target.value ? parseFloat(e.target.value) : null)}
+                  onChange={(e) => handleFilterChange(filters, onFiltersChange, "maxPrice", e.target.value ? parseFloat(e.target.value) : null)}
                   className="text-sm"
                 />
               </div>
@@ -157,7 +119,7 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
                   type="number"
                   placeholder="最低"
                   value={filters.minProfitRate || ""}
-                  onChange={(e) => handleFilterChange("minProfitRate", e.target.value ? parseFloat(e.target.value) : null)}
+                  onChange={(e) => handleFilterChange(filters, onFiltersChange, "minProfitRate", e.target.value ? parseFloat(e.target.value) : null)}
                   className="text-sm"
                 />
                 <span className="text-gray-400">〜</span>
@@ -165,7 +127,7 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
                   type="number"
                   placeholder="最高"
                   value={filters.maxProfitRate || ""}
-                  onChange={(e) => handleFilterChange("maxProfitRate", e.target.value ? parseFloat(e.target.value) : null)}
+                  onChange={(e) => handleFilterChange(filters, onFiltersChange, "maxProfitRate", e.target.value ? parseFloat(e.target.value) : null)}
                   className="text-sm"
                 />
               </div>
@@ -179,7 +141,7 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
                   type="number"
                   placeholder="最低"
                   value={filters.minROI || ""}
-                  onChange={(e) => handleFilterChange("minROI", e.target.value ? parseFloat(e.target.value) : null)}
+                  onChange={(e) => handleFilterChange(filters, onFiltersChange, "minROI", e.target.value ? parseFloat(e.target.value) : null)}
                   className="text-sm"
                 />
                 <span className="text-gray-400">〜</span>
@@ -187,7 +149,7 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
                   type="number"
                   placeholder="最高"
                   value={filters.maxROI || ""}
-                  onChange={(e) => handleFilterChange("maxROI", e.target.value ? parseFloat(e.target.value) : null)}
+                  onChange={(e) => handleFilterChange(filters, onFiltersChange, "maxROI", e.target.value ? parseFloat(e.target.value) : null)}
                   className="text-sm"
                 />
               </div>
@@ -198,7 +160,7 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
               <div className="text-sm font-medium">ASIN設定</div>
               <Select
                 value={filters.asinStatus}
-                onValueChange={(value) => handleFilterChange("asinStatus", value as typeof filters.asinStatus)}
+                onValueChange={(value) => handleFilterChange(filters, onFiltersChange, "asinStatus", value as typeof filters.asinStatus)}
               >
                 <SelectTrigger className="text-sm">
                   <SelectValue placeholder="すべて" />
