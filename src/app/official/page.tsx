@@ -4,7 +4,6 @@
  * 公式サイト商品一覧ページ
  */
 
-import { useState } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
 import { ProductTable } from "@/components/products/product-table"
 import { Button } from "@/components/ui/button"
@@ -15,54 +14,19 @@ import {
   DownloadIcon,
   SettingsIcon
 } from "lucide-react"
+import { useOfficialPage } from "@/hooks/official/use-official-page"
 
 export default function OfficialPage() {
-  // TODO: 実際の認証システム実装後に置き換え
-  const userId = "d5efb4ac-4592-4359-bb62-b56b4321723e"
-
-  const [isRefreshing, setIsRefreshing] = useState(false)
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      const response = await fetch("/api/scraping/vt", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          headless: true,
-          timeout: 30000
-        })
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        alert(`スクレイピング完了!\n取得: ${result.data.totalProducts}件\n保存: ${result.data.savedProducts}件\nスキップ: ${result.data.skippedProducts}件`)
-        // テーブルを再読み込み
-        window.location.reload()
-      } else {
-        alert(`スクレイピングに失敗しました: ${result.message}`)
-      }
-    } catch (error) {
-      console.error("スクレイピングエラー:", error)
-      alert("スクレイピング中にエラーが発生しました")
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
-
-  const handleExport = () => {
-    // TODO: データエクスポート機能実装
-    console.log("エクスポート機能（未実装）")
-  }
-
-
-  const handleSettings = () => {
-    // TODO: 設定画面実装
-    console.log("設定画面（未実装）")
-  }
+  // カスタムフックから全てのロジックを取得
+  const {
+    isRefreshing,
+    userId,
+    handleRefresh,
+    handleExport,
+    handleSettings
+  } = useOfficialPage({
+    userId: "d5efb4ac-4592-4359-bb62-b56b4321723e" // TODO: 実際の認証システム実装後に置き換え
+  })
 
   return (
     <MainLayout>
