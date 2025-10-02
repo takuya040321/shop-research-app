@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useRef } from "react"
-import { Card } from "@/components/ui/card"
+import { Card } from "@/components/ui/Card"
 
 interface ContextMenuItem {
   label: string

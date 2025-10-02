@@ -7,12 +7,12 @@
  */
 
 import { useParams } from "next/navigation"
-import { Sidebar } from "@/components/layout/sidebar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import { PaginatedProductTable } from "@/components/products/paginated-product-table"
-import { useYahooPage } from "@/hooks/yahoo/use-yahoo-page"
+import { Sidebar } from "@/components/layout/Sidebar"
+import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
+import { Card } from "@/components/ui/Card"
+import { PaginatedProductTable } from "@/components/products/PaginatedProductTable"
+import { useYahooPage } from "@/hooks/yahoo/useYahooPage"
 
 // Yahoo階層設定
 const YAHOO_CONFIG: Record<string, {
@@ -66,9 +66,9 @@ export default function YahooHierarchyPage() {
     setCategoryId,
     handleSearch
   } = useYahooPage({
-    defaultQuery: config?.defaultQuery,
-    defaultSellerId: config?.sellerId,
-    defaultCategoryId: config?.categoryId,
+    defaultQuery: config?.defaultQuery || "",
+    defaultSellerId: config?.sellerId || "",
+    defaultCategoryId: config?.categoryId || "",
     shopName: config?.displayName || ""
   })
 

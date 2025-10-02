@@ -6,7 +6,7 @@
  */
 
 import { useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/Button"
 import { AlertCircle } from "lucide-react"
 
 export default function Error({

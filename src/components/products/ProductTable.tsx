@@ -7,6 +7,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import { toast } from "sonner"
 import {
   Table,
   TableBody,
@@ -14,10 +15,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
+} from "@/components/ui/Table"
+import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
+import { Card } from "@/components/ui/Card"
 import {
   ChevronUpIcon,
   ChevronDownIcon,
@@ -29,10 +30,10 @@ import {
 } from "lucide-react"
 
 import type { ExtendedProduct } from "@/lib/products"
-import { formatPrice, formatPercentage } from "@/lib/products"
-import { ProductSearch } from "./product-search"
-import { ContextMenu, useContextMenu } from "@/components/ui/context-menu"
-import { useProductTable } from "@/hooks/products/use-product-table"
+import { formatPrice, formatPercentage, updateProduct, updateAsin } from "@/lib/products"
+import { ProductSearch } from "./ProductSearch"
+import { ContextMenu, useContextMenu } from "@/components/ui/ContextMenu"
+import { useProductTable } from "@/hooks/products/useProductTable"
 
 interface ProductTableProps {
   userId: string
@@ -50,12 +51,11 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
     totalProductsCount,
     loading,
     error,
-    sortField,
-    sortDirection,
     editingCell,
     filters,
     setFilters,
     setEditingCell,
+    loadProducts,
     handleSort,
     startEditing,
     cancelEditing,
@@ -593,11 +593,11 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                         if (success) {
                           await loadProducts()
                         } else {
-                          setError("更新に失敗しました")
+                          toast.error("更新に失敗しました")
                         }
                       } catch (err) {
                         console.error("非表示フラグ更新エラー:", err)
-                        setError("更新中にエラーが発生しました")
+                        toast.error("更新中にエラーが発生しました")
                       }
                     }}
                     className="rounded"
@@ -617,11 +617,11 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                         if (success) {
                           await loadProducts()
                         } else {
-                          setError("更新に失敗しました")
+                          toast.error("更新に失敗しました")
                         }
                       } catch (err) {
                         console.error("Amazon有フラグ更新エラー:", err)
-                        setError("更新中にエラーが発生しました")
+                        toast.error("更新中にエラーが発生しました")
                       }
                     }}
                     className="rounded"
@@ -641,11 +641,11 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                         if (success) {
                           await loadProducts()
                         } else {
-                          setError("更新に失敗しました")
+                          toast.error("更新に失敗しました")
                         }
                       } catch (err) {
                         console.error("公式有フラグ更新エラー:", err)
-                        setError("更新中にエラーが発生しました")
+                        toast.error("更新中にエラーが発生しました")
                       }
                     }}
                     className="rounded"
@@ -666,11 +666,11 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                             if (success) {
                               await loadProducts()
                             } else {
-                              setError("更新に失敗しました")
+                              toast.error("更新に失敗しました")
                             }
                           } catch (err) {
                             console.error("クレーム数更新エラー:", err)
-                            setError("更新中にエラーが発生しました")
+                            toast.error("更新中にエラーが発生しました")
                           }
                         }}
                         className="w-16 h-8 text-center text-sm"
@@ -695,11 +695,11 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                         if (success) {
                           await loadProducts()
                         } else {
-                          setError("更新に失敗しました")
+                          toast.error("更新に失敗しました")
                         }
                       } catch (err) {
                         console.error("危険品フラグ更新エラー:", err)
-                        setError("更新中にエラーが発生しました")
+                        toast.error("更新中にエラーが発生しました")
                       }
                     }}
                     className="rounded"
@@ -719,11 +719,11 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                         if (success) {
                           await loadProducts()
                         } else {
-                          setError("更新に失敗しました")
+                          toast.error("更新に失敗しました")
                         }
                       } catch (err) {
                         console.error("パーキャリNGフラグ更新エラー:", err)
-                        setError("更新中にエラーが発生しました")
+                        toast.error("更新中にエラーが発生しました")
                       }
                     }}
                     className="rounded"

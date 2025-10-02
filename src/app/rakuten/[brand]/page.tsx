@@ -6,12 +6,12 @@
  */
 
 import { useParams } from "next/navigation"
-import { Sidebar } from "@/components/layout/sidebar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import { PaginatedProductTable } from "@/components/products/paginated-product-table"
-import { useRakutenPage } from "@/hooks/rakuten/use-rakuten-page"
+import { Sidebar } from "@/components/layout/Sidebar"
+import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
+import { Card } from "@/components/ui/Card"
+import { PaginatedProductTable } from "@/components/products/PaginatedProductTable"
+import { useRakutenPage } from "@/hooks/rakuten/useRakutenPage"
 
 // ブランド設定
 const BRAND_CONFIG: Record<string, {
@@ -52,9 +52,9 @@ export default function RakutenBrandPage() {
     setGenreId,
     handleSearch
   } = useRakutenPage({
-    defaultKeyword: brandConfig?.defaultKeyword,
-    defaultShopCode: brandConfig?.shopCode,
-    defaultGenreId: brandConfig?.genreId,
+    defaultKeyword: brandConfig?.defaultKeyword || "",
+    defaultShopCode: brandConfig?.shopCode || "",
+    defaultGenreId: brandConfig?.genreId || "",
     shopName: brandConfig?.displayName || ""
   })
 
