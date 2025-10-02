@@ -1,5 +1,5 @@
--- Shop Research App 本番用データベーススキーマ
--- Supabase PostgreSQL用（RLSポリシー付き）
+-- Shop Research App データベーススキーマ
+-- Supabase PostgreSQL用（ローカル開発環境）
 
 -- updated_at自動更新関数の作成
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -13,7 +13,7 @@ $$ language 'plpgsql';
 -- 1. ショップカテゴリテーブル
 CREATE TABLE IF NOT EXISTS shop_categories (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID NOT NULL,
     type VARCHAR(20) NOT NULL CHECK (type IN ('official', 'rakuten', 'yahoo')),
     name VARCHAR(50) NOT NULL,
     display_name VARCHAR(100) NOT NULL,
@@ -34,13 +34,6 @@ CREATE INDEX IF NOT EXISTS idx_shop_categories_type ON shop_categories(type);
 CREATE INDEX IF NOT EXISTS idx_shop_categories_parent_type ON shop_categories(parent_type);
 CREATE INDEX IF NOT EXISTS idx_shop_categories_is_enabled ON shop_categories(is_enabled);
 
--- RLSポリシー
-ALTER TABLE shop_categories ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can only access their own shop_categories"
-ON shop_categories FOR ALL
-USING (auth.uid() = user_id);
-
 -- 更新日時トリガー
 CREATE TRIGGER update_shop_categories_updated_at
     BEFORE UPDATE ON shop_categories
@@ -49,7 +42,7 @@ CREATE TRIGGER update_shop_categories_updated_at
 -- 2. 商品テーブル
 CREATE TABLE IF NOT EXISTS products (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID NOT NULL,
     shop_category_id UUID REFERENCES shop_categories(id) ON DELETE SET NULL,
     shop_type VARCHAR(20) CHECK (shop_type IN ('official', 'rakuten', 'yahoo')),
     shop_name VARCHAR(50),
@@ -74,13 +67,6 @@ CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
 CREATE INDEX IF NOT EXISTS idx_products_is_hidden ON products(is_hidden);
 CREATE INDEX IF NOT EXISTS idx_products_original_product_id ON products(original_product_id);
 
--- RLSポリシー
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can only access their own products"
-ON products FOR ALL
-USING (auth.uid() = user_id);
-
 -- 更新日時トリガー
 CREATE TRIGGER update_products_updated_at
     BEFORE UPDATE ON products
@@ -89,7 +75,7 @@ CREATE TRIGGER update_products_updated_at
 -- 3. ASINテーブル
 CREATE TABLE IF NOT EXISTS asins (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID NOT NULL,
     asin VARCHAR(10) NOT NULL CHECK (LENGTH(asin) = 10),
     amazon_name VARCHAR(500),
     amazon_price DECIMAL(10,2),
@@ -114,13 +100,6 @@ CREATE INDEX IF NOT EXISTS idx_asins_user_id ON asins(user_id);
 CREATE INDEX IF NOT EXISTS idx_asins_asin ON asins(asin);
 CREATE INDEX IF NOT EXISTS idx_asins_jan_code ON asins(jan_code);
 
--- RLSポリシー
-ALTER TABLE asins ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can only access their own asins"
-ON asins FOR ALL
-USING (auth.uid() = user_id);
-
 -- 更新日時トリガー
 CREATE TRIGGER update_asins_updated_at
     BEFORE UPDATE ON asins
@@ -129,7 +108,7 @@ CREATE TRIGGER update_asins_updated_at
 -- 4. 商品-ASIN紐付けテーブル
 CREATE TABLE IF NOT EXISTS product_asins (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID NOT NULL,
     product_id UUID REFERENCES products(id) ON DELETE CASCADE NOT NULL,
     asin_id UUID REFERENCES asins(id) ON DELETE CASCADE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -142,17 +121,10 @@ CREATE INDEX IF NOT EXISTS idx_product_asins_user_id ON product_asins(user_id);
 CREATE INDEX IF NOT EXISTS idx_product_asins_product_id ON product_asins(product_id);
 CREATE INDEX IF NOT EXISTS idx_product_asins_asin_id ON product_asins(asin_id);
 
--- RLSポリシー
-ALTER TABLE product_asins ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can only access their own product_asins"
-ON product_asins FOR ALL
-USING (auth.uid() = user_id);
-
 -- 5. ショップ別割引設定テーブル
 CREATE TABLE IF NOT EXISTS shop_discounts (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID NOT NULL,
     shop_name VARCHAR(100) NOT NULL,
     discount_type VARCHAR(20) NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
     discount_value DECIMAL(10,2) NOT NULL CHECK (discount_value >= 0),
@@ -168,13 +140,6 @@ CREATE INDEX IF NOT EXISTS idx_shop_discounts_user_id ON shop_discounts(user_id)
 CREATE INDEX IF NOT EXISTS idx_shop_discounts_shop_name ON shop_discounts(shop_name);
 CREATE INDEX IF NOT EXISTS idx_shop_discounts_is_enabled ON shop_discounts(is_enabled);
 
--- RLSポリシー
-ALTER TABLE shop_discounts ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can only access their own shop_discounts"
-ON shop_discounts FOR ALL
-USING (auth.uid() = user_id);
-
 -- 更新日時トリガー
 CREATE TRIGGER update_shop_discounts_updated_at
     BEFORE UPDATE ON shop_discounts
@@ -183,7 +148,7 @@ CREATE TRIGGER update_shop_discounts_updated_at
 -- 6. API設定テーブル
 CREATE TABLE IF NOT EXISTS api_settings (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID NOT NULL,
     provider VARCHAR(50) NOT NULL CHECK (provider IN ('rakuten', 'yahoo')),
     settings JSONB NOT NULL,
     is_enabled BOOLEAN DEFAULT TRUE,
@@ -198,17 +163,7 @@ CREATE INDEX IF NOT EXISTS idx_api_settings_user_id ON api_settings(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_settings_provider ON api_settings(provider);
 CREATE INDEX IF NOT EXISTS idx_api_settings_is_enabled ON api_settings(is_enabled);
 
--- RLSポリシー
-ALTER TABLE api_settings ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can only access their own api_settings"
-ON api_settings FOR ALL
-USING (auth.uid() = user_id);
-
 -- 更新日時トリガー
 CREATE TRIGGER update_api_settings_updated_at
     BEFORE UPDATE ON api_settings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- 初期データ挿入用のサンプル（オプション）
--- 実際の利用時には個別にデータを挿入する
