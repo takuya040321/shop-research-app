@@ -24,11 +24,14 @@ export interface DHCProduct {
 const DHC_CONFIG = {
   baseUrl: "https://www.dhc.co.jp",
   categoryUrls: [
-    "/goods/goodslist.jsp?category=1", // スキンケア
-    "/goods/goodslist.jsp?category=2", // メイクアップ
-    "/goods/goodslist.jsp?category=3", // ボディケア
-    "/goods/goodslist.jsp?category=4", // ヘアケア
-    "/goods/goodslist.jsp?category=5", // サプリメント
+    "https://www.dhc.co.jp/goods/cagoods.jsp?cCode=10115000",
+    "https://www.dhc.co.jp/goods/cagoods.jsp?cCode=10118000",
+    "https://www.dhc.co.jp/goods/cagoods.jsp?cCode=10164000",
+    "https://www.dhc.co.jp/goods/cagoods.jsp?cCode=10116000",
+    "https://www.dhc.co.jp/goods/cagoods.jsp?cCode=11801000",
+    "https://www.dhc.co.jp/goods/cagoods.jsp?cCode=10155000",
+    "https://www.dhc.co.jp/goods/cagoods.jsp?cCode=10163000",
+    "https://www.dhc.co.jp/goods/cagoods.jsp?cCode=11622002",
   ],
   selectors: {
     productItems: ".item, .product, li",

@@ -22,7 +22,7 @@ export interface InnisfreeProduct {
 
 // スクレイピング設定
 const INNISFREE_CONFIG = {
-  baseUrl: "https://www.innisfree.com/jp",
+  baseUrl: "https://www.innisfree.jp/",
   categoryUrls: [
     "/ja/product/list?categoryCode=0001", // スキンケア
     "/ja/product/list?categoryCode=0002", // メイクアップ
