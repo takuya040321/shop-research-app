@@ -38,7 +38,7 @@ export interface DiscountSettingUpdate {
 export const discountSettingSchema = z.object({
   shopName: z.string().min(1, "ショップ名を入力してください"),
   discountType: z.enum(["percentage", "fixed"], {
-    errorMap: () => ({ message: "割引タイプを選択してください" })
+    message: "割引タイプを選択してください"
   }),
   discountValue: z.number()
     .min(0, "割引値は0以上である必要があります")

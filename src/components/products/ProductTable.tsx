@@ -660,9 +660,10 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                         type="number"
                         value={product.asin.complaint_count || 0}
                         onChange={async (e) => {
+                          if (!product.asin) return
                           try {
                             const value = e.target.value ? parseInt(e.target.value) : 0
-                            const success = await updateAsin(product.asin!.id, { complaint_count: value }, userId)
+                            const success = await updateAsin(product.asin.id, { complaint_count: value }, userId)
                             if (success) {
                               await loadProducts()
                             } else {

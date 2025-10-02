@@ -76,7 +76,7 @@ export async function createDiscount(
         discount_type: discount.discountType,
         discount_value: discount.discountValue,
         is_enabled: discount.isEnabled ?? true
-      })
+      } as never)
       .select()
       .single()
 
@@ -119,7 +119,7 @@ export async function updateDiscount(
 
     const { data, error } = await supabase
       .from("shop_discounts")
-      .update(updateData)
+      .update(updateData as never)
       .eq("user_id", userId)
       .eq("shop_name", shopName)
       .select()
@@ -171,7 +171,7 @@ export async function toggleDiscountEnabled(
   try {
     const { error } = await supabase
       .from("shop_discounts")
-      .update({ is_enabled: isEnabled })
+      .update({ is_enabled: isEnabled } as never)
       .eq("user_id", userId)
       .eq("shop_name", shopName)
 

@@ -22,7 +22,16 @@ export async function removeDuplicateProducts(userId: string): Promise<{
       .from("products")
       .select("id, shop_type, shop_name, name, created_at")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false }) as {
+        data: Array<{
+          id: string
+          shop_type: string
+          shop_name: string
+          name: string
+          created_at: string
+        }> | null
+        error: { message: string } | null
+      }
 
     if (fetchError) {
       return {

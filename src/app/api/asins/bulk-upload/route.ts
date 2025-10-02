@@ -39,7 +39,7 @@ const MAX_ROWS = 10000
 /**
  * ファイルからデータを解析
  */
-function parseFile(buffer: Buffer, filename: string): any[] {
+function parseFile(buffer: Buffer, filename: string): Record<string, unknown>[] {
   const ext = filename.split('.').pop()?.toLowerCase()
 
   if (ext === 'csv') {
@@ -50,7 +50,7 @@ function parseFile(buffer: Buffer, filename: string): any[] {
       skipEmptyLines: true,
       transformHeader: (header) => header.trim()
     })
-    return result.data
+    return result.data as Record<string, unknown>[]
   } else if (ext === 'xlsx' || ext === 'xls') {
     // Excel解析
     const workbook = XLSX.read(buffer, { type: 'buffer' })
@@ -58,7 +58,7 @@ function parseFile(buffer: Buffer, filename: string): any[] {
     if (!sheetName) throw new Error("Excelファイルにシートが見つかりません")
     const worksheet = workbook.Sheets[sheetName]
     if (!worksheet) throw new Error("Excelワークシートが見つかりません")
-    return XLSX.utils.sheet_to_json(worksheet)
+    return XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[]
   } else {
     throw new Error("サポートされていないファイル形式です。CSV, XLSX, XLSのみ対応しています。")
   }
@@ -67,7 +67,7 @@ function parseFile(buffer: Buffer, filename: string): any[] {
 /**
  * データを正規化してバリデーション
  */
-function normalizeAndValidate(rawData: any[], userId: string): {
+function normalizeAndValidate(rawData: Record<string, unknown>[], userId: string): {
   validData: AsinInsert[]
   errors: Array<{ row: number; message: string }>
 } {
@@ -81,12 +81,12 @@ function normalizeAndValidate(rawData: any[], userId: string): {
       // データ正規化（商品コード: EAN列までを使用）
       const normalized: AsinData = {
         asin: String(row.ASIN || row.asin || '').trim().toUpperCase(),
-        amazon_name: row['Amazon商品名'] || row.amazon_name || null,
+        amazon_name: (row['Amazon商品名'] || row.amazon_name) ? String(row['Amazon商品名'] || row.amazon_name) : null,
         amazon_price: parseNumber(row['Amazon価格'] || row.amazon_price),
         monthly_sales: parseNumber(row['月間売上数'] || row.monthly_sales),
         fee_rate: parseNumber(row['手数料率'] || row.fee_rate),
         fba_fee: parseNumber(row['FBA料'] || row.fba_fee),
-        jan_code: row['JANコード'] || row['商品コード: EAN'] || row.jan_code || null
+        jan_code: (row['JANコード'] || row['商品コード: EAN'] || row.jan_code) ? String(row['JANコード'] || row['商品コード: EAN'] || row.jan_code) : null
       }
 
       // バリデーション
@@ -131,7 +131,7 @@ function normalizeAndValidate(rawData: any[], userId: string): {
 /**
  * 数値パース
  */
-function parseNumber(value: any): number | null {
+function parseNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null
   const num = Number(value)
   return isNaN(num) ? null : num

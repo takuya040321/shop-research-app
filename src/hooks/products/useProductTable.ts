@@ -94,35 +94,41 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
     }
 
     if (filters.minPrice !== null) {
+      const minPrice = filters.minPrice
       filtered = filtered.filter(product =>
-        (product.sale_price || product.price || 0) >= filters.minPrice!
+        (product.sale_price || product.price || 0) >= minPrice
       )
     }
     if (filters.maxPrice !== null) {
+      const maxPrice = filters.maxPrice
       filtered = filtered.filter(product =>
-        (product.sale_price || product.price || 0) <= filters.maxPrice!
+        (product.sale_price || product.price || 0) <= maxPrice
       )
     }
 
     if (filters.minProfitRate !== null) {
+      const minProfitRate = filters.minProfitRate
       filtered = filtered.filter(product =>
-        (product.profit_rate || 0) >= filters.minProfitRate!
+        (product.profit_rate || 0) >= minProfitRate
       )
     }
     if (filters.maxProfitRate !== null) {
+      const maxProfitRate = filters.maxProfitRate
       filtered = filtered.filter(product =>
-        (product.profit_rate || 0) <= filters.maxProfitRate!
+        (product.profit_rate || 0) <= maxProfitRate
       )
     }
 
     if (filters.minROI !== null) {
+      const minROI = filters.minROI
       filtered = filtered.filter(product =>
-        (product.roi || 0) >= filters.minROI!
+        (product.roi || 0) >= minROI
       )
     }
     if (filters.maxROI !== null) {
+      const maxROI = filters.maxROI
       filtered = filtered.filter(product =>
-        (product.roi || 0) <= filters.maxROI!
+        (product.roi || 0) <= maxROI
       )
     }
 
