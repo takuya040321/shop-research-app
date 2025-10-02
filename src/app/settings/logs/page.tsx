@@ -4,7 +4,6 @@
  * エラーログ表示ページ
  */
 
-import { useState, useEffect } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,38 +22,18 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { AlertCircle, AlertTriangle, Info, Trash2 } from "lucide-react"
-import {
-  getErrorLogs,
-  clearErrorLogs,
-  type ErrorLog,
-} from "@/lib/error-logger"
-import { showSuccess } from "@/lib/toast"
+import type { ErrorLog } from "@/lib/error-logger"
+import { useLogs } from "@/hooks/logs/use-logs"
 
 export default function LogsPage() {
-  const [logs, setLogs] = useState<ErrorLog[]>([])
-  const [filterType, setFilterType] = useState<"all" | ErrorLog["type"]>("all")
-
-  useEffect(() => {
-    loadLogs()
-  }, [])
-
-  const loadLogs = () => {
-    const allLogs = getErrorLogs()
-    setLogs(allLogs.reverse()) // 新しい順に表示
-  }
-
-  const filteredLogs =
-    filterType === "all" ? logs : logs.filter((log) => log.type === filterType)
-
-  const handleClear = () => {
-    if (!confirm("すべてのログを削除しますか？")) {
-      return
-    }
-
-    clearErrorLogs()
-    setLogs([])
-    showSuccess("ログをクリアしました")
-  }
+  // カスタムフックから全てのロジックを取得
+  const {
+    filterType,
+    filteredLogs,
+    setFilterType,
+    handleClear,
+    formatTimestamp
+  } = useLogs()
 
   const getTypeIcon = (type: ErrorLog["type"]) => {
     switch (type) {
@@ -76,18 +55,6 @@ export default function LogsPage() {
       case "info":
         return "情報"
     }
-  }
-
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp)
-    return date.toLocaleString("ja-JP", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    })
   }
 
   return (
