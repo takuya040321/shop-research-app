@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/Button"
 import {
   Home,
   Settings,
-  ChevronLeft,
-  ChevronRight,
   Database,
   Store,
   ShoppingBag,
   ShoppingCart,
+  Menu,
+  X,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -81,12 +81,16 @@ export function Sidebar({ className }: SidebarProps) {
           variant="ghost"
           size="sm"
           onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8 p-0"
+          className={cn(
+            "h-9 w-9 p-0 hover:bg-accent",
+            collapsed && "mx-auto"
+          )}
+          title={collapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"}
         >
           {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
+            <Menu className="h-5 w-5" />
           ) : (
-            <ChevronLeft className="h-4 w-4" />
+            <X className="h-5 w-5" />
           )}
         </Button>
       </div>
@@ -103,29 +107,45 @@ export function Sidebar({ className }: SidebarProps) {
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
                   className={cn(
-                    "w-full justify-start",
-                    collapsed && "justify-center px-2"
+                    "w-full justify-start transition-colors relative",
+                    collapsed && "justify-center px-2",
+                    isActive && "bg-primary/10 hover:bg-primary/15 border-l-4 border-primary font-semibold"
                   )}
+                  title={collapsed ? item.name : undefined}
                 >
-                  <item.icon className={cn("h-4 w-4", !collapsed && "mr-2")} />
-                  {!collapsed && <span>{item.name}</span>}
+                  <item.icon className={cn(
+                    "h-4 w-4",
+                    !collapsed && "mr-2",
+                    isActive && "text-primary"
+                  )} />
+                  {!collapsed && (
+                    <span className={cn(isActive && "text-primary")}>
+                      {item.name}
+                    </span>
+                  )}
                 </Button>
               </Link>
 
               {/* 子メニュー */}
               {!collapsed && item.children && isActive && (
                 <div className="ml-6 mt-1 space-y-1">
-                  {item.children.map((child) => (
-                    <Link key={child.name} href={child.href}>
-                      <Button
-                        variant={pathname.startsWith(child.href) ? "secondary" : "ghost"}
-                        size="sm"
-                        className="w-full justify-start"
-                      >
-                        {child.name}
-                      </Button>
-                    </Link>
-                  ))}
+                  {item.children.map((child) => {
+                    const isChildActive = pathname.startsWith(child.href)
+                    return (
+                      <Link key={child.name} href={child.href}>
+                        <Button
+                          variant={isChildActive ? "secondary" : "ghost"}
+                          size="sm"
+                          className={cn(
+                            "w-full justify-start transition-colors",
+                            isChildActive && "bg-primary/10 hover:bg-primary/15 font-medium text-primary"
+                          )}
+                        >
+                          {child.name}
+                        </Button>
+                      </Link>
+                    )
+                  })}
                 </div>
               )}
             </div>
