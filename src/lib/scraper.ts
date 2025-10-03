@@ -33,6 +33,11 @@ export class BaseScraper {
    * ブラウザを起動
    */
   async launch(options: ScraperOptions = {}): Promise<void> {
+    // 既に起動済みの場合はスキップ
+    if (this.browser) {
+      return
+    }
+
     try {
       const launchOptions: LaunchOptions = {
         headless: options.headless ?? true,
