@@ -34,11 +34,13 @@ const DHC_CONFIG = {
     "https://www.dhc.co.jp/goods/cagoods.jsp?cCode=11622002",
   ],
   selectors: {
-    productItems: ".item, .product, li",
-    productLink: "a[href*='goodsdetail.jsp']",
-    productName: ".name, .title, h3, h4",
-    productPrice: ".price, .cost",
-    productImage: "img",
+    productList: "ul.display_matrix#goods",
+    productItems: "li",
+    goodsSet: ".goods_set",
+    productLink: ".img_box a, .txt_box .name a",
+    productName: ".txt_box .name a",
+    productPrice: ".price_box .price2 strong",
+    productImage: ".img_box img",
     nextPage: "a[href*='page=']"
   },
   timeout: 30000,
@@ -127,18 +129,20 @@ export class DHCScraper extends BaseScraper {
   async scrapeCategoryPage(categoryUrl: string, page: Page): Promise<DHCProduct[]> {
     const products: DHCProduct[] = []
     let pageNum = 1
+    let currentUrl = categoryUrl
 
     while (true) {
-      const url = pageNum === 1 ? categoryUrl : `${categoryUrl}&page=${pageNum}`
-      console.log(`スクレイピング中: ${url}`)
+      console.log(`スクレイピング中: ${currentUrl}`)
 
-      await page.goto(url, { waitUntil: 'networkidle2' })
+      await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
 
-      // 商品リストが読み込まれるまで待機
+      // 商品リストが読み込まれるまで待機（より長いタイムアウトを設定）
       try {
-        await page.waitForSelector('li, .item, .product', { timeout: 10000 })
-      } catch {
-        console.log(`ページ ${pageNum} で商品が見つかりませんでした`)
+        await page.waitForSelector(DHC_CONFIG.selectors.productList, { timeout: 20000 })
+        // 商品画像の遅延読み込みを待つため、少し待機
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      } catch (error) {
+        console.log(`ページ ${pageNum} で商品リストが見つかりませんでした:`, error)
         break
       }
 
@@ -148,25 +152,24 @@ export class DHCScraper extends BaseScraper {
 
       let pageProducts = 0
 
-      // 各商品要素を解析
-      const productElements = $('li, .item, .product').toArray()
+      // メイン商品リストから商品要素を取得
+      const productElements = $(`${DHC_CONFIG.selectors.productList} ${DHC_CONFIG.selectors.productItems}`).toArray()
+
       for (const element of productElements) {
         try {
           const $product = $(element)
+          const $goodsSet = $product.find(DHC_CONFIG.selectors.goodsSet)
 
-          // 商品リンクがあるかチェック
-          const $link = $product.find("a[href*='goodsdetail.jsp']")
-          if ($link.length === 0) continue
+          // .goods_setがない場合はスキップ
+          if ($goodsSet.length === 0) continue
 
           // 商品名を取得
-          let name = $link.find('.name, .title, h3, h4').first().text().trim()
-          if (!name) {
-            name = $link.attr('title')?.trim() || ''
-          }
+          const $nameLink = $goodsSet.find(DHC_CONFIG.selectors.productName)
+          const name = $nameLink.text().trim()
           if (!name) continue
 
           // 商品詳細ページURLを取得
-          let productUrl = $link.attr('href')
+          let productUrl = $nameLink.attr('href')
           if (productUrl && productUrl.startsWith('/')) {
             productUrl = `${DHC_CONFIG.baseUrl}${productUrl}`
           } else if (productUrl && !productUrl.startsWith('http')) {
@@ -175,20 +178,29 @@ export class DHCScraper extends BaseScraper {
 
           if (!productUrl) continue
 
-          // 一覧ページから価格を抽出を試行
+          // 一覧ページから価格を抽出
           let price: number | null = null
           let salePrice: number | null = null
           let description: string | null = null
 
-          // 価格抽出
-          $product.find('.price, .cost, [class*="price"]').each((_, priceEl) => {
-            const priceText = $(priceEl).text().trim()
-            if (priceText.includes('¥') || priceText.match(/\d/)) {
-              if (!price) {
-                price = this.parsePrice(priceText)
-              }
+          // 価格抽出（.price_box .price2 strongから）
+          const $priceEl = $goodsSet.find(DHC_CONFIG.selectors.productPrice)
+          if ($priceEl.length > 0) {
+            const priceText = $priceEl.text().trim()
+            price = this.parsePrice(priceText)
+          }
+
+          // 通常価格（割引前）も取得
+          const $price1El = $goodsSet.find('.price_box .price1')
+          if ($price1El.length > 0) {
+            const price1Text = $price1El.text().trim()
+            const regularPrice = this.parsePrice(price1Text)
+            // price1がある場合、それが通常価格でpriceがセール価格
+            if (regularPrice && price) {
+              salePrice = price
+              price = regularPrice
             }
-          })
+          }
 
           // 一覧ページから価格が取得できなかった場合は詳細ページにアクセス
           if (!price) {
@@ -202,8 +214,9 @@ export class DHCScraper extends BaseScraper {
             await new Promise(resolve => setTimeout(resolve, 300))
           }
 
-          // 商品画像URLを取得
-          let imageUrl = $product.find('img').attr('src')
+          // 商品画像URLを取得（data-src属性を優先）
+          const $imgEl = $goodsSet.find(DHC_CONFIG.selectors.productImage)
+          let imageUrl = $imgEl.attr('data-src') || $imgEl.attr('src')
           if (imageUrl && imageUrl.startsWith('//')) {
             imageUrl = `https:${imageUrl}`
           } else if (imageUrl && imageUrl.startsWith('/')) {
@@ -228,12 +241,31 @@ export class DHCScraper extends BaseScraper {
 
       console.log(`ページ ${pageNum}: ${pageProducts}件の商品を取得`)
 
-      // 次のページがあるかチェック
-      const hasNextPage = $("a[href*='page=']").length > 0 && pageProducts > 0
-      if (!hasNextPage) {
+      // 商品が0件の場合は次ページなし
+      if (pageProducts === 0) {
+        console.log(`ページ ${pageNum} で商品が見つからないため終了`)
         break
       }
 
+      // 次のページリンクがあるかチェック
+      // DHCサイトは #p-2,s-60,c-40,l-matrix,ca- のようなハッシュ形式のページネーションを使用
+      const nextPageLink = $('a.page-link.next').first()
+
+      if (nextPageLink.length === 0) {
+        console.log(`ページ ${pageNum} が最終ページです`)
+        break
+      }
+
+      // 次ページのhref属性からハッシュを取得
+      const nextHref = nextPageLink.attr('href')
+      if (!nextHref) {
+        console.log(`次ページのリンクが見つかりません`)
+        break
+      }
+
+      // ベースURLとハッシュを結合
+      const baseUrl = categoryUrl.split('#')[0]
+      currentUrl = `${baseUrl}${nextHref}`
       pageNum++
 
       // 安全のため最大10ページまで
@@ -253,48 +285,67 @@ export class DHCScraper extends BaseScraper {
    * 全カテゴリの商品をスクレイピング
    */
   async scrapeProducts(options: ScraperOptions = {}): Promise<ScraperResult<DHCProduct[]>> {
-    return await this.scrape(
-      DHC_CONFIG.baseUrl,
-      async (page: Page) => {
-        const allProducts: DHCProduct[] = []
+    let page: Page | null = null
 
-        // 各カテゴリをスクレイピング
-        for (const categoryPath of DHC_CONFIG.categoryUrls) {
-          const categoryUrl = categoryPath.startsWith('http')
-            ? categoryPath
-            : `${DHC_CONFIG.baseUrl}${categoryPath}`
+    try {
+      // ブラウザを起動（既に起動済みの場合はスキップ）
+      await this.launch({ ...options, timeout: DHC_CONFIG.timeout })
 
-          try {
-            console.log(`カテゴリをスクレイピング中: ${categoryPath}`)
-            const categoryProducts = await this.scrapeCategoryPage(categoryUrl, page)
+      page = await this.createPage({ ...options, timeout: DHC_CONFIG.timeout })
+      const allProducts: DHCProduct[] = []
 
-            // 商品をバッチ保存（パフォーマンス向上）
-            if (categoryProducts.length > 0) {
-              const saveResult = await this.saveProductsToDatabase(categoryProducts)
-              console.log(`カテゴリ ${categoryPath}: ${categoryProducts.length}件取得、${saveResult.savedCount}件保存、${saveResult.skippedCount}件スキップ`)
+      // 各カテゴリをスクレイピング
+      for (const categoryPath of DHC_CONFIG.categoryUrls) {
+        const categoryUrl = categoryPath.startsWith('http')
+          ? categoryPath
+          : `${DHC_CONFIG.baseUrl}${categoryPath}`
 
-              if (saveResult.errors.length > 0) {
-                console.warn(`カテゴリ ${categoryPath} で保存エラー:`, saveResult.errors)
-              }
+        try {
+          console.log(`カテゴリをスクレイピング中: ${categoryPath}`)
+          const categoryProducts = await this.scrapeCategoryPage(categoryUrl, page)
+
+          // 商品をバッチ保存（パフォーマンス向上）
+          if (categoryProducts.length > 0) {
+            const saveResult = await this.saveProductsToDatabase(categoryProducts)
+            console.log(`カテゴリ ${categoryPath}: ${categoryProducts.length}件取得、${saveResult.savedCount}件保存、${saveResult.skippedCount}件スキップ`)
+
+            if (saveResult.errors.length > 0) {
+              console.warn(`カテゴリ ${categoryPath} で保存エラー:`, saveResult.errors)
             }
-
-            allProducts.push(...categoryProducts)
-
-            // カテゴリ間の短い待機
-            await new Promise(resolve => setTimeout(resolve, 800))
-          } catch (error) {
-            console.error(`カテゴリ ${categoryPath} のスクレイピングでエラー:`, error)
           }
-        }
 
-        console.log(`合計 ${allProducts.length}件の商品を取得しました`)
-        return allProducts
-      },
-      {
-        ...options,
-        timeout: DHC_CONFIG.timeout
+          allProducts.push(...categoryProducts)
+
+          // カテゴリ間の短い待機
+          await new Promise(resolve => setTimeout(resolve, 800))
+        } catch (error) {
+          console.error(`カテゴリ ${categoryPath} のスクレイピングでエラー:`, error)
+        }
       }
-    )
+
+      console.log(`合計 ${allProducts.length}件の商品を取得しました`)
+
+      return {
+        success: true,
+        data: allProducts,
+        proxyUsed: this.getProxySettings().enabled,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        proxyUsed: this.getProxySettings().enabled,
+      }
+    } finally {
+      // ページのクリーンアップ
+      if (page) {
+        try {
+          await page.close()
+        } catch (error) {
+          console.warn("ページのクローズに失敗しました:", error)
+        }
+      }
+    }
   }
 
   /**
