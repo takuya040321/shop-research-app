@@ -15,12 +15,13 @@ export function useOfficialPage({ userId }: UseOfficialPageOptions) {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      const response = await fetch("/api/scraping/vt", {
+      const response = await fetch("/api/scrape/vt", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          userId,
           headless: true,
           timeout: 30000
         })
