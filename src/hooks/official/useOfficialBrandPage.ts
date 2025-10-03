@@ -30,12 +30,13 @@ export function useOfficialBrandPage({
 
     setIsRefreshing(true)
     try {
-      const response = await fetch(`/api/scraping/${brandConfig.name}`, {
+      const response = await fetch(`/api/scrape/${brandConfig.name}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          userId,
           headless: true,
           timeout: 30000
         })
