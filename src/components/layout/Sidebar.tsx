@@ -7,13 +7,13 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/Button"
 import {
   Home,
-  Package,
-  FileText,
   Settings,
   ChevronLeft,
   ChevronRight,
-  Search,
   Database,
+  Store,
+  ShoppingBag,
+  ShoppingCart,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -27,19 +27,19 @@ const navigation = [
     icon: Home,
   },
   {
-    name: "商品リサーチ",
-    href: "/research",
-    icon: Search,
-    children: [
-      { name: "公式サイト", href: "/official" },
-      { name: "楽天市場", href: "/rakuten" },
-      { name: "Yahoo!ショッピング", href: "/yahoo" },
-    ],
+    name: "公式サイト",
+    href: "/official",
+    icon: Store,
   },
   {
-    name: "商品管理",
-    href: "/products",
-    icon: Package,
+    name: "楽天市場",
+    href: "/rakuten",
+    icon: ShoppingBag,
+  },
+  {
+    name: "Yahoo!ショッピング",
+    href: "/yahoo",
+    icon: ShoppingCart,
   },
   {
     name: "ASIN管理",
@@ -47,19 +47,13 @@ const navigation = [
     icon: Database,
   },
   {
-    name: "レポート",
-    href: "/reports",
-    icon: FileText,
-  },
-  {
     name: "設定",
     href: "/settings",
     icon: Settings,
     children: [
-      { name: "全体設定", href: "/settings" },
+      { name: "全体設定", href: "/settings/system" },
       { name: "割引設定", href: "/settings/discounts" },
       { name: "エラーログ", href: "/settings/logs" },
-      { name: "システム情報", href: "/settings/system" },
     ],
   },
 ]
