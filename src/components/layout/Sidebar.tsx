@@ -1,19 +1,21 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/Button"
 import {
   Home,
-  Package,
-  FileText,
   Settings,
-  ChevronLeft,
-  ChevronRight,
-  Search,
   Database,
+  Store,
+  ShoppingBag,
+  ShoppingCart,
+  Menu,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -27,19 +29,24 @@ const navigation = [
     icon: Home,
   },
   {
-    name: "商品リサーチ",
-    href: "/research",
-    icon: Search,
+    name: "公式",
+    href: "/official",
+    icon: Store,
     children: [
-      { name: "公式サイト", href: "/official" },
-      { name: "楽天市場", href: "/rakuten" },
-      { name: "Yahoo!ショッピング", href: "/yahoo" },
+      { name: "VT Cosmetics", href: "/official/vt" },
+      { name: "DHC", href: "/official/dhc" },
+      { name: "innisfree", href: "/official/innisfree" },
     ],
   },
   {
-    name: "商品管理",
-    href: "/products",
-    icon: Package,
+    name: "楽天市場",
+    href: "/rakuten",
+    icon: ShoppingBag,
+  },
+  {
+    name: "Yahoo!ショッピング",
+    href: "/yahoo",
+    icon: ShoppingCart,
   },
   {
     name: "ASIN管理",
@@ -47,39 +54,53 @@ const navigation = [
     icon: Database,
   },
   {
-    name: "レポート",
-    href: "/reports",
-    icon: FileText,
-  },
-  {
     name: "設定",
     href: "/settings",
     icon: Settings,
     children: [
-      { name: "全体設定", href: "/settings" },
+      { name: "全体設定", href: "/settings/system" },
       { name: "割引設定", href: "/settings/discounts" },
       { name: "エラーログ", href: "/settings/logs" },
-      { name: "システム情報", href: "/settings/system" },
     ],
   },
 ]
 
 export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const pathname = usePathname()
+
+  // 現在のパスに基づいて親メニューを自動展開
+  useEffect(() => {
+    const menusToExpand: string[] = []
+    navigation.forEach(item => {
+      if (item.children && item.children.some(child => pathname.startsWith(child.href))) {
+        menusToExpand.push(item.name)
+      }
+    })
+    setExpandedMenus(menusToExpand)
+  }, [pathname])
+
+  const toggleMenu = (name: string) => {
+    setExpandedMenus(prev =>
+      prev.includes(name)
+        ? prev.filter(m => m !== name)
+        : [...prev, name]
+    )
+  }
 
   return (
     <div
       className={cn(
-        "flex h-screen flex-col border-r bg-card",
+        "flex h-screen flex-col border-r bg-card transition-all duration-300",
         collapsed ? "w-16" : "w-64",
         className
       )}
     >
       {/* ヘッダー */}
-      <div className="flex h-16 items-center justify-between px-4 border-b">
+      <div className="flex h-14 items-center justify-between px-3 border-b">
         {!collapsed && (
-          <h1 className="text-lg font-semibold text-foreground">
+          <h1 className="text-base font-semibold text-foreground tracking-tight">
             Shop Research
           </h1>
         )}
@@ -87,51 +108,128 @@ export function Sidebar({ className }: SidebarProps) {
           variant="ghost"
           size="sm"
           onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8 p-0"
+          className={cn(
+            "h-8 w-8 p-0 hover:bg-accent transition-colors",
+            collapsed && "mx-auto"
+          )}
+          title={collapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"}
         >
           {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
+            <Menu className="h-4 w-4" />
           ) : (
-            <ChevronLeft className="h-4 w-4" />
+            <X className="h-4 w-4" />
           )}
         </Button>
       </div>
 
       {/* ナビゲーション */}
-      <nav className="flex-1 space-y-1 p-2">
+      <nav className="flex-1 space-y-0.5 p-2">
         {navigation.map((item) => {
           const isActive = pathname === item.href ||
             (item.children && item.children.some(child => pathname.startsWith(child.href)))
+          const isExpanded = expandedMenus.includes(item.name)
+          const hasChildren = !!item.children
 
           return (
-            <div key={item.name}>
-              <Link href={item.href}>
+            <div key={item.name} className="space-y-0.5">
+              {/* 子メニューがある場合はリンクなし、ない場合はリンクあり */}
+              {hasChildren ? (
                 <Button
-                  variant={isActive ? "secondary" : "ghost"}
+                  variant="ghost"
                   className={cn(
-                    "w-full justify-start",
-                    collapsed && "justify-center px-2"
+                    "group w-full justify-start relative transition-colors duration-200 h-9 px-3",
+                    collapsed && "justify-center px-2",
+                    isActive
+                      ? "bg-accent text-foreground border-l-2 border-primary"
+                      : "hover:bg-accent/50"
                   )}
+                  title={collapsed ? item.name : undefined}
+                  onClick={() => toggleMenu(item.name)}
                 >
-                  <item.icon className={cn("h-4 w-4", !collapsed && "mr-2")} />
-                  {!collapsed && <span>{item.name}</span>}
+                  <item.icon className={cn(
+                    "h-4 w-4 transition-colors shrink-0",
+                    !collapsed && "mr-3",
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  )} />
+                  {!collapsed && (
+                    <>
+                      <span className={cn(
+                        "flex-1 text-left text-sm font-medium",
+                        isActive ? "text-foreground" : "text-muted-foreground"
+                      )}>
+                        {item.name}
+                      </span>
+                      {isExpanded ? (
+                        <ChevronUp className={cn(
+                          "h-4 w-4 ml-auto transition-transform duration-200 shrink-0",
+                          isActive ? "text-foreground" : "text-muted-foreground"
+                        )} />
+                      ) : (
+                        <ChevronDown className={cn(
+                          "h-4 w-4 ml-auto transition-transform duration-200 shrink-0",
+                          isActive ? "text-foreground" : "text-muted-foreground"
+                        )} />
+                      )}
+                    </>
+                  )}
                 </Button>
-              </Link>
+              ) : (
+                <Link href={item.href}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "group w-full justify-start relative transition-colors duration-200 h-9 px-3",
+                      collapsed && "justify-center px-2",
+                      isActive
+                        ? "bg-accent text-foreground border-l-2 border-primary"
+                        : "hover:bg-accent/50"
+                    )}
+                    title={collapsed ? item.name : undefined}
+                  >
+                    <item.icon className={cn(
+                      "h-4 w-4 transition-colors shrink-0",
+                      !collapsed && "mr-3",
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    )} />
+                    {!collapsed && (
+                      <span className={cn(
+                        "text-sm font-medium",
+                        isActive ? "text-foreground" : "text-muted-foreground"
+                      )}>
+                        {item.name}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
+              )}
 
               {/* 子メニュー */}
-              {!collapsed && item.children && isActive && (
-                <div className="ml-6 mt-1 space-y-1">
-                  {item.children.map((child) => (
-                    <Link key={child.name} href={child.href}>
-                      <Button
-                        variant={pathname.startsWith(child.href) ? "secondary" : "ghost"}
-                        size="sm"
-                        className="w-full justify-start"
-                      >
-                        {child.name}
-                      </Button>
-                    </Link>
-                  ))}
+              {!collapsed && hasChildren && isExpanded && item.children && (
+                <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border/40 pl-2">
+                  {item.children.map((child) => {
+                    const isChildActive = pathname === child.href
+                    return (
+                      <Link key={child.name} href={child.href}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            "group w-full justify-start relative transition-colors duration-200 h-8 px-3",
+                            isChildActive
+                              ? "bg-accent text-foreground border-l-2 border-primary"
+                              : "hover:bg-accent/50 text-muted-foreground"
+                          )}
+                        >
+                          <span className={cn(
+                            "text-sm font-normal transition-colors",
+                            isChildActive ? "text-foreground font-medium" : "text-muted-foreground"
+                          )}>
+                            {child.name}
+                          </span>
+                        </Button>
+                      </Link>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -140,9 +238,9 @@ export function Sidebar({ className }: SidebarProps) {
       </nav>
 
       {/* フッター */}
-      <div className="border-t p-2">
+      <div className="border-t p-3">
         {!collapsed && (
-          <p className="text-xs text-muted-foreground text-center">
+          <p className="text-xs text-muted-foreground/70 text-center">
             © 2025 Shop Research App
           </p>
         )}
