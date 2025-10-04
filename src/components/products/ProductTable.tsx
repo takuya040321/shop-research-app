@@ -152,13 +152,31 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
       )
     }
 
+    // フォーマット処理
+    const formatValue = () => {
+      if (type === "boolean") return value ? "はい" : "いいえ"
+      if (!value && value !== 0) return "-"
+
+      // Amazon価格とFBA料は¥表記
+      if (field === "asin_amazon_price" || field === "asin_fba_fee") {
+        return `¥${Number(value).toLocaleString()}`
+      }
+
+      // 手数料率は%表記
+      if (field === "asin_fee_rate") {
+        return `${value}%`
+      }
+
+      return String(value)
+    }
+
     return (
       <div
         className="flex items-center gap-1 cursor-pointer hover:bg-gray-50 px-1 py-1 rounded group"
         onClick={() => startEditing(product.id, field, value)}
       >
         <span className="text-sm">
-          {type === "boolean" ? (value ? "はい" : "いいえ") : String(value || "-")}
+          {formatValue()}
         </span>
         <EditIcon className="w-3 h-3 opacity-0 group-hover:opacity-50" />
       </div>
@@ -253,7 +271,7 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
               </TableHead>
 
               <TableHead
-                className="cursor-pointer hover:bg-gray-50 min-w-[150px] text-xs text-center"
+                className="cursor-pointer hover:bg-gray-50 min-w-[250px] text-xs text-center"
                 onClick={() => handleSort("asin_amazon_name")}
               >
                 <div className="flex items-center justify-center">
@@ -417,10 +435,24 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
           </TableHeader>
 
           <TableBody>
-            {allProducts.map((product) => (
+            {allProducts.map((product) => {
+              // 行の背景色を決定
+              const isDangerous = product.asin?.is_dangerous || false
+              const isPerCarryNG = product.asin?.is_per_carry_ng || false
+
+              let rowClassName = "h-24 cursor-pointer"
+              if (isDangerous) {
+                rowClassName += " bg-red-50 hover:bg-red-100"
+              } else if (isPerCarryNG) {
+                rowClassName += " bg-yellow-50 hover:bg-yellow-100"
+              } else {
+                rowClassName += " hover:bg-gray-50"
+              }
+
+              return (
               <TableRow
                 key={product.id}
-                className="hover:bg-gray-50 h-24 cursor-pointer"
+                className={rowClassName}
                 onContextMenu={(e) => handleRowRightClick(e, product)}
               >
                 {/* 画像 */}
@@ -492,9 +524,30 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
 
                 {/* 仕入価格 */}
                 <TableCell className="w-24">
-                  <span className="text-sm font-medium text-green-600">
-                    {formatPrice(product.effective_price)}
-                  </span>
+                  {(() => {
+                    const basePrice = product.sale_price || product.price || 0
+                    const effectivePrice = product.effective_price || 0
+                    const hasDiscount = basePrice !== effectivePrice && effectivePrice < basePrice
+
+                    if (hasDiscount) {
+                      return (
+                        <div>
+                          <div className="line-through text-gray-500 text-xs">
+                            {formatPrice(basePrice)}
+                          </div>
+                          <div className="text-green-600 font-medium text-sm">
+                            {formatPrice(effectivePrice)}
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <span className="text-sm font-medium text-green-600">
+                        {formatPrice(effectivePrice)}
+                      </span>
+                    )
+                  })()}
                 </TableCell>
 
                 {/* ASIN */}
@@ -506,11 +559,23 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                 </TableCell>
 
                 {/* Amazon商品名 */}
-                <TableCell className="min-w-[150px]">
-                  {product.asin ?
-                    renderEditableCell(product, "asin_amazon_name", product.asin.amazon_name, "text") :
+                <TableCell className="min-w-[250px]">
+                  {product.asin && product.asin.amazon_name ? (
+                    product.asin.product_url ? (
+                      <a
+                        href={product.asin.product_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        {product.asin.amazon_name}
+                      </a>
+                    ) : (
+                      <span className="text-sm">{product.asin.amazon_name}</span>
+                    )
+                  ) : (
                     <span className="text-sm text-gray-400">-</span>
-                  }
+                  )}
                 </TableCell>
 
                 {/* Amazon価格 */}
@@ -738,7 +803,8 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                 </TableCell>
 
               </TableRow>
-            ))}
+              )
+            })}
           </TableBody>
         </Table>
       </div>

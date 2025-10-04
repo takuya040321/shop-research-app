@@ -11,12 +11,23 @@ import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import {
   RefreshCwIcon,
-  DownloadIcon,
-  SettingsIcon,
   GlobeIcon
 } from "lucide-react"
 import { getBrandConfig, isValidBrand } from "@/lib/brand-config"
 import { useOfficialBrandPage } from "@/hooks/official/useOfficialBrandPage"
+import { Input } from "@/components/ui/Input"
+import { Label } from "@/components/ui/Label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select"
+import { Card } from "@/components/ui/Card"
+import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase"
+import type { DiscountType } from "@/types/discount"
 
 export default function BrandPage() {
   const params = useParams()
@@ -35,12 +46,70 @@ export default function BrandPage() {
   // カスタムフックから全てのロジックを取得
   const {
     isRefreshing,
-    handleRefresh,
-    handleExport,
-    handleSettings
+    handleRefresh
   } = useOfficialBrandPage({
     brandConfig
   })
+
+  // ブランド別割引設定の状態管理
+  const [discountType, setDiscountType] = useState<DiscountType>("percentage")
+  const [discountValue, setDiscountValue] = useState<string>("0")
+  const [isDiscountEnabled, setIsDiscountEnabled] = useState(false)
+  const [isSavingDiscount, setIsSavingDiscount] = useState(false)
+
+  // 既存の割引設定を読み込み
+  useEffect(() => {
+    const loadDiscount = async () => {
+      const { data } = await supabase
+        .from("shop_discounts")
+        .select()
+        .eq("shop_name", brandConfig.shopName)
+        .single()
+
+      if (data) {
+        setDiscountType(data.discount_type)
+        setDiscountValue(String(data.discount_value))
+        setIsDiscountEnabled(data.is_enabled)
+      }
+    }
+
+    loadDiscount()
+  }, [brandConfig.shopName])
+
+  // 割引設定を保存
+  const handleSaveDiscount = async () => {
+    setIsSavingDiscount(true)
+
+    try {
+      const { data: existing } = await supabase
+        .from("shop_discounts")
+        .select()
+        .eq("shop_name", brandConfig.shopName)
+        .single()
+
+      if (existing) {
+        await supabase
+          .from("shop_discounts")
+          .update({
+            discount_type: discountType,
+            discount_value: parseFloat(discountValue),
+            is_enabled: isDiscountEnabled
+          })
+          .eq("shop_name", brandConfig.shopName)
+      } else {
+        await supabase
+          .from("shop_discounts")
+          .insert({
+            shop_name: brandConfig.shopName,
+            discount_type: discountType,
+            discount_value: parseFloat(discountValue),
+            is_enabled: isDiscountEnabled
+          })
+      }
+    } finally {
+      setIsSavingDiscount(false)
+    }
+  }
 
   return (
     <MainLayout>
@@ -74,25 +143,68 @@ export default function BrandPage() {
               <RefreshCwIcon className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
               {isRefreshing ? "実行中..." : "スクレイピング"}
             </Button>
-
-            <Button
-              variant="outline"
-              onClick={handleExport}
-              className="flex items-center gap-2"
-            >
-              <DownloadIcon className="w-4 h-4" />
-              エクスポート
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={handleSettings}
-              className="flex items-center gap-2"
-            >
-              <SettingsIcon className="w-4 h-4" />
-              設定
-            </Button>
           </div>
+
+          {/* 割引設定カード */}
+          <Card className="p-4 mb-6">
+            <h3 className="font-semibold mb-4">ブランド別割引設定</h3>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="discountType">割引タイプ</Label>
+                <Select
+                  value={discountType}
+                  onValueChange={(value) => setDiscountType(value as DiscountType)}
+                >
+                  <SelectTrigger id="discountType">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">パーセンテージ (%)</SelectItem>
+                    <SelectItem value="fixed">固定額 (円)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="discountValue">
+                  割引値 {discountType === "percentage" ? "(%)" : "(円)"}
+                </Label>
+                <Input
+                  id="discountValue"
+                  type="number"
+                  min="0"
+                  max={discountType === "percentage" ? "100" : undefined}
+                  placeholder={discountType === "percentage" ? "例: 10" : "例: 500"}
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="discountEnabled">有効化</Label>
+                <div className="flex items-center h-10">
+                  <input
+                    id="discountEnabled"
+                    type="checkbox"
+                    checked={isDiscountEnabled}
+                    onChange={(e) => setIsDiscountEnabled(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="ml-2 text-sm">{isDiscountEnabled ? "有効" : "無効"}</span>
+                </div>
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  onClick={handleSaveDiscount}
+                  disabled={isSavingDiscount}
+                  className="w-full"
+                >
+                  {isSavingDiscount ? "保存中..." : "保存"}
+                </Button>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {/* 商品テーブル */}
