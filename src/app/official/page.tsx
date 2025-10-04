@@ -20,13 +20,10 @@ export default function OfficialPage() {
   // カスタムフックから全てのロジックを取得
   const {
     isRefreshing,
-    userId,
     handleRefresh,
     handleExport,
     handleSettings
-  } = useOfficialPage({
-    userId: "d5efb4ac-4592-4359-bb62-b56b4321723e" // TODO: 実際の認証システム実装後に置き換え
-  })
+  } = useOfficialPage()
 
   return (
     <MainLayout>
@@ -130,7 +127,6 @@ export default function OfficialPage() {
 
       {/* 商品テーブル */}
       <ProductTable
-        userId={userId}
         className="w-full"
       />
       </div>

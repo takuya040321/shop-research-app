@@ -149,7 +149,6 @@ export default function YahooHierarchyPage() {
             <h2 className="text-xl font-semibold mb-4">商品一覧</h2>
             <PaginatedProductTable
               key={refreshKey}
-              userId="test-user-id"
               shopFilter={config.displayName}
             />
           </div>

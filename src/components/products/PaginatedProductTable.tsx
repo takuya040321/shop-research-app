@@ -41,13 +41,12 @@ import { ProductSearch } from "./ProductSearch"
 import { useProductTable } from "@/hooks/products/useProductTable"
 
 interface PaginatedProductTableProps {
-  userId: string
   className?: string
   shopFilter?: string
   pageSize?: number
 }
 
-export function PaginatedProductTable({ userId, className, shopFilter, pageSize = 50 }: PaginatedProductTableProps) {
+export function PaginatedProductTable({ className, shopFilter, pageSize = 50 }: PaginatedProductTableProps) {
   // カスタムフックから全てのロジックを取得
   const {
     products: currentPageProducts,
@@ -78,7 +77,7 @@ export function PaginatedProductTable({ userId, className, shopFilter, pageSize 
     handleCopyProduct,
     handleDeleteProduct,
     getSortIcon
-  } = useProductTable({ userId, shopFilter, pageSize })
+  } = useProductTable({ shopFilter, pageSize })
 
   // ソートアイコンを描画するヘルパー
   const renderSortIcon = useCallback((field: string) => {

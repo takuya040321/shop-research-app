@@ -21,11 +21,7 @@ interface NewDiscount {
   discountValue: string
 }
 
-interface UseDiscountsOptions {
-  userId: string
-}
-
-export function useDiscounts({ userId }: UseDiscountsOptions) {
+export function useDiscounts() {
   const queryClient = useQueryClient()
   const [newDiscount, setNewDiscount] = useState<NewDiscount>({
     shopName: "",
@@ -35,16 +31,16 @@ export function useDiscounts({ userId }: UseDiscountsOptions) {
 
   // 割引設定一覧取得
   const { data: discounts = [], isLoading: loading } = useQuery({
-    queryKey: ["discounts", userId],
-    queryFn: () => getAllDiscounts(userId),
+    queryKey: ["discounts"],
+    queryFn: () => getAllDiscounts(),
   })
 
   // 割引設定作成のミューテーション
   const createMutation = useMutation({
     mutationFn: (discount: { shopName: string; discountType: DiscountType; discountValue: number }) =>
-      createDiscount(userId, discount),
+      createDiscount(discount),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["discounts", userId] })
+      queryClient.invalidateQueries({ queryKey: ["discounts"] })
       showSuccess("割引設定を追加しました")
       setNewDiscount({ shopName: "", discountType: "percentage", discountValue: "" })
     },
@@ -55,9 +51,9 @@ export function useDiscounts({ userId }: UseDiscountsOptions) {
 
   // 割引設定削除のミューテーション
   const deleteMutation = useMutation({
-    mutationFn: (shopName: string) => deleteDiscount(userId, shopName),
+    mutationFn: (shopName: string) => deleteDiscount(shopName),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["discounts", userId] })
+      queryClient.invalidateQueries({ queryKey: ["discounts"] })
       showSuccess("割引設定を削除しました")
     },
     onError: () => {
@@ -68,9 +64,9 @@ export function useDiscounts({ userId }: UseDiscountsOptions) {
   // 割引設定切り替えのミューテーション
   const toggleMutation = useMutation({
     mutationFn: ({ shopName, isEnabled }: { shopName: string; isEnabled: boolean }) =>
-      toggleDiscountEnabled(userId, shopName, isEnabled),
+      toggleDiscountEnabled(shopName, isEnabled),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["discounts", userId] })
+      queryClient.invalidateQueries({ queryKey: ["discounts"] })
       showSuccess(`割引設定を${variables.isEnabled ? "有効" : "無効"}にしました`)
     },
     onError: () => {

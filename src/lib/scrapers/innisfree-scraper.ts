@@ -43,11 +43,8 @@ const INNISFREE_CONFIG = {
 }
 
 export class InnisfreeScraper extends BaseScraper {
-  private readonly userId: string
-
-  constructor(userId: string) {
+  constructor() {
     super()
-    this.userId = userId
   }
 
   /**
@@ -329,7 +326,6 @@ export class InnisfreeScraper extends BaseScraper {
     const { data: existingProducts } = await supabase
       .from("products")
       .select("id, name, shop_type, shop_name")
-      .eq("user_id", this.userId)
       .eq("shop_type", "official")
       .eq("shop_name", "innisfree")
       .in("name", productNames)
@@ -360,7 +356,6 @@ export class InnisfreeScraper extends BaseScraper {
     // バッチ挿入（パフォーマンス向上）
     const productsToInsert: ProductInsert[] = newProducts.map(product => ({
       id: randomUUID(),
-      user_id: this.userId,
       shop_type: "official",
       shop_name: "innisfree",
       name: product.name,
@@ -424,7 +419,7 @@ export class InnisfreeScraper extends BaseScraper {
       console.log("すべてのカテゴリの商品保存が完了しました")
 
       // 重複削除を実行
-      await deduplicateAfterScraping(this.userId)
+      await deduplicateAfterScraping()
 
       return {
         success: true,

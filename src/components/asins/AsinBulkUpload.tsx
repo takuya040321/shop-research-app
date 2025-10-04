@@ -7,85 +7,109 @@
 
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
-import { UploadIcon, FileIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon } from "lucide-react"
-import { toast } from "sonner"
-import * as XLSX from "xlsx"
+import { UploadIcon, FileIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, InfoIcon } from "lucide-react"
 import { useAsinBulkUpload } from "@/hooks/asins/useAsinBulkUpload"
 
-interface AsinBulkUploadProps {
-  userId: string
-}
-
-export function AsinBulkUpload({ userId }: AsinBulkUploadProps) {
+export function AsinBulkUpload() {
   // カスタムフックから全てのロジックを取得
   const {
     file,
     uploading,
     result,
     dragActive,
+    preview,
+    loadingPreview,
     fileInputRef,
     handleDrag,
     handleDrop,
     handleFileChange,
     handleUpload,
     handleClickFileInput
-  } = useAsinBulkUpload({ userId })
+  } = useAsinBulkUpload()
 
-  // テンプレートダウンロード
-  const handleDownloadTemplate = () => {
-    const templateData = [
-      {
-        "ASIN": "B01234ABCD",
-        "Amazon商品名": "サンプル商品",
-        "Amazon価格": 1980,
-        "月間売上数": 100,
-        "手数料率": 15,
-        "FBA料": 400,
-        "商品コード: EAN": "4901234567890"
-      }
-    ]
+  // 長いテキストを省略表示する関数
+  const truncateText = (text: string, maxLength = 30): string => {
+    if (!text || text.length <= maxLength) return text
+    return `${text.substring(0, maxLength)}...`
+  }
 
-    const worksheet = XLSX.utils.json_to_sheet(templateData)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "ASIN")
+  // 列幅を動的に設定する関数（テーブル用）
+  const getColumnStyle = (key: string): React.CSSProperties => {
+    const normalizedKey = key.toLowerCase().trim()
 
-    // 列幅設定
-    const columnWidths = [
-      { wch: 12 }, // ASIN
-      { wch: 30 }, // Amazon商品名
-      { wch: 12 }, // Amazon価格
-      { wch: 12 }, // 月間売上数
-      { wch: 10 }, // 手数料率
-      { wch: 10 }, // FBA料
-      { wch: 15 }, // JANコード
-      { wch: 10 }, // Amazon有
-      { wch: 10 }, // 公式有
-      { wch: 12 }, // クレーム数
-      { wch: 10 }, // 危険品
-      { wch: 15 }, // パーキャリNG
-      { wch: 30 }  // メモ
-    ]
-    worksheet['!cols'] = columnWidths
+    // 画像・URL列はかなり小さく
+    if (normalizedKey === "画像" || normalizedKey.includes("url")) {
+      return { width: "60px", maxWidth: "60px" }
+    }
 
-    XLSX.writeFile(workbook, "asin_template.xlsx")
-    toast.success("テンプレートをダウンロードしました")
+    // ブランド列は狭く
+    if (normalizedKey === "ブランド") {
+      return { width: "60px", maxWidth: "60px" }
+    }
+
+    // 商品名は長く
+    if (normalizedKey === "商品名") {
+      return { width: "300px", maxWidth: "300px" }
+    }
+
+    // デフォルト
+    return { width: "120px", maxWidth: "120px" }
+  }
+
+  // 列の省略文字数を動的に設定する関数
+  const getTruncateLength = (key: string): number => {
+    const normalizedKey = key.toLowerCase().trim()
+
+    // 画像・URL列は非常に短く
+    if (normalizedKey === "画像" || normalizedKey.includes("url")) {
+      return 8
+    }
+
+    // 商品名は長く
+    if (normalizedKey === "商品名") {
+      return 50
+    }
+
+    return 20 // デフォルト
   }
 
   return (
     <div className="space-y-4">
       <Card className="p-6">
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">ASIN一括アップロード</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadTemplate}
-            >
-              <DownloadIcon className="h-4 w-4 mr-2" />
-              テンプレートダウンロード
-            </Button>
-          </div>
+          <h2 className="text-lg font-semibold">ASIN一括アップロード</h2>
+
+          {/* 注意事項 */}
+          <Card className="p-4 bg-blue-50 border-blue-200">
+            <div className="flex gap-3">
+              <InfoIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2 text-sm">
+                <p className="font-semibold text-blue-900">CSVファイルアップロード時の注意事項</p>
+                <ul className="space-y-1.5 text-blue-800">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>CSVファイルの列順序は必ず以下の通りにしてください</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>列順: 画像、URL: Amazon、ブランド、商品名、ASIN、先月の購入、Buy Box 🚚: 現在価格、紹介料％、FBA Pick&Pack 料金、商品コード: EAN</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>最大ファイルサイズ: 10MB</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>最大行数: 10,000行</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>対応形式: CSV、Excel（.xlsx、.xls）</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </Card>
 
           {/* ドロップゾーン */}
           <div
@@ -157,6 +181,52 @@ export function AsinBulkUpload({ userId }: AsinBulkUploadProps) {
               </div>
             )}
           </div>
+
+          {/* プレビュー表示 */}
+          {file && preview.length > 0 && preview[0] && (
+            <Card className="p-4">
+              <h3 className="font-semibold mb-3">ファイルプレビュー（最初の5行）</h3>
+              {loadingPreview ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  読み込み中...
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs table-fixed">
+                    <thead>
+                      <tr className="border-b">
+                        {Object.keys(preview[0]).map((key) => (
+                          <th
+                            key={key}
+                            className="px-3 py-2 text-left font-medium text-muted-foreground"
+                            style={getColumnStyle(key)}
+                          >
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.map((row, index) => (
+                        <tr key={index} className="border-b last:border-0">
+                          {Object.entries(row).map(([key, value], cellIndex) => (
+                            <td
+                              key={cellIndex}
+                              className="px-3 py-2 overflow-hidden text-ellipsis"
+                              style={getColumnStyle(key)}
+                              title={value?.toString() || "-"}
+                            >
+                              {truncateText(value?.toString() || "-", getTruncateLength(key))}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* 結果表示 */}
           {result && (

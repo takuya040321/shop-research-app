@@ -42,7 +42,6 @@ export function useYahooPage({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          userId: "test-user-id", // 仮のユーザーID
           query: query || undefined,
           sellerId: sellerId || undefined,
           categoryId: categoryId || undefined,

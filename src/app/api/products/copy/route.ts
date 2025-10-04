@@ -10,11 +10,11 @@ import type { Product } from "@/types/database"
 // POST /api/products/copy
 export async function POST(request: NextRequest) {
   try {
-    const { productId, userId } = await request.json()
+    const { productId } = await request.json()
 
-    if (!productId || !userId) {
+    if (!productId) {
       return NextResponse.json(
-        { success: false, message: "商品IDとユーザーIDが必要です" },
+        { success: false, message: "商品IDが必要です" },
         { status: 400 }
       )
     }
@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
       .from("products")
       .select("*")
       .eq("id", productId)
-      .eq("user_id", userId)
       .single<Product>()
 
     if (fetchError || !originalProduct) {
@@ -40,7 +39,6 @@ export async function POST(request: NextRequest) {
     // 商品データをコピー（元商品を参照として設定、ASIN情報はクリア）
     const copiedProduct = {
       id: newProductId,
-      user_id: userId,
       shop_type: originalProduct.shop_type,
       shop_name: originalProduct.shop_name,
       name: originalProduct.name,
@@ -103,8 +101,7 @@ export async function GET() {
     methods: ["POST"],
     description: "商品データを複製し、ASIN情報をクリアします",
     parameters: {
-      productId: "コピー元商品ID",
-      userId: "ユーザーID"
+      productId: "コピー元商品ID"
     }
   })
 }
