@@ -249,27 +249,47 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
         const asinField = field.replace("asin_", "")
 
         if (!product.asin && asinField === "asin" && value) {
-          const { data: newAsin, error: createAsinError } = await supabase
+          // 既存ASINをチェック
+          const { data: existingAsin } = await supabase
             .from("asins")
-            .insert({
-              asin: value,
-              has_amazon: false,
-              has_official: false,
-              is_dangerous: false,
-              is_per_carry_ng: false
-            } as never)
             .select()
+            .eq("asin", value)
             .single<Asin>()
 
-          if (createAsinError || !newAsin) {
-            throw new Error("ASIN作成に失敗しました")
+          let asinToLink: Asin
+
+          if (existingAsin) {
+            // 既存ASINを使用
+            asinToLink = existingAsin
+          } else {
+            // 新規ASIN作成
+            const { data: newAsin, error: createAsinError } = await supabase
+              .from("asins")
+              .insert({
+                asin: value,
+                fee_rate: 15,  // デフォルト値を明示的に指定
+                fba_fee: 0,    // デフォルト値を明示的に指定
+                has_amazon: false,
+                has_official: false,
+                is_dangerous: false,
+                is_per_carry_ng: false
+              } as never)
+              .select()
+              .single<Asin>()
+
+            if (createAsinError || !newAsin) {
+              throw new Error("ASIN作成に失敗しました")
+            }
+
+            asinToLink = newAsin
           }
 
+          // 商品とASINを紐付け
           const { error: linkError } = await supabase
             .from("product_asins")
             .insert({
               product_id: productId,
-              asin_id: newAsin.id
+              asin_id: asinToLink.id
             } as never)
 
           if (linkError) {
