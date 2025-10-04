@@ -9,9 +9,6 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { AsinBulkUpload } from "@/components/asins/AsinBulkUpload"
 
 export default function AsinsPage() {
-  // 仮のユーザーID（実際は認証から取得）
-  const userId = "test-user-id"
-
   return (
     <div className="flex h-screen">
       <Sidebar />
@@ -27,14 +24,7 @@ export default function AsinsPage() {
           </div>
 
           {/* ASIN一括アップロード */}
-          <AsinBulkUpload userId={userId} />
-
-          {/* TODO: ASINテーブル実装 */}
-          <div className="bg-card rounded-lg border p-6">
-            <p className="text-muted-foreground">
-              ASINテーブルは今後実装予定です
-            </p>
-          </div>
+          <AsinBulkUpload />
         </div>
       </main>
     </div>

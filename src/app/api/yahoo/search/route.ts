@@ -12,14 +12,7 @@ import { randomUUID } from "crypto"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, query, sellerId, categoryId, shopName, hits, offset } = body
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "ユーザーIDが必要です" },
-        { status: 400 }
-      )
-    }
+    const { query, sellerId, categoryId, shopName, hits, offset } = body
 
     console.log("Yahoo商品検索を開始します...", { query, sellerId, categoryId })
 
@@ -40,7 +33,6 @@ export async function POST(request: NextRequest) {
     // データベースに保存
     const saveResult = await saveProductsToDatabase(
       result.products,
-      userId,
       shopName || "Yahoo!ショッピング"
     )
 
@@ -74,7 +66,6 @@ export async function POST(request: NextRequest) {
  */
 async function saveProductsToDatabase(
   products: YahooProduct[],
-  userId: string,
   shopName: string
 ): Promise<{
   savedCount: number
@@ -91,7 +82,6 @@ async function saveProductsToDatabase(
   const { data: existingProducts } = await supabase
     .from("products")
     .select("id, name, shop_type, shop_name")
-    .eq("user_id", userId)
     .eq("shop_type", "yahoo")
     .eq("shop_name", shopName)
     .in("name", productNames)
@@ -122,7 +112,6 @@ async function saveProductsToDatabase(
   // バッチ挿入
   const productsToInsert: ProductInsert[] = newProducts.map(product => ({
     id: randomUUID(),
-    user_id: userId,
     shop_type: "yahoo",
     shop_name: shopName,
     name: product.name,
@@ -160,7 +149,6 @@ export async function GET() {
     methods: ["POST"],
     description: "Yahoo!ショッピングから商品データを検索・取得します",
     parameters: {
-      userId: "ユーザーID（必須）",
       query: "検索クエリ",
       sellerId: "ストアID",
       categoryId: "カテゴリID",

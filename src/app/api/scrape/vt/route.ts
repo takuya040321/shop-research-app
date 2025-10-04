@@ -2,23 +2,14 @@
  * VT Cosmetics スクレイピング API
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { VTCosmeticsScraper } from "@/lib/scrapers/vt-cosmetics-scraper"
 
 // POST /api/scrape/vt
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const { userId } = await request.json()
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "ユーザーIDが必要です" },
-        { status: 400 }
-      )
-    }
-
     // VTスクレイパーを初期化
-    const scraper = new VTCosmeticsScraper(userId)
+    const scraper = new VTCosmeticsScraper()
 
     console.log("VT Cosmeticsスクレイピングを開始...")
 
@@ -72,9 +63,6 @@ export async function GET() {
     endpoint: "/api/scrape/vt",
     methods: ["POST"],
     description: "VT Cosmetics公式サイトから商品データをスクレイピングしてデータベースに保存します",
-    parameters: {
-      userId: "ユーザーID（必須）"
-    },
     features: [
       "全カテゴリの商品を自動取得",
       "商品詳細ページから正確な価格情報を取得",

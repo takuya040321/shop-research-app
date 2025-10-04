@@ -2,25 +2,16 @@
  * DHCスクレイピング API
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { DHCScraper } from "@/lib/scrapers/dhc-scraper"
 
 // POST /api/scrape/dhc
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const { userId } = await request.json()
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "ユーザーIDが必要です" },
-        { status: 400 }
-      )
-    }
-
     console.log("DHCスクレイピングを開始します...")
 
     // スクレイパーインスタンスを作成
-    const scraper = new DHCScraper(userId)
+    const scraper = new DHCScraper()
 
     // スクレイピング実行（プロキシ設定は自動的に適用される）
     const result = await scraper.executeFullScraping()
@@ -68,9 +59,6 @@ export async function GET() {
     message: "DHCスクレイピング APIは正常に動作しています",
     endpoint: "/api/scrape/dhc",
     methods: ["POST"],
-    description: "DHC公式サイトから商品データをスクレイピングします",
-    parameters: {
-      userId: "ユーザーID"
-    }
+    description: "DHC公式サイトから商品データをスクレイピングします"
   })
 }

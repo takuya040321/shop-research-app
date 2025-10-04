@@ -18,7 +18,6 @@ export interface Database {
       products: {
         Row: {
           id: string
-          user_id: string
           shop_type: "official" | "rakuten" | "yahoo" | null
           shop_name: string | null
           name: string
@@ -34,7 +33,6 @@ export interface Database {
         }
         Insert: {
           id?: string
-          user_id: string
           shop_type?: "official" | "rakuten" | "yahoo" | null
           shop_name?: string | null
           name: string
@@ -50,7 +48,6 @@ export interface Database {
         }
         Update: {
           id?: string
-          user_id?: string
           shop_type?: "official" | "rakuten" | "yahoo" | null
           shop_name?: string | null
           name?: string
@@ -68,14 +65,15 @@ export interface Database {
       asins: {
         Row: {
           id: string
-          user_id: string
           asin: string
           amazon_name: string | null
-          amazon_price: number | null
-          monthly_sales: number | null
-          fee_rate: number | null
-          fba_fee: number | null
+          amazon_price: number | null  // 整数型
+          monthly_sales: number | null  // 整数型
+          fee_rate: number  // 整数型（NOT NULL、デフォルト15）
+          fba_fee: number  // 整数型（NOT NULL、デフォルト0）
           jan_code: string | null
+          image_url: string | null
+          product_url: string | null
           has_amazon: boolean
           has_official: boolean
           complaint_count: number
@@ -87,14 +85,15 @@ export interface Database {
         }
         Insert: {
           id?: string
-          user_id: string
           asin: string
           amazon_name?: string | null
-          amazon_price?: number | null
-          monthly_sales?: number | null
-          fee_rate?: number | null
-          fba_fee?: number | null
+          amazon_price?: number | null  // 整数型
+          monthly_sales?: number | null  // 整数型
+          fee_rate?: number  // 整数型（デフォルト15）
+          fba_fee?: number  // 整数型（デフォルト0）
           jan_code?: string | null
+          image_url?: string | null
+          product_url?: string | null
           has_amazon?: boolean
           has_official?: boolean
           complaint_count?: number
@@ -106,14 +105,15 @@ export interface Database {
         }
         Update: {
           id?: string
-          user_id?: string
           asin?: string
           amazon_name?: string | null
-          amazon_price?: number | null
-          monthly_sales?: number | null
-          fee_rate?: number | null
-          fba_fee?: number | null
+          amazon_price?: number | null  // 整数型
+          monthly_sales?: number | null  // 整数型
+          fee_rate?: number  // 整数型
+          fba_fee?: number  // 整数型
           jan_code?: string | null
+          image_url?: string | null
+          product_url?: string | null
           has_amazon?: boolean
           has_official?: boolean
           complaint_count?: number
@@ -127,21 +127,18 @@ export interface Database {
       product_asins: {
         Row: {
           id: string
-          user_id: string
           product_id: string
           asin_id: string
           created_at: string
         }
         Insert: {
           id?: string
-          user_id: string
           product_id: string
           asin_id: string
           created_at?: string
         }
         Update: {
           id?: string
-          user_id?: string
           product_id?: string
           asin_id?: string
           created_at?: string
@@ -150,7 +147,6 @@ export interface Database {
       shop_discounts: {
         Row: {
           id: string
-          user_id: string
           shop_name: string
           discount_type: "percentage" | "fixed"
           discount_value: number
@@ -160,7 +156,6 @@ export interface Database {
         }
         Insert: {
           id?: string
-          user_id: string
           shop_name: string
           discount_type: "percentage" | "fixed"
           discount_value: number
@@ -170,7 +165,6 @@ export interface Database {
         }
         Update: {
           id?: string
-          user_id?: string
           shop_name?: string
           discount_type?: "percentage" | "fixed"
           discount_value?: number
@@ -182,7 +176,6 @@ export interface Database {
       api_settings: {
         Row: {
           id: string
-          user_id: string
           provider: "rakuten" | "yahoo"
           settings: Json
           is_enabled: boolean
@@ -191,7 +184,6 @@ export interface Database {
         }
         Insert: {
           id?: string
-          user_id: string
           provider: "rakuten" | "yahoo"
           settings: Json
           is_enabled?: boolean
@@ -200,7 +192,6 @@ export interface Database {
         }
         Update: {
           id?: string
-          user_id?: string
           provider?: "rakuten" | "yahoo"
           settings?: Json
           is_enabled?: boolean

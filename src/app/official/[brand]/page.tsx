@@ -35,12 +35,10 @@ export default function BrandPage() {
   // カスタムフックから全てのロジックを取得
   const {
     isRefreshing,
-    userId,
     handleRefresh,
     handleExport,
     handleSettings
   } = useOfficialBrandPage({
-    userId: "d5efb4ac-4592-4359-bb62-b56b4321723e", // TODO: 実際の認証システム実装後に置き換え
     brandConfig
   })
 
@@ -99,7 +97,6 @@ export default function BrandPage() {
 
         {/* 商品テーブル */}
         <ProductTable
-          userId={userId}
           className="w-full"
           shopFilter={brandConfig.shopName}
         />

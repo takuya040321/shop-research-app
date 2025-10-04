@@ -17,8 +17,6 @@ import {
 } from "lucide-react"
 import { useSystem } from "@/hooks/system/useSystem"
 
-const TEST_USER_ID = "test-user-id"
-
 export default function SystemPage() {
   // カスタムフックから全てのロジックを取得
   const {
@@ -32,7 +30,7 @@ export default function SystemPage() {
     handleExportSettings,
     handleImportSettings,
     formatBytes
-  } = useSystem({ userId: TEST_USER_ID })
+  } = useSystem()
 
   return (
     <MainLayout>

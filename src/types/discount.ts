@@ -10,7 +10,6 @@ export type DiscountType = "percentage" | "fixed"
 // 割引設定
 export interface DiscountSetting {
   id: string
-  userId: string
   shopName: string
   discountType: DiscountType
   discountValue: number

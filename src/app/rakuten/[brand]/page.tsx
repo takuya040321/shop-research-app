@@ -132,7 +132,6 @@ export default function RakutenBrandPage() {
             <h2 className="text-xl font-semibold mb-4">商品一覧</h2>
             <PaginatedProductTable
               key={refreshKey}
-              userId="test-user-id"
               shopFilter={brandConfig.displayName}
             />
           </div>

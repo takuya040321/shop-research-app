@@ -5,11 +5,7 @@
 
 import { useState } from "react"
 
-interface UseOfficialPageOptions {
-  userId: string
-}
-
-export function useOfficialPage({ userId }: UseOfficialPageOptions) {
+export function useOfficialPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const handleRefresh = async () => {
@@ -21,7 +17,6 @@ export function useOfficialPage({ userId }: UseOfficialPageOptions) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId,
           headless: true,
           timeout: 30000
         })
@@ -57,7 +52,6 @@ export function useOfficialPage({ userId }: UseOfficialPageOptions) {
   return {
     // State
     isRefreshing,
-    userId,
 
     // Actions
     handleRefresh,

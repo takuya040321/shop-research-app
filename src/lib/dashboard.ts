@@ -25,19 +25,17 @@ export interface ShopStats {
 /**
  * ダッシュボードサマリーデータを取得
  */
-export async function getDashboardSummary(userId: string): Promise<DashboardSummary> {
+export async function getDashboardSummary(): Promise<DashboardSummary> {
   try {
     // 全商品数を取得
     const { count: totalProducts } = await supabase
       .from("products")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
 
     // ASIN紐付け済み商品数を取得
     const { data: productsWithAsin } = await supabase
       .from("product_asins")
       .select("product_id")
-      .eq("user_id", userId)
 
     const uniqueProductsWithAsin = new Set(
       (productsWithAsin as { product_id: string }[] | null)?.map(pa => pa.product_id) || []
@@ -52,7 +50,6 @@ export async function getDashboardSummary(userId: string): Promise<DashboardSumm
     const { data: discounts } = await supabase
       .from("shop_discounts")
       .select("*")
-      .eq("user_id", userId)
       .eq("is_enabled", true)
 
     const discountMap = new Map<string, { type: string; value: number }>()
@@ -73,7 +70,6 @@ export async function getDashboardSummary(userId: string): Promise<DashboardSumm
           asins (*)
         )
       `)
-      .eq("user_id", userId)
 
     let totalProfitAmount = 0
     let totalProfitRate = 0
@@ -149,13 +145,12 @@ export async function getDashboardSummary(userId: string): Promise<DashboardSumm
 /**
  * ショップ別統計を取得
  */
-export async function getShopStats(userId: string): Promise<ShopStats[]> {
+export async function getShopStats(): Promise<ShopStats[]> {
   try {
     // 割引設定を取得
     const { data: discounts } = await supabase
       .from("shop_discounts")
       .select("*")
-      .eq("user_id", userId)
       .eq("is_enabled", true)
 
     const discountMap = new Map<string, { type: string; value: number }>()
@@ -184,7 +179,6 @@ export async function getShopStats(userId: string): Promise<ShopStats[]> {
           )
         )
       `)
-      .eq("user_id", userId)
 
     if (!products) return []
 

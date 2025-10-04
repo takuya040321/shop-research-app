@@ -22,17 +22,9 @@ type ProductWithAsins = {
 // POST /api/products/cleanup-duplicates
 export async function POST(request: NextRequest) {
   try {
-    const { userId, shopName } = await request.json()
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "ユーザーIDが必要です" },
-        { status: 400 }
-      )
-    }
+    const { shopName } = await request.json()
 
     console.log(`重複商品のクリーンアップを開始: ${shopName || "全ショップ"}`)
-
 
     // 正確な重複検出（shop_type + shop_name + name + ASIN考慮）
     const { data: productsWithAsins } = await supabase
@@ -50,7 +42,6 @@ export async function POST(request: NextRequest) {
           )
         )
       `)
-      .eq("user_id", userId)
       .neq("memo", "コピー商品")
       .order("created_at")
       .returns<Array<{
@@ -160,7 +151,6 @@ export async function GET() {
     methods: ["POST"],
     description: "重複商品を検出して古いもの以外を削除します",
     parameters: {
-      userId: "ユーザーID（必須）",
       shopName: "ショップ名（任意、指定しない場合は全ショップ対象）"
     }
   })

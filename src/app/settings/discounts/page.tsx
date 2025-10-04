@@ -24,8 +24,6 @@ import { Plus, Trash2 } from "lucide-react"
 import type { DiscountType } from "@/types/discount"
 import { useDiscounts } from "@/hooks/discounts/useDiscounts"
 
-const TEST_USER_ID = "test-user-id"
-
 export default function DiscountsPage() {
   // カスタムフックから全てのロジックを取得
   const {
@@ -36,7 +34,7 @@ export default function DiscountsPage() {
     handleAdd,
     handleDelete,
     handleToggle
-  } = useDiscounts({ userId: TEST_USER_ID })
+  } = useDiscounts()
 
   return (
     <MainLayout>

@@ -42,7 +42,6 @@ export function useRakutenPage({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          userId: "test-user-id", // 仮のユーザーID
           keyword: keyword || undefined,
           shopCode: shopCode || undefined,
           genreId: genreId || undefined,

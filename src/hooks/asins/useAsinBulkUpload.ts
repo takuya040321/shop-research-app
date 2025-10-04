@@ -5,6 +5,8 @@
 
 import { useState, useRef } from "react"
 import { toast } from "sonner"
+import * as XLSX from "xlsx"
+import Papa from "papaparse"
 
 interface UploadResult {
   success: boolean
@@ -14,15 +16,17 @@ interface UploadResult {
   errors: Array<{ row: number; message: string }>
 }
 
-interface UseAsinBulkUploadOptions {
-  userId: string
+interface PreviewRow {
+  [key: string]: string | number | null
 }
 
-export function useAsinBulkUpload({ userId }: UseAsinBulkUploadOptions) {
+export function useAsinBulkUpload() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<UploadResult | null>(null)
   const [dragActive, setDragActive] = useState(false)
+  const [preview, setPreview] = useState<PreviewRow[]>([])
+  const [loadingPreview, setLoadingPreview] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ドラッグ＆ドロップ処理
@@ -46,8 +50,62 @@ export function useAsinBulkUpload({ userId }: UseAsinBulkUploadOptions) {
     }
   }
 
+  // ファイルプレビューを読み込む
+  const loadFilePreview = async (file: File): Promise<PreviewRow[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      const ext = file.name.split('.').pop()?.toLowerCase()
+
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result
+
+          if (ext === 'csv') {
+            // CSV解析
+            const text = data as string
+            const result = Papa.parse(text, {
+              header: true,
+              skipEmptyLines: true,
+              transformHeader: (header) => header.trim(),
+              preview: 5 // 最初の5行のみ
+            })
+            resolve(result.data as PreviewRow[])
+          } else if (ext === 'xlsx' || ext === 'xls') {
+            // Excel解析
+            const workbook = XLSX.read(data, { type: 'binary' })
+            const sheetName = workbook.SheetNames[0]
+            if (!sheetName) {
+              reject(new Error("Excelファイルにシートが見つかりません"))
+              return
+            }
+            const worksheet = workbook.Sheets[sheetName]
+            if (!worksheet) {
+              reject(new Error("Excelワークシートが見つかりません"))
+              return
+            }
+            const jsonData = XLSX.utils.sheet_to_json(worksheet) as PreviewRow[]
+            // 最初の5行のみ
+            resolve(jsonData.slice(0, 5))
+          } else {
+            reject(new Error("サポートされていないファイル形式です"))
+          }
+        } catch (error) {
+          reject(error)
+        }
+      }
+
+      reader.onerror = () => reject(new Error("ファイル読み込みエラー"))
+
+      if (ext === 'csv') {
+        reader.readAsText(file)
+      } else {
+        reader.readAsBinaryString(file)
+      }
+    })
+  }
+
   // ファイル選択処理
-  const handleFileSelect = (selectedFile: File) => {
+  const handleFileSelect = async (selectedFile: File) => {
     const validExtensions = ['csv', 'xlsx', 'xls']
     const ext = selectedFile.name.split('.').pop()?.toLowerCase()
 
@@ -60,6 +118,20 @@ export function useAsinBulkUpload({ userId }: UseAsinBulkUploadOptions) {
 
     setFile(selectedFile)
     setResult(null)
+    setLoadingPreview(true)
+
+    try {
+      const previewData = await loadFilePreview(selectedFile)
+      setPreview(previewData)
+    } catch (error) {
+      console.error("プレビュー読み込みエラー:", error)
+      toast.error("プレビュー読み込み失敗", {
+        description: "ファイルのプレビューを表示できませんでした"
+      })
+      setPreview([])
+    } finally {
+      setLoadingPreview(false)
+    }
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +153,6 @@ export function useAsinBulkUpload({ userId }: UseAsinBulkUploadOptions) {
     try {
       const formData = new FormData()
       formData.append("file", file)
-      formData.append("userId", userId)
 
       const response = await fetch("/api/asins/bulk-upload", {
         method: "POST",
@@ -127,6 +198,8 @@ export function useAsinBulkUpload({ userId }: UseAsinBulkUploadOptions) {
     uploading,
     result,
     dragActive,
+    preview,
+    loadingPreview,
     fileInputRef,
 
     // Actions
