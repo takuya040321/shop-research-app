@@ -9,12 +9,11 @@ import type { ShopDiscount } from "@/types/database"
 /**
  * 全ての割引設定を取得
  */
-export async function getAllDiscounts(userId: string): Promise<DiscountSetting[]> {
+export async function getAllDiscounts(): Promise<DiscountSetting[]> {
   try {
     const { data, error } = await supabase
       .from("shop_discounts")
       .select("*")
-      .eq("user_id", userId)
       .order("shop_name", { ascending: true })
 
     if (error) {
@@ -33,14 +32,12 @@ export async function getAllDiscounts(userId: string): Promise<DiscountSetting[]
  * ショップ名で割引設定を取得
  */
 export async function getDiscountByShop(
-  userId: string,
   shopName: string
 ): Promise<DiscountSetting | null> {
   try {
     const { data, error } = await supabase
       .from("shop_discounts")
       .select("*")
-      .eq("user_id", userId)
       .eq("shop_name", shopName)
       .single()
 
@@ -64,14 +61,12 @@ export async function getDiscountByShop(
  * 割引設定を作成
  */
 export async function createDiscount(
-  userId: string,
   discount: DiscountSettingCreate
 ): Promise<DiscountSetting | null> {
   try {
     const { data, error } = await supabase
       .from("shop_discounts")
       .insert({
-        user_id: userId,
         shop_name: discount.shopName,
         discount_type: discount.discountType,
         discount_value: discount.discountValue,
@@ -96,7 +91,6 @@ export async function createDiscount(
  * 割引設定を更新
  */
 export async function updateDiscount(
-  userId: string,
   shopName: string,
   updates: DiscountSettingUpdate
 ): Promise<DiscountSetting | null> {
@@ -120,7 +114,6 @@ export async function updateDiscount(
     const { data, error } = await supabase
       .from("shop_discounts")
       .update(updateData as never)
-      .eq("user_id", userId)
       .eq("shop_name", shopName)
       .select()
       .single()
@@ -140,12 +133,11 @@ export async function updateDiscount(
 /**
  * 割引設定を削除
  */
-export async function deleteDiscount(userId: string, shopName: string): Promise<boolean> {
+export async function deleteDiscount(shopName: string): Promise<boolean> {
   try {
     const { error } = await supabase
       .from("shop_discounts")
       .delete()
-      .eq("user_id", userId)
       .eq("shop_name", shopName)
 
     if (error) {
@@ -164,7 +156,6 @@ export async function deleteDiscount(userId: string, shopName: string): Promise<
  * 割引設定を有効/無効に切り替え
  */
 export async function toggleDiscountEnabled(
-  userId: string,
   shopName: string,
   isEnabled: boolean
 ): Promise<boolean> {
@@ -172,7 +163,6 @@ export async function toggleDiscountEnabled(
     const { error } = await supabase
       .from("shop_discounts")
       .update({ is_enabled: isEnabled } as never)
-      .eq("user_id", userId)
       .eq("shop_name", shopName)
 
     if (error) {
@@ -193,7 +183,6 @@ export async function toggleDiscountEnabled(
 function mapToDiscountSetting(data: ShopDiscount): DiscountSetting {
   return {
     id: data.id,
-    userId: data.user_id,
     shopName: data.shop_name,
     discountType: data.discount_type,
     discountValue: data.discount_value,

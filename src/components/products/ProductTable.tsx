@@ -36,12 +36,11 @@ import { ContextMenu, useContextMenu } from "@/components/ui/ContextMenu"
 import { useProductTable } from "@/hooks/products/useProductTable"
 
 interface ProductTableProps {
-  userId: string
   className?: string
   shopFilter?: string
 }
 
-export function ProductTable({ userId, className, shopFilter }: ProductTableProps) {
+export function ProductTable({ className, shopFilter }: ProductTableProps) {
   const [selectedProductForMenu, setSelectedProductForMenu] = useState<ExtendedProduct | null>(null)
   const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu()
 
@@ -64,7 +63,6 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
     handleDeleteProduct,
     getSortIcon,
   } = useProductTable({
-    userId,
     shopFilter,
     pageSize: 9999 // 全件表示するため大きな値を設定
   })
@@ -589,7 +587,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                     checked={product.is_hidden || false}
                     onChange={async (e) => {
                       try {
-                        const success = await updateProduct(product.id, { is_hidden: e.target.checked }, userId)
+                        const success = await updateProduct(product.id, { is_hidden: e.target.checked })
                         if (success) {
                           await loadProducts()
                         } else {
@@ -613,7 +611,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                     onChange={async (e) => {
                       if (!product.asin) return
                       try {
-                        const success = await updateAsin(product.asin.id, { has_amazon: e.target.checked }, userId)
+                        const success = await updateAsin(product.asin.id, { has_amazon: e.target.checked })
                         if (success) {
                           await loadProducts()
                         } else {
@@ -637,7 +635,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                     onChange={async (e) => {
                       if (!product.asin) return
                       try {
-                        const success = await updateAsin(product.asin.id, { has_official: e.target.checked }, userId)
+                        const success = await updateAsin(product.asin.id, { has_official: e.target.checked })
                         if (success) {
                           await loadProducts()
                         } else {
@@ -663,7 +661,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                           if (!product.asin) return
                           try {
                             const value = e.target.value ? parseInt(e.target.value) : 0
-                            const success = await updateAsin(product.asin.id, { complaint_count: value }, userId)
+                            const success = await updateAsin(product.asin.id, { complaint_count: value })
                             if (success) {
                               await loadProducts()
                             } else {
@@ -692,7 +690,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                     onChange={async (e) => {
                       if (!product.asin) return
                       try {
-                        const success = await updateAsin(product.asin.id, { is_dangerous: e.target.checked }, userId)
+                        const success = await updateAsin(product.asin.id, { is_dangerous: e.target.checked })
                         if (success) {
                           await loadProducts()
                         } else {
@@ -716,7 +714,7 @@ export function ProductTable({ userId, className, shopFilter }: ProductTableProp
                     onChange={async (e) => {
                       if (!product.asin) return
                       try {
-                        const success = await updateAsin(product.asin.id, { is_per_carry_ng: e.target.checked }, userId)
+                        const success = await updateAsin(product.asin.id, { is_per_carry_ng: e.target.checked })
                         if (success) {
                           await loadProducts()
                         } else {

@@ -12,12 +12,10 @@ interface BrandConfig {
 }
 
 interface UseOfficialBrandPageOptions {
-  userId: string
   brandConfig: BrandConfig
 }
 
 export function useOfficialBrandPage({
-  userId,
   brandConfig
 }: UseOfficialBrandPageOptions) {
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -36,7 +34,6 @@ export function useOfficialBrandPage({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId,
           headless: true,
           timeout: 30000
         })
@@ -72,7 +69,6 @@ export function useOfficialBrandPage({
   return {
     // State
     isRefreshing,
-    userId,
 
     // Actions
     handleRefresh,

@@ -78,11 +78,13 @@ CREATE TABLE IF NOT EXISTS asins (
     user_id UUID NOT NULL,
     asin VARCHAR(10) NOT NULL CHECK (LENGTH(asin) = 10),
     amazon_name VARCHAR(500),
-    amazon_price DECIMAL(10,2),
+    amazon_price INTEGER,  -- 整数型（小数点以下切り捨て）
     monthly_sales INTEGER DEFAULT 0 CHECK (monthly_sales >= 0),
-    fee_rate DECIMAL(5,2) DEFAULT 15.0 CHECK (fee_rate >= 0 AND fee_rate <= 100),
-    fba_fee DECIMAL(10,2) DEFAULT 0 CHECK (fba_fee >= 0),
+    fee_rate INTEGER DEFAULT 15 NOT NULL CHECK (fee_rate >= 0 AND fee_rate <= 100),  -- 整数型（小数点第一位を四捨五入）
+    fba_fee INTEGER DEFAULT 0 NOT NULL CHECK (fba_fee >= 0),  -- 整数型（小数点以下切り捨て）
     jan_code VARCHAR(13),
+    image_url TEXT,
+    product_url TEXT,
     has_amazon BOOLEAN DEFAULT FALSE,
     has_official BOOLEAN DEFAULT FALSE,
     complaint_count INTEGER DEFAULT 0 CHECK (complaint_count >= 0),

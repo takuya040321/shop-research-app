@@ -14,11 +14,13 @@ import type { AsinInsert } from "@/types/database"
 const AsinSchema = z.object({
   asin: z.string().regex(/^[A-Z0-9]{10}$/, "ASINは10文字の英数字である必要があります"),
   amazon_name: z.string().optional().nullable(),
-  amazon_price: z.number().min(0).optional().nullable(),
-  monthly_sales: z.number().min(0).optional().nullable(),
-  fee_rate: z.number().min(0).max(100).optional().nullable(),
-  fba_fee: z.number().min(0).optional().nullable(),
-  jan_code: z.string().optional().nullable()
+  amazon_price: z.number().int().min(0).optional().nullable(),  // 整数型
+  monthly_sales: z.number().int().min(0).optional().nullable(),  // 整数型
+  fee_rate: z.number().int().min(0).max(100).optional().nullable(),  // 整数型
+  fba_fee: z.number().int().min(0).optional().nullable(),  // 整数型
+  jan_code: z.string().optional().nullable(),
+  image_url: z.string().optional().nullable(),
+  product_url: z.string().optional().nullable()
 })
 
 type AsinData = z.infer<typeof AsinSchema>
@@ -39,35 +41,37 @@ const MAX_ROWS = 10000
 /**
  * ファイルからデータを解析
  */
-function parseFile(buffer: Buffer, filename: string): Record<string, unknown>[] {
+function parseFile(buffer: Buffer, filename: string): unknown[][] {
   const ext = filename.split('.').pop()?.toLowerCase()
 
   if (ext === 'csv') {
-    // CSV解析
+    // CSV解析（ヘッダーなし、配列形式）
     const text = buffer.toString('utf-8')
     const result = Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => header.trim()
+      header: false,
+      skipEmptyLines: true
     })
-    return result.data as Record<string, unknown>[]
+    // 最初の行（ヘッダー）をスキップ
+    return (result.data as unknown[][]).slice(1)
   } else if (ext === 'xlsx' || ext === 'xls') {
-    // Excel解析
+    // Excel解析（ヘッダーなし、配列形式）
     const workbook = XLSX.read(buffer, { type: 'buffer' })
     const sheetName = workbook.SheetNames[0]
     if (!sheetName) throw new Error("Excelファイルにシートが見つかりません")
     const worksheet = workbook.Sheets[sheetName]
     if (!worksheet) throw new Error("Excelワークシートが見つかりません")
-    return XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[]
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][]
+    // 最初の行（ヘッダー）をスキップ
+    return jsonData.slice(1)
   } else {
-    throw new Error("サポートされていないファイル形式です。CSV, XLSX, XLSのみ対応しています。")
+    throw new Error("サポートされていないファイル形式です")
   }
 }
 
 /**
  * データを正規化してバリデーション
  */
-function normalizeAndValidate(rawData: Record<string, unknown>[], userId: string): {
+function normalizeAndValidate(rawData: unknown[][]): {
   validData: AsinInsert[]
   errors: Array<{ row: number; message: string }>
 } {
@@ -78,15 +82,20 @@ function normalizeAndValidate(rawData: Record<string, unknown>[], userId: string
     const rowNumber = index + 2 // ヘッダー行を考慮
 
     try {
-      // データ正規化（商品コード: EAN列までを使用）
+      // CSV列番号でデータを取得
+      // 0: 画像, 1: URL: Amazon, 2: ブランド, 3: 商品名, 4: ASIN,
+      // 5: 先月の購入, 6: Buy Box 🚚: 現在価格, 7: 紹介料％,
+      // 8: FBA Pick&Pack 料金, 9: 商品コード: EAN
       const normalized: AsinData = {
-        asin: String(row.ASIN || row.asin || '').trim().toUpperCase(),
-        amazon_name: (row['Amazon商品名'] || row.amazon_name) ? String(row['Amazon商品名'] || row.amazon_name) : null,
-        amazon_price: parseNumber(row['Amazon価格'] || row.amazon_price),
-        monthly_sales: parseNumber(row['月間売上数'] || row.monthly_sales),
-        fee_rate: parseNumber(row['手数料率'] || row.fee_rate),
-        fba_fee: parseNumber(row['FBA料'] || row.fba_fee),
-        jan_code: (row['JANコード'] || row['商品コード: EAN'] || row.jan_code) ? String(row['JANコード'] || row['商品コード: EAN'] || row.jan_code) : null
+        asin: String(row[4] || '').trim().toUpperCase(),
+        amazon_name: row[3] ? String(row[3]) : null,
+        amazon_price: parseInteger(row[6]), // 整数（切り捨て）
+        monthly_sales: parseInteger(row[5]), // 整数（切り捨て）
+        fee_rate: parseIntegerRound(row[7]), // 整数（四捨五入）
+        fba_fee: parseInteger(row[8]), // 整数（切り捨て）
+        jan_code: row[9] ? String(row[9]) : null,
+        image_url: row[0] ? String(row[0]) : null,
+        product_url: row[1] ? String(row[1]) : null
       }
 
       // バリデーション
@@ -94,14 +103,15 @@ function normalizeAndValidate(rawData: Record<string, unknown>[], userId: string
 
       // AsinInsert形式に変換（デフォルト値を設定）
       const asinInsert: AsinInsert = {
-        user_id: userId,
         asin: validated.asin,
         amazon_name: validated.amazon_name || null,
         amazon_price: validated.amazon_price || null,
         monthly_sales: validated.monthly_sales || null,
-        fee_rate: validated.fee_rate || null,
-        fba_fee: validated.fba_fee || null,
+        fee_rate: validated.fee_rate ?? 15,  // デフォルト15（整数）
+        fba_fee: validated.fba_fee ?? 0,  // デフォルト0（整数）
         jan_code: validated.jan_code || null,
+        image_url: validated.image_url || null,
+        product_url: validated.product_url || null,
         has_amazon: false,
         has_official: false,
         complaint_count: 0,
@@ -129,12 +139,45 @@ function normalizeAndValidate(rawData: Record<string, unknown>[], userId: string
 }
 
 /**
- * 数値パース
+ * 整数パース（小数点以下切り捨て）
+ * amazon_price、fba_fee用
  */
-function parseNumber(value: unknown): number | null {
+function parseInteger(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null
-  const num = Number(value)
-  return isNaN(num) ? null : num
+
+  // 文字列に変換
+  const str = String(value).trim()
+  if (str === '') return null
+
+  // 通貨記号（¥、$）、パーセント記号（%）、カンマ、スペースを削除
+  const cleaned = str.replace(/[¥$%,\s]/g, '')
+
+  const num = Number(cleaned)
+  if (isNaN(num)) return null
+
+  // 小数点以下切り捨て
+  return Math.floor(num)
+}
+
+/**
+ * 整数パース（小数点第一位を四捨五入）
+ * fee_rate用
+ */
+function parseIntegerRound(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+
+  // 文字列に変換
+  const str = String(value).trim()
+  if (str === '') return null
+
+  // 通貨記号（¥、$）、パーセント記号（%）、カンマ、スペースを削除
+  const cleaned = str.replace(/[¥$%,\s]/g, '')
+
+  const num = Number(cleaned)
+  if (isNaN(num)) return null
+
+  // 小数点第一位を四捨五入
+  return Math.round(num)
 }
 
 // POST /api/asins/bulk-upload
@@ -142,18 +185,10 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    const userId = formData.get('userId') as string | null
 
     if (!file) {
       return NextResponse.json(
         { success: false, message: "ファイルが指定されていません" },
-        { status: 400 }
-      )
-    }
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "ユーザーIDが必要です" },
         { status: 400 }
       )
     }
@@ -181,14 +216,13 @@ export async function POST(request: NextRequest) {
     }
 
     // データ正規化とバリデーション
-    const { validData, errors } = normalizeAndValidate(rawData, userId)
+    const { validData, errors } = normalizeAndValidate(rawData)
 
     // 既存ASINチェック
     const asins = validData.map(d => d.asin)
     const { data: existingAsins } = await supabase
       .from("asins")
       .select("asin")
-      .eq("user_id", userId)
       .in("asin", asins)
       .returns<{ asin: string }[]>()
 

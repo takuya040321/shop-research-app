@@ -6,21 +6,17 @@
 import { useQuery } from "@tanstack/react-query"
 import { getDashboardSummary, getShopStats } from "@/lib/dashboard"
 
-interface UseDashboardOptions {
-  userId: string
-}
-
-export function useDashboard({ userId }: UseDashboardOptions) {
+export function useDashboard() {
   // ダッシュボードサマリーデータ取得
   const { data: summary, isLoading: summaryLoading } = useQuery({
-    queryKey: ["dashboardSummary", userId],
-    queryFn: () => getDashboardSummary(userId),
+    queryKey: ["dashboardSummary"],
+    queryFn: () => getDashboardSummary(),
   })
 
   // ショップ統計データ取得
   const { data: shopStats = [], isLoading: statsLoading } = useQuery({
-    queryKey: ["shopStats", userId],
-    queryFn: () => getShopStats(userId),
+    queryKey: ["shopStats"],
+    queryFn: () => getShopStats(),
   })
 
   const loading = summaryLoading || statsLoading

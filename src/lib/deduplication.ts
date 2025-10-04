@@ -8,7 +8,7 @@ import { supabase } from "./supabase"
  * データベース内の重複商品を検出して削除
  * 同じ shop_type, shop_name, name の商品のうち、最新のものを残して古いものを削除
  */
-export async function removeDuplicateProducts(userId: string): Promise<{
+export async function removeDuplicateProducts(): Promise<{
   success: boolean
   deletedCount: number
   errors: string[]
@@ -21,7 +21,6 @@ export async function removeDuplicateProducts(userId: string): Promise<{
     const { data: allProducts, error: fetchError } = await supabase
       .from("products")
       .select("id, shop_type, shop_name, name, created_at")
-      .eq("user_id", userId)
       .order("created_at", { ascending: false }) as {
         data: Array<{
           id: string
@@ -76,7 +75,6 @@ export async function removeDuplicateProducts(userId: string): Promise<{
         .from("products")
         .delete()
         .in("id", batch)
-        .eq("user_id", userId)
 
       if (deleteError) {
         errors.push(`削除エラー (バッチ ${i / batchSize + 1}): ${deleteError.message}`)
@@ -103,9 +101,9 @@ export async function removeDuplicateProducts(userId: string): Promise<{
 /**
  * スクレイピング後に自動で重複削除を実行
  */
-export async function deduplicateAfterScraping(userId: string): Promise<void> {
+export async function deduplicateAfterScraping(): Promise<void> {
   console.log("重複商品の削除を開始...")
-  const result = await removeDuplicateProducts(userId)
+  const result = await removeDuplicateProducts()
 
   if (result.success) {
     console.log(`✓ ${result.deletedCount}件の重複商品を削除しました`)

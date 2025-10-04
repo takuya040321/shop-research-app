@@ -19,32 +19,27 @@ import { getProductsWithAsinAndProfits } from "@/lib/products"
 import { showSuccess, showError } from "@/lib/toast"
 import { saveSettings } from "@/lib/settings"
 
-interface UseSystemOptions {
-  userId: string
-}
-
-export function useSystem({ userId }: UseSystemOptions) {
+export function useSystem() {
   const [storageSize, setStorageSize] = useState(0)
 
   // システム統計データ取得
   const { data: summary } = useQuery({
-    queryKey: ["dashboardSummary", userId],
-    queryFn: () => getDashboardSummary(userId),
+    queryKey: ["dashboardSummary"],
+    queryFn: () => getDashboardSummary(),
   })
 
   const { data: shopStats = [] } = useQuery({
-    queryKey: ["shopStats", userId],
-    queryFn: () => getShopStats(userId),
+    queryKey: ["shopStats"],
+    queryFn: () => getShopStats(),
   })
 
   // ASIN総数取得
   const { data: asinCount = 0 } = useQuery({
-    queryKey: ["asinCount", userId],
+    queryKey: ["asinCount"],
     queryFn: async () => {
       const { count } = await supabase
         .from("asins")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
       return count || 0
     },
   })
@@ -67,7 +62,7 @@ export function useSystem({ userId }: UseSystemOptions) {
 
   const handleExportProducts = async () => {
     try {
-      const products = await getProductsWithAsinAndProfits(userId)
+      const products = await getProductsWithAsinAndProfits()
       exportProductsToCSV(products, `products_${new Date().toISOString().split("T")[0]}.csv`)
       showSuccess(`${products.length}件の商品データをエクスポートしました`)
     } catch (error) {
@@ -81,7 +76,6 @@ export function useSystem({ userId }: UseSystemOptions) {
       const { data: asins } = await supabase
         .from("asins")
         .select("*")
-        .eq("user_id", userId)
 
       if (asins) {
         exportAsinsToCSV(asins, `asins_${new Date().toISOString().split("T")[0]}.csv`)

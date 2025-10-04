@@ -2,25 +2,16 @@
  * innisfreeスクレイピング API
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { InnisfreeScraper } from "@/lib/scrapers/innisfree-scraper"
 
 // POST /api/scrape/innisfree
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const { userId } = await request.json()
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "ユーザーIDが必要です" },
-        { status: 400 }
-      )
-    }
-
     console.log("innisfreeスクレイピングを開始します...")
 
     // スクレイパーインスタンスを作成
-    const scraper = new InnisfreeScraper(userId)
+    const scraper = new InnisfreeScraper()
 
     // スクレイピング実行（プロキシ設定は自動的に適用される）
     const result = await scraper.executeFullScraping()
@@ -68,9 +59,6 @@ export async function GET() {
     message: "innisfreeスクレイピング APIは正常に動作しています",
     endpoint: "/api/scrape/innisfree",
     methods: ["POST"],
-    description: "innisfree公式サイトから商品データをスクレイピングします",
-    parameters: {
-      userId: "ユーザーID"
-    }
+    description: "innisfree公式サイトから商品データをスクレイピングします"
   })
 }

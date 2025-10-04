@@ -26,12 +26,11 @@ interface EditingCell {
 }
 
 interface UseProductTableOptions {
-  userId: string
   shopFilter?: string | undefined
   pageSize?: number | undefined
 }
 
-export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProductTableOptions) {
+export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOptions) {
   const settings = loadSettings()
 
   const [products, setProducts] = useState<ExtendedProduct[]>([])
@@ -59,7 +58,7 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
       setLoading(true)
       setError(null)
       console.time('商品データ読み込み（ページネーション）')
-      const data = await getProductsWithAsinAndProfits(userId)
+      const data = await getProductsWithAsinAndProfits()
       console.timeEnd('商品データ読み込み（ページネーション）')
       console.log(`${data.length}件の商品データを読み込みました（ページネーション対応）`)
       setProducts(data)
@@ -70,7 +69,7 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
     } finally {
       setLoading(false)
     }
-  }, [userId])
+  }, [])
 
   useEffect(() => {
     loadProducts()
@@ -253,7 +252,6 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
           const { data: newAsin, error: createAsinError } = await supabase
             .from("asins")
             .insert({
-              user_id: userId,
               asin: value,
               has_amazon: false,
               has_official: false,
@@ -270,7 +268,6 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
           const { error: linkError } = await supabase
             .from("product_asins")
             .insert({
-              user_id: userId,
               product_id: productId,
               asin_id: newAsin.id
             } as never)
@@ -291,7 +288,7 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
             updates[asinField] = value || null
           }
 
-          success = await updateAsin(product.asin.id, updates, userId)
+          success = await updateAsin(product.asin.id, updates)
         }
       } else {
         const updates: Record<string, unknown> = {}
@@ -304,7 +301,7 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
           updates[field] = value || null
         }
 
-        success = await updateProduct(productId, updates, userId)
+        success = await updateProduct(productId, updates)
       }
 
       if (success) {
@@ -317,11 +314,11 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
       console.error("編集保存エラー:", err)
       setError("更新中にエラーが発生しました")
     }
-  }, [editingCell, products, userId, loadProducts])
+  }, [editingCell, products, loadProducts])
 
   const handleCopyProduct = useCallback(async (product: ExtendedProduct) => {
     try {
-      const success = await copyProduct(product.id, userId)
+      const success = await copyProduct(product.id)
       if (success) {
         await loadProducts()
         setError(null)
@@ -332,7 +329,7 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
       console.error("商品コピーエラー:", err)
       setError("商品のコピー中にエラーが発生しました")
     }
-  }, [userId, loadProducts])
+  }, [loadProducts])
 
   const handleDeleteProduct = useCallback(async (product: ExtendedProduct) => {
     if (!confirm(`「${product.name}」を削除しますか？この操作は取り消せません。`)) {
@@ -340,7 +337,7 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
     }
 
     try {
-      const success = await deleteProduct(product.id, userId)
+      const success = await deleteProduct(product.id)
       if (success) {
         await loadProducts()
         const newSelection = new Set(selectedProducts)
@@ -354,7 +351,7 @@ export function useProductTable({ userId, shopFilter, pageSize = 50 }: UseProduc
       console.error("商品削除エラー:", err)
       setError("商品の削除中にエラーが発生しました")
     }
-  }, [userId, loadProducts, selectedProducts])
+  }, [loadProducts, selectedProducts])
 
   const getSortIcon = useCallback((field: string) => {
     if (sortField !== field) return null

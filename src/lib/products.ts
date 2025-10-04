@@ -17,7 +17,7 @@ export interface ExtendedProduct extends Product {
 /**
  * 商品一覧を取得（ASIN情報と利益計算付き）- 最適化版
  */
-export async function getProductsWithAsinAndProfits(userId: string): Promise<ExtendedProduct[]> {
+export async function getProductsWithAsinAndProfits(): Promise<ExtendedProduct[]> {
   try {
     // JOINを使って1回のクエリで全データを取得
     const { data: productData, error: productsError } = await supabase
@@ -28,7 +28,6 @@ export async function getProductsWithAsinAndProfits(userId: string): Promise<Ext
           asin_id,
           asins!inner (
             id,
-            user_id,
             asin,
             amazon_name,
             amazon_price,
@@ -47,7 +46,6 @@ export async function getProductsWithAsinAndProfits(userId: string): Promise<Ext
           )
         )
       `)
-      .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
     if (productsError) throw productsError
@@ -61,7 +59,6 @@ export async function getProductsWithAsinAndProfits(userId: string): Promise<Ext
     const { data: discounts } = await supabase
       .from("shop_discounts")
       .select("*")
-      .eq("user_id", userId)
       .in("shop_name", shopNames) as { data: ShopDiscount[] | null }
 
     // ショップ割引のマップを作成
@@ -102,13 +99,12 @@ export async function getProductsWithAsinAndProfits(userId: string): Promise<Ext
 /**
  * 商品に紐付くASIN情報を取得
  */
-export async function getProductAsinInfo(productId: string, userId: string): Promise<Asin | null> {
+export async function getProductAsinInfo(productId: string): Promise<Asin | null> {
   try {
     const { data: productAsinData, error: productAsinError } = await supabase
       .from("product_asins")
       .select("asin_id")
       .eq("product_id", productId)
-      .eq("user_id", userId)
       .single()
 
     if (productAsinError || !productAsinData) return null
@@ -117,7 +113,6 @@ export async function getProductAsinInfo(productId: string, userId: string): Pro
       .from("asins")
       .select("*")
       .eq("id", (productAsinData as { asin_id: string }).asin_id)
-      .eq("user_id", userId)
       .single()
 
     if (asinError || !asinData) return null
@@ -204,8 +199,7 @@ function calculateProfitOptimized(
  */
 export async function calculateProfit(
   product: Product,
-  asin: Asin | null,
-  userId: string
+  asin: Asin | null
 ): Promise<{
   amount: number
   rate: number
@@ -214,7 +208,7 @@ export async function calculateProfit(
 }> {
   try {
     // 割引設定を取得
-    const discount = await getShopDiscount(product.shop_name || "", userId)
+    const discount = await getShopDiscount(product.shop_name || "")
 
     // 実効価格を計算（割引適用後）
     const basePrice = product.sale_price || product.price || 0
@@ -272,7 +266,7 @@ export async function calculateProfit(
 /**
  * ショップ割引設定を取得
  */
-async function getShopDiscount(shopName: string, userId: string): Promise<ShopDiscount | null> {
+async function getShopDiscount(shopName: string): Promise<ShopDiscount | null> {
   if (!shopName) return null
 
   try {
@@ -280,7 +274,6 @@ async function getShopDiscount(shopName: string, userId: string): Promise<ShopDi
       .from("shop_discounts")
       .select("*")
       .eq("shop_name", shopName)
-      .eq("user_id", userId)
       .single()
 
     if (error) return null
@@ -296,15 +289,13 @@ async function getShopDiscount(shopName: string, userId: string): Promise<ShopDi
  */
 export async function updateProduct(
   productId: string,
-  updates: ProductUpdate,
-  userId: string
+  updates: ProductUpdate
 ): Promise<boolean> {
   try {
     const { error } = await supabase
       .from("products")
       .update(updates as never)
       .eq("id", productId)
-      .eq("user_id", userId)
 
     if (error) throw error
     return true
@@ -319,15 +310,13 @@ export async function updateProduct(
  */
 export async function updateAsin(
   asinId: string,
-  updates: AsinUpdate,
-  userId: string
+  updates: AsinUpdate
 ): Promise<boolean> {
   try {
     const { error } = await supabase
       .from("asins")
       .update(updates as never)
       .eq("id", asinId)
-      .eq("user_id", userId)
 
     if (error) throw error
     return true
@@ -340,21 +329,19 @@ export async function updateAsin(
 /**
  * 商品を削除
  */
-export async function deleteProduct(productId: string, userId: string): Promise<boolean> {
+export async function deleteProduct(productId: string): Promise<boolean> {
   try {
     // 関連するproduct_asinも削除
     await supabase
       .from("product_asins")
       .delete()
       .eq("product_id", productId)
-      .eq("user_id", userId)
 
     // 商品を削除
     const { error } = await supabase
       .from("products")
       .delete()
       .eq("id", productId)
-      .eq("user_id", userId)
 
     if (error) throw error
     return true
@@ -367,7 +354,7 @@ export async function deleteProduct(productId: string, userId: string): Promise<
 /**
  * 商品をコピー
  */
-export async function copyProduct(productId: string, userId: string): Promise<boolean> {
+export async function copyProduct(productId: string): Promise<boolean> {
   try {
     const response = await fetch("/api/products/copy", {
       method: "POST",
@@ -375,8 +362,7 @@ export async function copyProduct(productId: string, userId: string): Promise<bo
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        productId,
-        userId
+        productId
       })
     })
 

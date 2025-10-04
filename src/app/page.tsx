@@ -21,11 +21,9 @@ import {
 import { formatPrice, formatPercentage } from "@/lib/products"
 import { useDashboard } from "@/hooks/dashboard/useDashboard"
 
-const TEST_USER_ID = "test-user-id"
-
 export default function Home() {
   // カスタムフックから全てのロジックを取得
-  const { summary, shopStats, loading } = useDashboard({ userId: TEST_USER_ID })
+  const { summary, shopStats, loading } = useDashboard()
 
   return (
     <MainLayout>
