@@ -199,6 +199,41 @@ export interface Database {
           updated_at?: string
         }
       }
+      rakuten_shops: {
+        Row: {
+          id: string
+          shop_id: string
+          display_name: string
+          shop_code: string | null
+          genre_id: string | null
+          default_keyword: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          display_name: string
+          shop_code?: string | null
+          genre_id?: string | null
+          default_keyword?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          display_name?: string
+          shop_code?: string | null
+          genre_id?: string | null
+          default_keyword?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
