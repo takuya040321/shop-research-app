@@ -28,6 +28,7 @@ import { Card } from "@/components/ui/Card"
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import type { DiscountType } from "@/types/discount"
+import type { Database } from "@/types/database"
 
 export default function BrandPage() {
   const params = useParams()
@@ -64,7 +65,7 @@ export default function BrandPage() {
         .from("shop_discounts")
         .select()
         .eq("shop_name", brandConfig.shopName)
-        .single()
+        .single<Database["public"]["Tables"]["shop_discounts"]["Row"]>()
 
       if (data) {
         setDiscountType(data.discount_type)
@@ -85,26 +86,28 @@ export default function BrandPage() {
         .from("shop_discounts")
         .select()
         .eq("shop_name", brandConfig.shopName)
-        .single()
+        .single<Database["public"]["Tables"]["shop_discounts"]["Row"]>()
+
+      const updateData = {
+        discount_type: discountType,
+        discount_value: parseFloat(discountValue),
+        is_enabled: isDiscountEnabled
+      }
+
+      const insertData = {
+        shop_name: brandConfig.shopName,
+        ...updateData
+      }
 
       if (existing) {
         await supabase
           .from("shop_discounts")
-          .update({
-            discount_type: discountType,
-            discount_value: parseFloat(discountValue),
-            is_enabled: isDiscountEnabled
-          })
+          .update(updateData as never)
           .eq("shop_name", brandConfig.shopName)
       } else {
         await supabase
           .from("shop_discounts")
-          .insert({
-            shop_name: brandConfig.shopName,
-            discount_type: discountType,
-            discount_value: parseFloat(discountValue),
-            is_enabled: isDiscountEnabled
-          })
+          .insert(insertData as never)
       }
     } finally {
       setIsSavingDiscount(false)
