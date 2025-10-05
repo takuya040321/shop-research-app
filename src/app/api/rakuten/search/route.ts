@@ -19,20 +19,53 @@ export async function POST(request: NextRequest) {
     // 楽天APIクライアント取得
     const client = getRakutenClient()
 
-    // 商品検索
-    const result = await client.searchItems({
-      keyword,
-      shopCode,
-      genreId,
-      hits: hits || 30,
-      page: page || 1
-    })
+    const allProducts: RakutenProduct[] = []
+    let currentPage = page || 1
+    let totalCount = 0
+    let pageCount = 0
 
-    console.log(`${result.products.length}件の商品を取得しました`)
+    // 全ページを取得（上限なし）
+    const hitsPerPage = hits || 30
+
+    while (true) {
+      // 商品検索
+      const result = await client.searchItems({
+        keyword,
+        shopCode,
+        genreId,
+        hits: hitsPerPage,
+        page: currentPage
+      })
+
+      if (currentPage === 1) {
+        totalCount = result.totalCount
+        pageCount = result.pageCount
+        console.log(`総件数: ${totalCount}件、総ページ数: ${pageCount}`)
+      }
+
+      if (result.products.length === 0) {
+        break
+      }
+
+      allProducts.push(...result.products)
+      console.log(`ページ ${currentPage}: ${result.products.length}件取得（累計: ${allProducts.length}件）`)
+
+      // 最終ページに達したら終了
+      if (currentPage >= pageCount) {
+        break
+      }
+
+      currentPage++
+
+      // レート制限対策: 1秒待機
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+
+    console.log(`合計 ${allProducts.length}件の商品を取得しました`)
 
     // データベースに保存
     const saveResult = await saveProductsToDatabase(
-      result.products,
+      allProducts,
       shopName || "楽天市場"
     )
 
@@ -40,13 +73,13 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "楽天商品検索が完了しました",
       data: {
-        totalCount: result.totalCount,
-        page: result.page,
-        pageCount: result.pageCount,
-        productsCount: result.products.length,
+        totalCount,
+        pageCount,
+        fetchedPages: currentPage,
+        productsCount: allProducts.length,
         savedCount: saveResult.savedCount,
         skippedCount: saveResult.skippedCount,
-        products: result.products
+        products: allProducts
       }
     })
 
@@ -77,66 +110,126 @@ async function saveProductsToDatabase(
   let skippedCount = 0
   const errors: string[] = []
 
-  // 重複チェック
-  const productNames = products.map(p => p.itemName)
+  console.log("=== 重複チェック開始 ===")
+  console.log("取得した商品数:", products.length)
 
-  const { data: existingProducts } = await supabase
-    .from("products")
-    .select("id, name, shop_type, shop_name")
-    .eq("shop_type", "rakuten")
-    .eq("shop_name", shopName)
-    .in("name", productNames)
-    .returns<Pick<Product, "id" | "name" | "shop_type" | "shop_name">[]>()
+  // 414エラー回避: URLを50件ずつに分割してクエリ
+  const BATCH_SIZE = 50
+  const existingProductsAll: Pick<Product, "id" | "price" | "source_url">[] = []
 
-  // 既存商品の重複キーセット
-  const existingProductKeys = new Set<string>()
-  existingProducts?.forEach(product => {
-    const key = `${product.shop_type}-${product.shop_name}-${product.name}`
-    existingProductKeys.add(key)
-  })
+  for (let i = 0; i < products.length; i += BATCH_SIZE) {
+    const batch = products.slice(i, i + BATCH_SIZE)
+    const batchUrls = batch.map(p => p.itemUrl)
 
-  // 新規商品のみ抽出
-  const newProducts = products.filter(product => {
-    const productKey = `rakuten-${shopName}-${product.itemName}`
-
-    if (existingProductKeys.has(productKey)) {
-      skippedCount++
-      return false
-    }
-    return true
-  })
-
-  if (newProducts.length === 0) {
-    return { savedCount, skippedCount, errors }
-  }
-
-  // バッチ挿入
-  const productsToInsert: ProductInsert[] = newProducts.map(product => ({
-    id: randomUUID(),
-    shop_type: "rakuten",
-    shop_name: shopName,
-    name: product.itemName,
-    price: product.itemPrice,
-    sale_price: null,
-    image_url: product.imageUrl,
-    source_url: product.itemUrl,
-    is_hidden: false,
-    memo: product.catchcopy || product.itemCaption || "楽天市場から取得"
-  }))
-
-  try {
-    const { error } = await supabase
+    const { data: batchExisting, error: fetchError } = await supabase
       .from("products")
-      .insert(productsToInsert as never)
+      .select("id, price, source_url")
+      .in("source_url", batchUrls)
+      .returns<Pick<Product, "id" | "price" | "source_url">[]>()
 
-    if (error) {
-      errors.push(`バッチ保存でエラー: ${error.message}`)
-    } else {
-      savedCount = productsToInsert.length
+    if (fetchError) {
+      console.error(`バッチ ${Math.floor(i / BATCH_SIZE) + 1} の取得でエラー:`, fetchError)
+      errors.push(`既存商品の取得でエラー: ${fetchError.message}`)
+    } else if (batchExisting) {
+      existingProductsAll.push(...batchExisting)
     }
-  } catch (error) {
-    errors.push(`バッチ保存処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
   }
+
+  console.log("既存商品数:", existingProductsAll.length)
+
+  // 既存商品をMapで管理（URLをキーに）
+  const existingProductMap = new Map<string, Pick<Product, "id" | "price" | "source_url">>()
+  existingProductsAll.forEach(product => {
+    if (product.source_url) {
+      existingProductMap.set(product.source_url, product)
+    }
+  })
+
+  console.log("Mapに登録された既存商品数:", existingProductMap.size)
+
+  // 新規商品と価格更新が必要な商品を分類
+  const newProducts: RakutenProduct[] = []
+  const productsToUpdate: Array<{ id: string; price: number }> = []
+
+  products.forEach(product => {
+    const existing = existingProductMap.get(product.itemUrl)
+
+    if (existing) {
+      // 既存商品の場合、価格をチェック
+      if (existing.price !== product.itemPrice) {
+        // 価格が変動している場合は更新対象
+        productsToUpdate.push({
+          id: existing.id,
+          price: product.itemPrice
+        })
+        console.log(`価格変動検出: ${product.itemName} (${existing.price} → ${product.itemPrice})`)
+      } else {
+        // 価格が同じ場合はスキップ
+        skippedCount++
+      }
+    } else {
+      // 新規商品
+      newProducts.push(product)
+    }
+  })
+
+  console.log("新規商品数:", newProducts.length)
+  console.log("価格更新対象数:", productsToUpdate.length)
+  console.log("スキップ数:", skippedCount)
+
+  // 新規商品を挿入
+  if (newProducts.length > 0) {
+    const productsToInsert: ProductInsert[] = newProducts.map(product => ({
+      id: randomUUID(),
+      shop_type: "rakuten",
+      shop_name: shopName,
+      name: product.itemName,
+      price: product.itemPrice,
+      sale_price: null,
+      image_url: product.imageUrl,
+      source_url: product.itemUrl,
+      is_hidden: false,
+      memo: product.catchcopy || product.itemCaption || "楽天市場から取得"
+    }))
+
+    try {
+      const { error } = await supabase
+        .from("products")
+        .insert(productsToInsert as never)
+
+      if (error) {
+        errors.push(`バッチ保存でエラー: ${error.message}`)
+        console.error("バッチ保存でエラー:", error)
+      } else {
+        savedCount = productsToInsert.length
+        console.log(`${savedCount}件の新規商品を保存しました`)
+      }
+    } catch (error) {
+      errors.push(`バッチ保存処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
+      console.error("バッチ保存処理でエラー:", error)
+    }
+  }
+
+  // 価格更新
+  if (productsToUpdate.length > 0) {
+    try {
+      for (const { id, price } of productsToUpdate) {
+        const { error } = await supabase
+          .from("products")
+          .update({ price })
+          .eq("id", id)
+
+        if (error) {
+          errors.push(`価格更新でエラー (ID: ${id}): ${error.message}`)
+        }
+      }
+      console.log(`${productsToUpdate.length}件の商品価格を更新しました`)
+    } catch (error) {
+      errors.push(`価格更新処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  console.log("=== 重複チェック完了 ===")
 
   return { savedCount, skippedCount, errors }
 }
