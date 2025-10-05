@@ -105,11 +105,31 @@ export class RakutenAPIClient {
 
       const url = `${this.baseUrl}?${searchParams.toString()}`
 
-      // API呼び出し（リトライ付き）
+      // デバッグログ追加
+      console.log("楽天APIリクエストURL:", url)
+      console.log("楽天APIパラメータ:", {
+        applicationId: this.config.applicationId,
+        applicationIdLength: this.config.applicationId.length,
+        keyword: params.keyword,
+        shopCode: params.shopCode,
+        genreId: params.genreId,
+      })
+
+      // API呼び出し(リトライ付き)
       const response = await this.fetchWithRetry(url, 3)
 
       if (!response.ok) {
-        throw new Error(`楽天API呼び出しエラー: ${response.status} ${response.statusText}`)
+        // エラーレスポンスの詳細を取得
+        let errorDetail = ""
+        try {
+          const errorData = await response.json()
+          errorDetail = JSON.stringify(errorData)
+        } catch {
+          errorDetail = await response.text()
+        }
+        
+        console.error("楽天APIエラーレスポンス:", errorDetail)
+        throw new Error(`楽天API呼び出しエラー: ${response.status} ${response.statusText} - ${errorDetail}`)
       }
 
       const data: RakutenAPIResponse = await response.json()
