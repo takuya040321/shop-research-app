@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -17,12 +17,17 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import type { Database as DB } from "@/types/database"
 
 interface SidebarProps {
   className?: string
 }
 
-const navigation = [
+type RakutenShop = DB["public"]["Tables"]["rakuten_shops"]["Row"]
+
+// 静的ナビゲーション（楽天市場以外）
+const staticNavigation = [
   {
     name: "ダッシュボード",
     href: "/",
@@ -38,16 +43,22 @@ const navigation = [
       { name: "innisfree", href: "/official/innisfree" },
     ],
   },
-  {
-    name: "楽天市場",
-    href: "/rakuten",
-    icon: ShoppingBag,
-  },
-  {
-    name: "Yahoo!ショッピング",
-    href: "/yahoo",
-    icon: ShoppingCart,
-  },
+]
+
+const yahooNavigation = {
+  name: "Yahoo!ショッピング",
+  href: "/yahoo",
+  icon: ShoppingCart,
+  children: [
+    { name: "LOHACO-DHC", href: "/yahoo/lohaco/dhc" },
+    { name: "LOHACO-VT", href: "/yahoo/lohaco/vt" },
+    { name: "ZOZOTOWN-DHC", href: "/yahoo/zozotown/dhc" },
+    { name: "ZOZOTOWN-VT", href: "/yahoo/zozotown/vt" },
+    { name: "Yahoo-VT", href: "/yahoo/vt" },
+  ],
+}
+
+const bottomNavigation = [
   {
     name: "ASIN管理",
     href: "/asins",
@@ -60,12 +71,63 @@ const navigation = [
     children: [
       { name: "全体設定", href: "/settings/system" },
       { name: "割引設定", href: "/settings/discounts" },
+      { name: "楽天ショップ設定", href: "/rakuten" },
       { name: "エラーログ", href: "/settings/logs" },
     ],
   },
 ]
 
 export function Sidebar({ className }: SidebarProps) {
+  const [rakutenShops, setRakutenShops] = useState<RakutenShop[]>([])
+
+  // 楽天ショップを読み込み
+  const loadRakutenShops = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("rakuten_shops")
+      .select("*")
+      .eq("is_active", true)
+      .order("display_name")
+
+    if (!error && data) {
+      setRakutenShops(data)
+    }
+  }, [])
+
+  // 初回読み込み
+  useEffect(() => {
+    loadRakutenShops()
+  }, [loadRakutenShops])
+
+  // カスタムイベントでリフレッシュ
+  useEffect(() => {
+    const handleUpdate = () => {
+      loadRakutenShops()
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("rakuten:shop:updated", handleUpdate)
+      return () => window.removeEventListener("rakuten:shop:updated", handleUpdate)
+    }
+  }, [loadRakutenShops])
+
+  // 動的ナビゲーションを構築
+  const rakutenNavigation = {
+    name: "楽天市場",
+    href: "/rakuten",
+    icon: ShoppingBag,
+    children: rakutenShops.map(shop => ({
+      name: shop.display_name,
+      href: `/rakuten/${shop.shop_id}`
+    }))
+  }
+
+  // 全体のナビゲーション
+  const navigation = [
+    ...staticNavigation,
+    rakutenNavigation,
+    yahooNavigation,
+    ...bottomNavigation
+  ]
   const [collapsed, setCollapsed] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const pathname = usePathname()
