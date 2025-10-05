@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "thumbnail.image.rakuten.co.jp",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
 };
