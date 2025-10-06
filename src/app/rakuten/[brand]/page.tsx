@@ -94,7 +94,7 @@ export default function RakutenBrandPage() {
       } else {
         toast.error(`商品データの取得に失敗しました: ${result.message}`)
       }
-    } catch (error) {
+    } catch {
       toast.error("商品データの取得に失敗しました")
     } finally {
       setUpdating(false)

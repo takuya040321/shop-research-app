@@ -116,6 +116,7 @@ export default function RakutenManagementPage() {
 
         const { error } = await supabase
           .from("rakuten_shops")
+          // @ts-expect-error - Supabaseの型推論の問題を回避
           .update(updateData)
           .eq("id", editingShop.id)
 
