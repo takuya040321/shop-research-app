@@ -113,6 +113,13 @@ async function saveProductsToDatabase(
   console.log("=== 重複チェック開始 ===")
   console.log("取得した商品数:", products.length)
 
+  // デバッグ: 取得した商品のURL重複チェック
+  const fetchedUrlSet = new Set(products.map(p => p.itemUrl))
+  console.log("ユニークなURL数:", fetchedUrlSet.size)
+  if (fetchedUrlSet.size !== products.length) {
+    console.warn(`⚠️ 楽天APIから取得した商品に重複URLが ${products.length - fetchedUrlSet.size} 件含まれています`)
+  }
+
   // 414エラー回避: URLを50件ずつに分割してクエリ
   const BATCH_SIZE = 50
   const existingProductsAll: Pick<Product, "id" | "price" | "source_url">[] = []
@@ -131,21 +138,29 @@ async function saveProductsToDatabase(
       console.error(`バッチ ${Math.floor(i / BATCH_SIZE) + 1} の取得でエラー:`, fetchError)
       errors.push(`既存商品の取得でエラー: ${fetchError.message}`)
     } else if (batchExisting) {
+      console.log(`バッチ ${Math.floor(i / BATCH_SIZE) + 1}: ${batchExisting.length}件の既存商品を取得`)
       existingProductsAll.push(...batchExisting)
     }
   }
 
-  console.log("既存商品数:", existingProductsAll.length)
+  console.log("バッチクエリで取得した既存商品数:", existingProductsAll.length)
 
   // 既存商品をMapで管理（URLをキーに）
   const existingProductMap = new Map<string, Pick<Product, "id" | "price" | "source_url">>()
+  let nullUrlCount = 0
+  
   existingProductsAll.forEach(product => {
     if (product.source_url) {
       existingProductMap.set(product.source_url, product)
+    } else {
+      nullUrlCount++
     }
   })
 
   console.log("Mapに登録された既存商品数:", existingProductMap.size)
+  if (nullUrlCount > 0) {
+    console.warn(`⚠️ source_urlがnullの既存商品: ${nullUrlCount}件`)
+  }
 
   // 新規商品と価格更新が必要な商品を分類
   const newProducts: RakutenProduct[] = []
@@ -176,6 +191,7 @@ async function saveProductsToDatabase(
   console.log("新規商品数:", newProducts.length)
   console.log("価格更新対象数:", productsToUpdate.length)
   console.log("スキップ数:", skippedCount)
+  console.log("検証: 新規 + 価格更新 + スキップ = ", newProducts.length + productsToUpdate.length + skippedCount, "/ 取得数:", products.length)
 
   // 新規商品を挿入
   if (newProducts.length > 0) {
@@ -216,7 +232,7 @@ async function saveProductsToDatabase(
       for (const { id, price } of productsToUpdate) {
         const { error } = await supabase
           .from("products")
-          .update({ price })
+          .update({ price } as never)
           .eq("id", id)
 
         if (error) {

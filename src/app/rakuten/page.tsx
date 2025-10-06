@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/Label"
 import { ShoppingBag, Plus, Edit, Trash2, X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import type { Database } from "@/types/database"
+import { toast } from "sonner"
 
 type RakutenShop = Database["public"]["Tables"]["rakuten_shops"]["Row"]
 type RakutenShopInsert = Database["public"]["Tables"]["rakuten_shops"]["Insert"]
@@ -24,7 +25,6 @@ export default function RakutenManagementPage() {
   const [saving, setSaving] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingShop, setEditingShop] = useState<RakutenShop | null>(null)
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null)
 
   // フォーム状態
   const [formData, setFormData] = useState<RakutenShopInsert>({
@@ -35,12 +35,6 @@ export default function RakutenManagementPage() {
     default_keyword: "",
     is_active: true
   })
-
-  // トースト表示関数
-  const showToast = (message: string, type: "success" | "error" | "warning") => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 4000)
-  }
 
   // ショップ一覧を読み込み
   const loadShops = async () => {
@@ -96,13 +90,13 @@ export default function RakutenManagementPage() {
   const handleSave = async () => {
     // 基本バリデーション
     if (!formData.shop_id || !formData.display_name) {
-      showToast("ショップIDと表示名は必須です", "error")
+      toast.error("ショップIDと表示名は必須です")
       return
     }
 
     // 楽天API必須パラメータバリデーション（shopCodeとgenreIdのいずれかが必須）
     if (!formData.shop_code && !formData.genre_id) {
-      showToast("楽天API：shopCodeまたはgenreIdのいずれかは必須です", "error")
+      toast.error("楽天API：shopCodeまたはgenreIdのいずれかは必須です")
       return
     }
 
@@ -126,11 +120,11 @@ export default function RakutenManagementPage() {
           .eq("id", editingShop.id)
 
         if (error) {
-          showToast(`更新に失敗しました: ${error.message}`, "error")
+          toast.error(`更新に失敗しました: ${error.message}`)
           return
         }
 
-        showToast("ショップ情報を更新しました", "success")
+        toast.success("ショップ情報を更新しました")
       } else {
         // 新規作成（商品データも取得）
         const { error: insertError } = await supabase
@@ -138,7 +132,7 @@ export default function RakutenManagementPage() {
           .insert(formData as never)
 
         if (insertError) {
-          showToast(`作成に失敗しました: ${insertError.message}`, "error")
+          toast.error(`作成に失敗しました: ${insertError.message}`)
           return
         }
 
@@ -166,12 +160,12 @@ export default function RakutenManagementPage() {
           const result = await response.json()
 
           if (result.success) {
-            showToast(`ショップを作成し、${result.data.savedCount}件の商品データを取得しました`, "success")
+            toast.success(`ショップを作成し、${result.data.savedCount}件の商品データを取得しました`)
           } else {
-            showToast(`ショップは作成されましたが、商品データの取得に失敗しました`, "warning")
+            toast.warning(`ショップは作成されましたが、商品データの取得に失敗しました`)
           }
         } catch {
-          showToast("ショップは作成されましたが、商品データの取得に失敗しました", "warning")
+          toast.warning("ショップは作成されましたが、商品データの取得に失敗しました")
         }
       }
 
@@ -201,7 +195,7 @@ export default function RakutenManagementPage() {
         .eq("shop_name", shop.display_name)
 
       if (productsError) {
-        showToast(`商品データの削除に失敗しました: ${productsError.message}`, "error")
+        toast.error(`商品データの削除に失敗しました: ${productsError.message}`)
         return
       }
 
@@ -212,11 +206,11 @@ export default function RakutenManagementPage() {
         .eq("id", shop.id)
 
       if (shopError) {
-        showToast(`ショップの削除に失敗しました: ${shopError.message}`, "error")
+        toast.error(`ショップの削除に失敗しました: ${shopError.message}`)
         return
       }
 
-      showToast(`「${shop.display_name}」とその商品データを削除しました`, "success")
+      toast.success(`「${shop.display_name}」とその商品データを削除しました`)
       loadShops()
       
       // サイドバー更新イベントを発行
@@ -224,36 +218,13 @@ export default function RakutenManagementPage() {
         window.dispatchEvent(new CustomEvent("rakuten:shop:updated"))
       }
     } catch (error) {
-      showToast(`削除処理中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`, "error")
+      toast.error(`削除処理中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`)
     }
   }
 
   return (
     <MainLayout>
       <div className="container mx-auto p-6">
-        {/* トースト通知 */}
-        {toast && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
-            <div
-              className={`${
-                toast.type === "success"
-                  ? "bg-gradient-to-r from-green-500 to-emerald-600"
-                  : toast.type === "error"
-                  ? "bg-gradient-to-r from-red-500 to-rose-600"
-                  : "bg-gradient-to-r from-yellow-500 to-orange-600"
-              } text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] max-w-md animate-slide-in`}
-            >
-              <p className="flex-1 font-medium">{toast.message}</p>
-              <button
-                onClick={() => setToast(null)}
-                className="hover:bg-white/20 rounded-full p-1 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* ヘッダー */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">

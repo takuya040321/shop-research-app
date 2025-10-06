@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button"
 import { ProductTable } from "@/components/products/ProductTable"
 import { supabase } from "@/lib/supabase"
 import type { Database } from "@/types/database"
+import { toast } from "sonner"
 
 type RakutenShop = Database["public"]["Tables"]["rakuten_shops"]["Row"]
 
@@ -25,13 +26,6 @@ export default function RakutenBrandPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null)
-
-  // トースト表示関数
-  const showToast = (message: string, type: "success" | "error" | "warning") => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 4000)
-  }
 
   // ショップ設定を読み込み
   useEffect(() => {
@@ -87,22 +81,21 @@ export default function RakutenBrandPage() {
       if (result.success) {
         const { savedCount, skippedCount } = result.data
         if (savedCount > 0) {
-          showToast(
-            `${savedCount}件の新規商品を追加しました${skippedCount > 0 ? `（重複: ${skippedCount}件）` : ""}`,
-            "success"
+          toast.success(
+            `${savedCount}件の新規商品を追加しました${skippedCount > 0 ? `（重複: ${skippedCount}件）` : ""}`
           )
         } else if (skippedCount > 0) {
-          showToast(`すべて重複商品でした（${skippedCount}件）`, "warning")
+          toast.warning(`すべて重複商品でした（${skippedCount}件）`)
         } else {
-          showToast("取得できる商品がありませんでした", "warning")
+          toast.warning("取得できる商品がありませんでした")
         }
         // テーブルをリフレッシュ
         setRefreshKey(prev => prev + 1)
       } else {
-        showToast(`商品データの取得に失敗しました: ${result.message}`, "error")
+        toast.error(`商品データの取得に失敗しました: ${result.message}`)
       }
     } catch (error) {
-      showToast("商品データの取得に失敗しました", "error")
+      toast.error("商品データの取得に失敗しました")
     } finally {
       setUpdating(false)
     }
@@ -130,31 +123,6 @@ export default function RakutenBrandPage() {
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
         <div className="container mx-auto p-6">
-          {/* トースト通知 */}
-          {toast && (
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
-              <div
-                className={`${
-                  toast.type === "success"
-                    ? "bg-gradient-to-r from-green-500 to-emerald-600"
-                    : toast.type === "error"
-                    ? "bg-gradient-to-r from-red-500 to-rose-600"
-                    : "bg-gradient-to-r from-yellow-500 to-orange-600"
-                } text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] max-w-md animate-slide-in`}
-              >
-                <p className="flex-1 font-medium">{toast.message}</p>
-                <button
-                  onClick={() => setToast(null)}
-                  className="hover:bg-white/20 rounded-full p-1 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* ヘッダー */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
