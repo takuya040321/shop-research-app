@@ -106,8 +106,12 @@ export function Sidebar({ className }: SidebarProps) {
 
     if (typeof window !== "undefined") {
       window.addEventListener("rakuten:shop:updated", handleUpdate)
-      return () => window.removeEventListener("rakuten:shop:updated", handleUpdate)
+      return () => {
+        window.removeEventListener("rakuten:shop:updated", handleUpdate)
+      }
     }
+
+    return undefined
   }, [loadRakutenShops])
 
   // 動的ナビゲーションを構築
@@ -141,6 +145,7 @@ export function Sidebar({ className }: SidebarProps) {
       }
     })
     setExpandedMenus(menusToExpand)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
   const toggleMenu = (name: string) => {

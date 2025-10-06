@@ -127,6 +127,68 @@ export async function getProductAsinInfo(productId: string): Promise<Asin | null
 /**
  * 利益計算（最適化版）- ショップ割引マップを使用
  */
+/**
+ * 商品名から数量を抽出する
+ * @param productName - 商品名
+ * @param amazonName - Amazon商品名（オプション）
+ * @returns 抽出された数量（補正不要の場合は1）
+ */
+function extractQuantityFromProductName(
+  productName: string,
+  amazonName?: string | null
+): number {
+  if (!productName) return 1
+
+  // 数量パターン: 全角・半角数字 + 単位
+  const quantityPatterns = [
+    /([0-9０-９]+)\s*(?:個|本|枚|袋|箱|缶|つ)/,
+    /([0-9０-９]+)\s*(?:セット|set|SET)/,
+  ]
+
+  let quantity = 1
+
+  for (const pattern of quantityPatterns) {
+    const match = productName.match(pattern)
+    if (match && match[1]) {
+      // 全角数字を半角に変換
+      const numStr = match[1].replace(/[０-９]/g, (s) => {
+        return String.fromCharCode(s.charCodeAt(0) - 0xfee0)
+      })
+      const parsedQuantity = parseInt(numStr, 10)
+
+      // 有効な数量（2以上、100未満）のみ使用
+      if (parsedQuantity >= 2 && parsedQuantity < 100) {
+        quantity = parsedQuantity
+        break
+      }
+    }
+  }
+
+  // 数量が1の場合は補正不要
+  if (quantity === 1) return 1
+
+  // Amazon商品名に同じ数量が含まれているかチェック
+  if (amazonName) {
+    // Amazon商品名から数量を抽出
+    for (const pattern of quantityPatterns) {
+      const match = amazonName.match(pattern)
+      if (match && match[1]) {
+        const numStr = match[1].replace(/[０-９]/g, (s) => {
+          return String.fromCharCode(s.charCodeAt(0) - 0xfee0)
+        })
+        const amazonQuantity = parseInt(numStr, 10)
+
+        // 同じ数量が含まれている場合は補正不要
+        if (amazonQuantity === quantity) {
+          return 1
+        }
+      }
+    }
+  }
+
+  return quantity
+}
+
 function calculateProfitOptimized(
   product: Product,
   asin: Asin | null,
@@ -151,6 +213,15 @@ function calculateProfitOptimized(
       } else {
         effectivePrice = basePrice - discount.discount_value
       }
+    }
+
+    // 数量補正を適用（商品名からの数量抽出）
+    const quantity = extractQuantityFromProductName(
+      product.name,
+      asin?.amazon_name
+    )
+    if (quantity > 1) {
+      effectivePrice = effectivePrice / quantity
     }
 
     // ASIN情報がない場合は利益計算不可
@@ -220,6 +291,15 @@ export async function calculateProfit(
       } else {
         effectivePrice = basePrice - discount.discount_value
       }
+    }
+
+    // 数量補正を適用（商品名からの数量抽出）
+    const quantity = extractQuantityFromProductName(
+      product.name,
+      asin?.amazon_name
+    )
+    if (quantity > 1) {
+      effectivePrice = effectivePrice / quantity
     }
 
     // ASIN情報がない場合は利益計算不可
@@ -356,6 +436,8 @@ export async function deleteProduct(productId: string): Promise<boolean> {
  */
 export async function copyProduct(productId: string): Promise<boolean> {
   try {
+    console.log("[copyProduct] コピー処理開始:", { productId })
+
     const response = await fetch("/api/products/copy", {
       method: "POST",
       headers: {
@@ -366,15 +448,31 @@ export async function copyProduct(productId: string): Promise<boolean> {
       })
     })
 
+    console.log("[copyProduct] レスポンス受信:", {
+      status: response.status,
+      ok: response.ok
+    })
+
     const result = await response.json()
+    console.log("[copyProduct] レスポンス内容:", result)
 
     if (!response.ok) {
+      console.error("[copyProduct] エラーレスポンス:", {
+        status: response.status,
+        message: result.message,
+        productId
+      })
       throw new Error(result.message || "商品のコピーに失敗しました")
     }
 
+    console.log("[copyProduct] コピー成功")
     return result.success
   } catch (error) {
-    console.error("商品コピーエラー:", error)
+    console.error("[copyProduct] 例外エラー:", {
+      error,
+      productId,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    })
     return false
   }
 }
