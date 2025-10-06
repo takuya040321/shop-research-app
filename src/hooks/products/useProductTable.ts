@@ -338,15 +338,30 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
 
   const handleCopyProduct = useCallback(async (product: ExtendedProduct) => {
     try {
+      console.log("[handleCopyProduct] コピー処理開始:", {
+        productId: product.id,
+        productName: product.name
+      })
+
       const success = await copyProduct(product.id)
+
+      console.log("[handleCopyProduct] コピー結果:", { success })
+
       if (success) {
+        console.log("[handleCopyProduct] 商品リスト再読み込み開始")
         await loadProducts()
         setError(null)
+        console.log("[handleCopyProduct] 処理完了")
       } else {
+        console.error("[handleCopyProduct] コピー失敗")
         setError("商品のコピーに失敗しました")
       }
     } catch (err) {
-      console.error("商品コピーエラー:", err)
+      console.error("[handleCopyProduct] 例外エラー:", {
+        error: err,
+        productId: product.id,
+        errorMessage: err instanceof Error ? err.message : String(err)
+      })
       setError("商品のコピー中にエラーが発生しました")
     }
   }, [loadProducts])

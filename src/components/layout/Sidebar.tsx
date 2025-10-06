@@ -145,7 +145,8 @@ export function Sidebar({ className }: SidebarProps) {
       }
     })
     setExpandedMenus(menusToExpand)
-  }, [pathname, navigation])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
 
   const toggleMenu = (name: string) => {
     setExpandedMenus(prev =>
