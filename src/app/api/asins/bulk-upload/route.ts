@@ -218,13 +218,42 @@ export async function POST(request: NextRequest) {
     // データ正規化とバリデーション
     const { validData, errors } = normalizeAndValidate(rawData)
 
+    // バリデーションエラーがある場合は処理を続行
+    console.log(`バリデーション結果: 有効: ${validData.length}件, エラー: ${errors.length}件`)
+
+    // 有効なデータがない場合
+    if (validData.length === 0) {
+      return NextResponse.json({
+        success: false,
+        successCount: 0,
+        skippedCount: 0,
+        errorCount: errors.length,
+        errors
+      })
+    }
+
     // 既存ASINチェック
     const asins = validData.map(d => d.asin)
-    const { data: existingAsins } = await supabase
+    const { data: existingAsins, error: selectError } = await supabase
       .from("asins")
       .select("asin")
       .in("asin", asins)
       .returns<{ asin: string }[]>()
+
+    if (selectError) {
+      console.error("既存ASINチェックエラー:", selectError)
+      return NextResponse.json(
+        {
+          success: false,
+          message: `データベースエラー: ${selectError.message}`,
+          successCount: 0,
+          skippedCount: 0,
+          errorCount: errors.length + 1,
+          errors: [...errors, { row: 0, message: `データベース接続エラー: ${selectError.message}` }]
+        },
+        { status: 500 }
+      )
+    }
 
     const existingAsinSet = new Set(existingAsins?.map(a => a.asin) || [])
 
@@ -232,20 +261,30 @@ export async function POST(request: NextRequest) {
     const newAsins = validData.filter(d => !existingAsinSet.has(d.asin))
     const skippedCount = validData.length - newAsins.length
 
+    console.log(`新規ASIN: ${newAsins.length}件, スキップ: ${skippedCount}件`)
+
     // バッチ登録
     let successCount = 0
     if (newAsins.length > 0) {
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from("asins")
         .insert(newAsins as never)
 
-      if (error) {
+      if (insertError) {
+        console.error("ASIN挿入エラー:", {
+          message: insertError.message,
+          code: insertError.code,
+          details: insertError.details,
+          hint: insertError.hint
+        })
+        
         errors.push({
           row: 0,
-          message: `登録エラー: ${error.message}`
+          message: `データベース登録エラー: ${insertError.message}${insertError.hint ? ` (ヒント: ${insertError.hint})` : ''}`
         })
       } else {
         successCount = newAsins.length
+        console.log(`${successCount}件のASINを登録しました`)
       }
     }
 
@@ -264,7 +303,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "アップロード中にエラーが発生しました"
+        message: error instanceof Error ? error.message : "アップロード中にエラーが発生しました",
+        successCount: 0,
+        skippedCount: 0,
+        errorCount: 1,
+        errors: [{ row: 0, message: error instanceof Error ? error.message : "不明なエラー" }]
       },
       { status: 500 }
     )
