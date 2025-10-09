@@ -220,7 +220,7 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
       />
 
       <Card>
-      <div className="overflow-auto max-h-[calc(100vh-300px)]">
+      <div className="overflow-auto max-h-screen">
         <Table>
           <TableHeader>
             <TableRow>
