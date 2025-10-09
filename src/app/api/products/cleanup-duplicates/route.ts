@@ -10,13 +10,8 @@ type ProductWithAsins = {
   name: string
   shop_type: string | null
   shop_name: string | null
-  created_at: string
-  product_asins: Array<{
-    asin_id: string
-    asins: {
-      asin: string
-    } | null
-  }> | null
+  source_url: string | null
+  created_at: string | null
 }
 
 // POST /api/products/cleanup-duplicates
@@ -26,35 +21,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`重複商品のクリーンアップを開始: ${shopName || "全ショップ"}`)
 
-    // 正確な重複検出（shop_type + shop_name + name + ASIN考慮）
+    // 商品データを取得
     const { data: productsWithAsins } = await supabase
       .from("products")
-      .select(`
-        id,
-        name,
-        shop_type,
-        shop_name,
-        created_at,
-        product_asins!left (
-          asin_id,
-          asins!inner (
-            asin
-          )
-        )
-      `)
+      .select("id, name, shop_type, shop_name, source_url, created_at")
       .neq("memo", "コピー商品")
       .order("created_at")
-      .returns<Array<{
-        id: string
-        name: string
-        shop_type: string | null
-        shop_name: string | null
-        created_at: string
-        product_asins: Array<{
-          asin_id: string
-          asins: { asin: string }
-        }> | null
-      }>>()
 
     let filteredProducts = productsWithAsins || []
     if (shopName) {
@@ -62,20 +34,40 @@ export async function POST(request: NextRequest) {
       filteredProducts = filteredProducts.filter(p => p.shop_name === shopName)
     }
 
+    // source_urlのリストを取得
+    const sourceUrls = filteredProducts.map(p => p.source_url).filter(Boolean) as string[]
+
+    // product_asinsを一括取得してマップを作成
+    const { data: productAsins } = await supabase
+      .from("product_asins")
+      .select("source_url, asin")
+      .in("source_url", sourceUrls)
+
+    const urlToAsin = new Map<string, string>()
+    productAsins?.forEach(pa => {
+      if (pa.source_url && pa.asin) {
+        urlToAsin.set(pa.source_url, pa.asin)
+      }
+    })
+
     // 重複グループを検出（正確なキーで）
     const duplicateGroups = new Map<string, ProductWithAsins[]>()
 
     for (const product of filteredProducts) {
-      // ASINが関連付けられているかチェック
-      const hasAsin = product.product_asins && product.product_asins.length > 0
       let key: string
 
-      if (hasAsin && product.product_asins) {
-        // ASINありの場合：shop_type + shop_name + name + asin
-        const asin = product.product_asins[0]?.asins?.asin
-        key = `${product.shop_type}-${product.shop_name}-${product.name}-${asin}`
+      // source_urlからASINを取得
+      if (product.source_url) {
+        const asin = urlToAsin.get(product.source_url)
+        if (asin) {
+          // ASINありの場合：shop_type + shop_name + name + asin
+          key = `${product.shop_type}-${product.shop_name}-${product.name}-${asin}`
+        } else {
+          // source_urlはあるがASIN紐付けなし
+          key = `${product.shop_type}-${product.shop_name}-${product.name}-null`
+        }
       } else {
-        // ASINなしの場合：shop_type + shop_name + name + null
+        // source_urlなし
         key = `${product.shop_type}-${product.shop_name}-${product.name}-null`
       }
 

@@ -11,228 +11,254 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-// データベーススキーマ型定義
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
+  }
   public: {
     Tables: {
-      products: {
+      api_settings: {
         Row: {
+          created_at: string | null
           id: string
-          shop_type: "official" | "rakuten" | "yahoo" | null
-          shop_name: string | null
-          name: string
-          price: number | null
-          sale_price: number | null
-          image_url: string | null
-          source_url: string | null
-          is_hidden: boolean
-          memo: string | null
-          original_product_id: string | null
-          created_at: string
-          updated_at: string
+          is_enabled: boolean | null
+          provider: string
+          settings: Json
+          updated_at: string | null
         }
         Insert: {
+          created_at?: string | null
           id?: string
-          shop_type?: "official" | "rakuten" | "yahoo" | null
-          shop_name?: string | null
-          name: string
-          price?: number | null
-          sale_price?: number | null
-          image_url?: string | null
-          source_url?: string | null
-          is_hidden?: boolean
-          memo?: string | null
-          original_product_id?: string | null
-          created_at?: string
-          updated_at?: string
+          is_enabled?: boolean | null
+          provider: string
+          settings: Json
+          updated_at?: string | null
         }
         Update: {
+          created_at?: string | null
           id?: string
-          shop_type?: "official" | "rakuten" | "yahoo" | null
-          shop_name?: string | null
-          name?: string
-          price?: number | null
-          sale_price?: number | null
-          image_url?: string | null
-          source_url?: string | null
-          is_hidden?: boolean
-          memo?: string | null
-          original_product_id?: string | null
-          created_at?: string
-          updated_at?: string
+          is_enabled?: boolean | null
+          provider?: string
+          settings?: Json
+          updated_at?: string | null
         }
+        Relationships: []
       }
       asins: {
         Row: {
-          id: string
-          asin: string
           amazon_name: string | null
-          amazon_price: number | null  // 整数型
-          monthly_sales: number | null  // 整数型
-          fee_rate: number  // 整数型（NOT NULL、デフォルト15）
-          fba_fee: number  // 整数型（NOT NULL、デフォルト0）
-          jan_code: string | null
+          amazon_price: number | null
+          asin: string
+          complaint_count: number | null
+          created_at: string | null
+          fba_fee: number
+          fee_rate: number
+          has_amazon: boolean | null
+          has_official: boolean | null
+          id: string
           image_url: string | null
-          product_url: string | null
-          has_amazon: boolean
-          has_official: boolean
-          complaint_count: number
-          is_dangerous: boolean
-          is_per_carry_ng: boolean
+          is_dangerous: boolean | null
+          is_per_carry_ng: boolean | null
+          jan_code: string | null
           memo: string | null
-          created_at: string
-          updated_at: string
+          monthly_sales: number | null
+          product_url: string | null
+          updated_at: string | null
         }
         Insert: {
-          id?: string
-          asin: string
           amazon_name?: string | null
-          amazon_price?: number | null  // 整数型
-          monthly_sales?: number | null  // 整数型
-          fee_rate?: number  // 整数型（デフォルト15）
-          fba_fee?: number  // 整数型（デフォルト0）
-          jan_code?: string | null
+          amazon_price?: number | null
+          asin: string
+          complaint_count?: number | null
+          created_at?: string | null
+          fba_fee?: number
+          fee_rate?: number
+          has_amazon?: boolean | null
+          has_official?: boolean | null
+          id?: string
           image_url?: string | null
-          product_url?: string | null
-          has_amazon?: boolean
-          has_official?: boolean
-          complaint_count?: number
-          is_dangerous?: boolean
-          is_per_carry_ng?: boolean
+          is_dangerous?: boolean | null
+          is_per_carry_ng?: boolean | null
+          jan_code?: string | null
           memo?: string | null
-          created_at?: string
-          updated_at?: string
+          monthly_sales?: number | null
+          product_url?: string | null
+          updated_at?: string | null
         }
         Update: {
-          id?: string
-          asin?: string
           amazon_name?: string | null
-          amazon_price?: number | null  // 整数型
-          monthly_sales?: number | null  // 整数型
-          fee_rate?: number  // 整数型
-          fba_fee?: number  // 整数型
-          jan_code?: string | null
+          amazon_price?: number | null
+          asin?: string
+          complaint_count?: number | null
+          created_at?: string | null
+          fba_fee?: number
+          fee_rate?: number
+          has_amazon?: boolean | null
+          has_official?: boolean | null
+          id?: string
           image_url?: string | null
-          product_url?: string | null
-          has_amazon?: boolean
-          has_official?: boolean
-          complaint_count?: number
-          is_dangerous?: boolean
-          is_per_carry_ng?: boolean
+          is_dangerous?: boolean | null
+          is_per_carry_ng?: boolean | null
+          jan_code?: string | null
           memo?: string | null
-          created_at?: string
-          updated_at?: string
+          monthly_sales?: number | null
+          product_url?: string | null
+          updated_at?: string | null
         }
+        Relationships: []
       }
       product_asins: {
         Row: {
+          asin: string
+          created_at: string | null
           id: string
-          product_id: string
-          asin_id: string
-          created_at: string
+          source_url: string
         }
         Insert: {
+          asin: string
+          created_at?: string | null
           id?: string
-          product_id: string
-          asin_id: string
-          created_at?: string
+          source_url: string
         }
         Update: {
+          asin?: string
+          created_at?: string | null
           id?: string
-          product_id?: string
-          asin_id?: string
-          created_at?: string
+          source_url?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "product_asins_asin_fkey"
+            columns: ["asin"]
+            isOneToOne: false
+            referencedRelation: "asins"
+            referencedColumns: ["asin"]
+          },
+        ]
       }
-      shop_discounts: {
+      products: {
         Row: {
+          created_at: string | null
           id: string
-          shop_name: string
-          discount_type: "percentage" | "fixed"
-          discount_value: number
-          is_enabled: boolean
-          created_at: string
-          updated_at: string
+          image_url: string | null
+          is_hidden: boolean | null
+          memo: string | null
+          name: string
+          original_product_id: string | null
+          price: number | null
+          sale_price: number | null
+          shop_name: string | null
+          shop_type: string | null
+          source_url: string | null
+          updated_at: string | null
         }
         Insert: {
+          created_at?: string | null
           id?: string
-          shop_name: string
-          discount_type: "percentage" | "fixed"
-          discount_value: number
-          is_enabled?: boolean
-          created_at?: string
-          updated_at?: string
+          image_url?: string | null
+          is_hidden?: boolean | null
+          memo?: string | null
+          name: string
+          original_product_id?: string | null
+          price?: number | null
+          sale_price?: number | null
+          shop_name?: string | null
+          shop_type?: string | null
+          source_url?: string | null
+          updated_at?: string | null
         }
         Update: {
+          created_at?: string | null
           id?: string
-          shop_name?: string
-          discount_type?: "percentage" | "fixed"
-          discount_value?: number
-          is_enabled?: boolean
-          created_at?: string
-          updated_at?: string
+          image_url?: string | null
+          is_hidden?: boolean | null
+          memo?: string | null
+          name?: string
+          original_product_id?: string | null
+          price?: number | null
+          sale_price?: number | null
+          shop_name?: string | null
+          shop_type?: string | null
+          source_url?: string | null
+          updated_at?: string | null
         }
-      }
-      api_settings: {
-        Row: {
-          id: string
-          provider: "rakuten" | "yahoo"
-          settings: Json
-          is_enabled: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          provider: "rakuten" | "yahoo"
-          settings: Json
-          is_enabled?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          provider?: "rakuten" | "yahoo"
-          settings?: Json
-          is_enabled?: boolean
-          created_at?: string
-          updated_at?: string
-        }
+        Relationships: [
+          {
+            foreignKeyName: "products_original_product_id_fkey"
+            columns: ["original_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rakuten_shops: {
         Row: {
-          id: string
-          shop_id: string
-          display_name: string
-          shop_code: string | null
-          genre_id: string | null
-          default_keyword: string | null
-          is_active: boolean
           created_at: string
+          default_keyword: string | null
+          display_name: string
+          genre_id: string | null
+          id: string
+          is_active: boolean
+          shop_code: string | null
+          shop_id: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          shop_id: string
-          display_name: string
-          shop_code?: string | null
-          genre_id?: string | null
-          default_keyword?: string | null
-          is_active?: boolean
           created_at?: string
+          default_keyword?: string | null
+          display_name: string
+          genre_id?: string | null
+          id?: string
+          is_active?: boolean
+          shop_code?: string | null
+          shop_id: string
           updated_at?: string
         }
         Update: {
-          id?: string
-          shop_id?: string
-          display_name?: string
-          shop_code?: string | null
-          genre_id?: string | null
-          default_keyword?: string | null
-          is_active?: boolean
           created_at?: string
+          default_keyword?: string | null
+          display_name?: string
+          genre_id?: string | null
+          id?: string
+          is_active?: boolean
+          shop_code?: string | null
+          shop_id?: string
           updated_at?: string
         }
+        Relationships: []
+      }
+      shop_discounts: {
+        Row: {
+          created_at: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          is_enabled: boolean | null
+          shop_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          discount_type: string
+          discount_value: number
+          id?: string
+          is_enabled?: boolean | null
+          shop_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          is_enabled?: boolean | null
+          shop_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -250,12 +276,130 @@ export interface Database {
   }
 }
 
-// 使いやすい型エイリアス
-export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"]
-export type TablesInsert<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Insert"]
-export type TablesUpdate<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Update"]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-// 具体的な型エイリアス
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
+
+// 共通型のエクスポート
 export type Product = Tables<"products">
 export type Asin = Tables<"asins">
 export type ProductAsin = Tables<"product_asins">
