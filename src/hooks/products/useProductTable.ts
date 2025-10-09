@@ -244,6 +244,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
       if (!product) return
 
       let success = false
+      let updatedAsin: Asin | null = null
 
       if (field.startsWith("asin_")) {
         const asinField = field.replace("asin_", "")
@@ -296,6 +297,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
             throw new Error("商品-ASIN紐付けに失敗しました")
           }
 
+          updatedAsin = asinToLink
           success = true
         } else if (product.asin) {
           const updates: Record<string, unknown> = {}
@@ -309,6 +311,14 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
           }
 
           success = await updateAsin(product.asin.id, updates)
+
+          // 更新成功時にローカルのASINオブジェクトを更新
+          if (success) {
+            updatedAsin = {
+              ...product.asin,
+              ...updates
+            } as Asin
+          }
         }
       } else {
         const updates: Record<string, unknown> = {}
@@ -322,11 +332,32 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
         }
 
         success = await updateProduct(productId, updates)
+
+        // 更新成功時にローカルのproductsステートを部分更新
+        if (success) {
+          setProducts(prevProducts =>
+            prevProducts.map(p =>
+              p.id === productId
+                ? { ...p, ...updates }
+                : p
+            )
+          )
+        }
       }
 
       if (success) {
+        // ASIN関連フィールドの場合は、ASINオブジェクトを更新
+        if (field.startsWith("asin_") && updatedAsin) {
+          setProducts(prevProducts =>
+            prevProducts.map(p =>
+              p.id === productId
+                ? { ...p, asin: updatedAsin }
+                : p
+            )
+          )
+        }
+
         setEditingCell(null)
-        await loadProducts()
       } else {
         setError("更新に失敗しました")
       }
@@ -334,7 +365,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
       console.error("編集保存エラー:", err)
       setError("更新中にエラーが発生しました")
     }
-  }, [editingCell, products, loadProducts])
+  }, [editingCell, products])
 
   const handleCopyProduct = useCallback(async (product: ExtendedProduct) => {
     try {
