@@ -567,19 +567,15 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
 
                 {/* Amazon商品名 */}
                 <TableCell className="min-w-[250px]">
-                  {product.asin && product.asin.amazon_name ? (
-                    product.asin.product_url ? (
-                      <a
-                        href={product.asin.product_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline"
-                      >
-                        {product.asin.amazon_name}
-                      </a>
-                    ) : (
-                      <span className="text-sm">{product.asin.amazon_name}</span>
-                    )
+                  {product.asin?.asin ? (
+                    <a
+                      href={`https://www.amazon.co.jp/dp/${product.asin.asin}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      {product.asin.amazon_name || product.asin.asin}
+                    </a>
                   ) : (
                     <span className="text-sm text-gray-400">-</span>
                   )}
