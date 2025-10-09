@@ -39,23 +39,8 @@ export function useOfficialPage() {
     }
   }
 
-  const handleExport = () => {
-    // TODO: データエクスポート機能実装
-    console.log("エクスポート機能（未実装）")
-  }
-
-  const handleSettings = () => {
-    // TODO: 設定画面実装
-    console.log("設定画面（未実装）")
-  }
-
   return {
-    // State
     isRefreshing,
-
-    // Actions
-    handleRefresh,
-    handleExport,
-    handleSettings
+    handleRefresh
   }
 }
