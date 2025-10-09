@@ -449,8 +449,6 @@ export async function deleteProduct(productId: string): Promise<boolean> {
  */
 export async function copyProduct(productId: string): Promise<boolean> {
   try {
-    console.log("[copyProduct] コピー処理開始:", { productId })
-
     const response = await fetch("/api/products/copy", {
       method: "POST",
       headers: {
@@ -461,31 +459,15 @@ export async function copyProduct(productId: string): Promise<boolean> {
       })
     })
 
-    console.log("[copyProduct] レスポンス受信:", {
-      status: response.status,
-      ok: response.ok
-    })
-
     const result = await response.json()
-    console.log("[copyProduct] レスポンス内容:", result)
 
     if (!response.ok) {
-      console.error("[copyProduct] エラーレスポンス:", {
-        status: response.status,
-        message: result.message,
-        productId
-      })
       throw new Error(result.message || "商品のコピーに失敗しました")
     }
 
-    console.log("[copyProduct] コピー成功")
     return result.success
   } catch (error) {
-    console.error("[copyProduct] 例外エラー:", {
-      error,
-      productId,
-      errorMessage: error instanceof Error ? error.message : String(error)
-    })
+    console.error("商品コピーエラー:", error instanceof Error ? error.message : String(error))
     return false
   }
 }

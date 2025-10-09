@@ -12,10 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     const { productId } = await request.json()
 
-    console.log("[商品コピー] リクエスト受信:", { productId })
-
     if (!productId) {
-      console.log("[商品コピー] エラー: 商品IDが指定されていません")
       return NextResponse.json(
         { success: false, message: "商品IDが必要です" },
         { status: 400 }
@@ -23,43 +20,24 @@ export async function POST(request: NextRequest) {
     }
 
     // 元商品の取得
-    console.log("[商品コピー] 商品検索開始:", productId)
     const { data: originalProduct, error: fetchError } = await supabase
       .from("products")
       .select("*")
       .eq("id", productId)
       .maybeSingle<Product>()
 
-    console.log("[商品コピー] 商品検索結果:", {
-      found: !!originalProduct,
-      error: fetchError ? {
-        message: fetchError.message,
-        code: fetchError.code,
-        details: fetchError.details,
-        hint: fetchError.hint
-      } : null,
-      productId
-    })
-
     if (fetchError) {
-      console.error("[商品コピー] データベースエラー:", {
-        productId,
-        error: fetchError
-      })
+      console.error("商品コピーエラー:", fetchError.message)
       return NextResponse.json(
         {
           success: false,
-          message: "データベースエラーが発生しました",
-          error: fetchError.message
+          message: `データベースエラー: ${fetchError.message}${fetchError.hint ? ` (ヒント: ${fetchError.hint})` : ""}`
         },
         { status: 500 }
       )
     }
 
     if (!originalProduct) {
-      console.error("[商品コピー] エラー: 商品が見つかりません", {
-        productId
-      })
       return NextResponse.json(
         { success: false, message: "商品が見つかりません" },
         { status: 404 }
@@ -69,7 +47,7 @@ export async function POST(request: NextRequest) {
     // 新しい商品IDを生成
     const newProductId = randomUUID()
 
-    // 商品データをコピー（元商品を参照として設定、ASIN情報はクリア）
+    // 商品データをコピー（元商品を参照として設定、source_urlをクリアしてASIN紐付けを解除）
     const copiedProduct = {
       id: newProductId,
       shop_type: originalProduct.shop_type,
@@ -78,7 +56,7 @@ export async function POST(request: NextRequest) {
       price: originalProduct.price,
       sale_price: originalProduct.sale_price,
       image_url: originalProduct.image_url,
-      source_url: originalProduct.source_url,
+      source_url: null, // source_urlをクリアしてASIN紐付けを解除
       is_hidden: originalProduct.is_hidden,
       memo: originalProduct.memo ? `${originalProduct.memo} (コピー)` : "コピー商品",
       original_product_id: productId, // 元商品への参照
@@ -87,10 +65,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 新しい商品を挿入
-    console.log("[商品コピー] 新規商品挿入開始:", {
-      newProductId,
-      originalProductId: productId
-    })
     const { data: newProduct, error: insertError } = await supabase
       .from("products")
       .insert(copiedProduct as never)
@@ -98,20 +72,15 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
-      console.error("[商品コピー] エラー: 新規商品挿入失敗", {
-        error: insertError,
-        copiedProduct
-      })
+      console.error("商品コピーエラー:", insertError.message)
       return NextResponse.json(
-        { success: false, message: "商品のコピーに失敗しました" },
+        {
+          success: false,
+          message: `商品のコピーに失敗しました: ${insertError.message}${insertError.hint ? ` (ヒント: ${insertError.hint})` : ""}`
+        },
         { status: 500 }
       )
     }
-
-    console.log("[商品コピー] 成功:", {
-      originalProductId: productId,
-      copiedProductId: newProductId
-    })
 
     return NextResponse.json({
       success: true,
