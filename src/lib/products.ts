@@ -19,43 +19,47 @@ export interface ExtendedProduct extends Product {
  */
 export async function getProductsWithAsinAndProfits(): Promise<ExtendedProduct[]> {
   try {
-    // JOINを使って1回のクエリで全データを取得
+    // 商品データを取得
     const { data: productData, error: productsError } = await supabase
       .from("products")
-      .select(`
-        *,
-        product_asins!left (
-          asin_id,
-          asins!inner (
-            id,
-            asin,
-            amazon_name,
-            amazon_price,
-            monthly_sales,
-            fee_rate,
-            fba_fee,
-            jan_code,
-            has_amazon,
-            has_official,
-            complaint_count,
-            is_dangerous,
-            is_per_carry_ng,
-            memo,
-            created_at,
-            updated_at
-          )
-        )
-      `)
+      .select("*")
       .order("created_at", { ascending: false })
 
     if (productsError) throw productsError
     if (!productData) return []
 
-    // 型アサーション
-    const products = productData as unknown as (Product & { product_asins?: Array<{ asins?: Asin }> })[]
+    const products = productData as Product[]
+
+    // product_asinsとasinsを一括取得（source_url基準）
+    // URLリストが多い場合は全件取得してフィルタリング（.in()クエリはURL長制限があるため）
+    const { data: productAsinData } = await supabase
+      .from("product_asins")
+      .select("source_url, asin")
+
+    // ASINコードのリストを取得
+    const asinCodes = productAsinData?.map(pa => pa.asin).filter(Boolean) || []
+
+    const { data: asinData } = await supabase
+      .from("asins")
+      .select("*")
+      .in("asin", asinCodes)
+
+    // source_url -> ASIN のマップを作成
+    const urlToAsinCodeMap = new Map<string, string>()
+    productAsinData?.forEach(pa => {
+      if (pa.source_url && pa.asin) {
+        urlToAsinCodeMap.set(pa.source_url, pa.asin)
+      }
+    })
+
+    // ASINコード -> Asin データのマップを作成
+    const asinCodeToDataMap = new Map<string, Asin>()
+    asinData?.forEach(asin => {
+      asinCodeToDataMap.set(asin.asin, asin as Asin)
+    })
 
     // ショップ割引情報を一括取得
-    const shopNames = [...new Set(products.map(p => p.shop_name).filter(Boolean))]
+    const shopNames = [...new Set(products.map(p => p.shop_name).filter((name): name is string => name !== null && name !== undefined))]
     const { data: discounts } = await supabase
       .from("shop_discounts")
       .select("*")
@@ -71,11 +75,14 @@ export async function getProductsWithAsinAndProfits(): Promise<ExtendedProduct[]
     const extendedProducts: ExtendedProduct[] = products.map((product) => {
       const extendedProduct: ExtendedProduct = { ...product }
 
-      // ASIN情報を設定
-      if (product.product_asins && product.product_asins.length > 0) {
-        const firstAsin = product.product_asins[0]
-        if (firstAsin?.asins) {
-          extendedProduct.asin = firstAsin.asins
+      // source_url から ASIN情報を取得
+      if (product.source_url) {
+        const asinCode = urlToAsinCodeMap.get(product.source_url)
+        if (asinCode) {
+          const asinInfo = asinCodeToDataMap.get(asinCode)
+          if (asinInfo) {
+            extendedProduct.asin = asinInfo
+          }
         }
       }
 
@@ -97,22 +104,33 @@ export async function getProductsWithAsinAndProfits(): Promise<ExtendedProduct[]
 }
 
 /**
- * 商品に紐付くASIN情報を取得
+ * 商品に紐付くASIN情報を取得（source_url基準）
  */
 export async function getProductAsinInfo(productId: string): Promise<Asin | null> {
   try {
+    // 商品のsource_urlを取得
+    const { data: productData, error: productError } = await supabase
+      .from("products")
+      .select("source_url")
+      .eq("id", productId)
+      .single()
+
+    if (productError || !productData?.source_url) return null
+
+    // source_urlからASINコードを取得
     const { data: productAsinData, error: productAsinError } = await supabase
       .from("product_asins")
-      .select("asin_id")
-      .eq("product_id", productId)
+      .select("asin")
+      .eq("source_url", productData.source_url)
       .single()
 
     if (productAsinError || !productAsinData) return null
 
+    // ASINコードからASIN情報を取得
     const { data: asinData, error: asinError } = await supabase
       .from("asins")
       .select("*")
-      .eq("id", (productAsinData as { asin_id: string }).asin_id)
+      .eq("asin", productAsinData.asin)
       .single()
 
     if (asinError || !asinData) return null
@@ -411,13 +429,8 @@ export async function updateAsin(
  */
 export async function deleteProduct(productId: string): Promise<boolean> {
   try {
-    // 関連するproduct_asinも削除
-    await supabase
-      .from("product_asins")
-      .delete()
-      .eq("product_id", productId)
-
-    // 商品を削除
+    // 商品のみを削除（product_asinsは削除しない）
+    // source_url基準でASIN紐付けを保持するため
     const { error } = await supabase
       .from("products")
       .delete()

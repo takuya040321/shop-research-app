@@ -32,14 +32,21 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       .from("products")
       .select("*", { count: "exact", head: true })
 
-    // ASIN紐付け済み商品数を取得
-    const { data: productsWithAsin } = await supabase
+    // ASIN紐付け済み商品のsource_url一覧を取得
+    const { data: productAsinData } = await supabase
       .from("product_asins")
-      .select("product_id")
+      .select("source_url")
 
-    const uniqueProductsWithAsin = new Set(
-      (productsWithAsin as { product_id: string }[] | null)?.map(pa => pa.product_id) || []
-    ).size
+    // 商品データを取得してsource_urlを持つ商品をカウント
+    const { data: allProducts } = await supabase
+      .from("products")
+      .select("source_url")
+
+    const productsWithSourceUrl = allProducts?.filter(p => p.source_url) || []
+    const productAsinUrls = new Set(productAsinData?.map(pa => pa.source_url) || [])
+    const uniqueProductsWithAsin = productsWithSourceUrl.filter(p =>
+      productAsinUrls.has(p.source_url!)
+    ).length
 
     // ASIN紐付け率
     const asinLinkRate = totalProducts && totalProducts > 0
@@ -60,64 +67,102 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       }
     }
 
-    // 商品とASINのデータを取得して利益計算
+    // 商品データを取得
     const { data: products } = await supabase
       .from("products")
-      .select(`
-        *,
-        product_asins!inner (
-          asin_id,
-          asins (*)
-        )
-      `)
+      .select("*")
 
+    if (!products) {
+      return {
+        totalProducts: totalProducts || 0,
+        productsWithAsin: uniqueProductsWithAsin,
+        asinLinkRate: Math.round(asinLinkRate * 10) / 10,
+        averageProfitRate: 0,
+        totalProfitAmount: 0
+      }
+    }
+
+    // source_url一覧を取得
+    const sourceUrls = products.map(p => p.source_url).filter(Boolean) as string[]
+    
+    // product_asinsを一括取得
+    const { data: productAsins } = await supabase
+      .from("product_asins")
+      .select("source_url, asin")
+      .in("source_url", sourceUrls)
+
+    // ASINコード一覧を取得
+    const asinCodes = productAsins?.map(pa => pa.asin).filter(Boolean) || []
+    
+    // ASINデータを一括取得
+    const { data: asins } = await supabase
+      .from("asins")
+      .select("*")
+      .in("asin", asinCodes)
+
+    // マップを作成
+    const urlToAsinCode = new Map<string, string>()
+    productAsins?.forEach(pa => {
+      if (pa.source_url && pa.asin) {
+        urlToAsinCode.set(pa.source_url, pa.asin)
+      }
+    })
+
+    const asinCodeToData = new Map<string, { amazon_price: number | null; fee_rate: number | null; fba_fee: number | null }>()
+    asins?.forEach(asin => {
+      const a = asin as { asin: string; amazon_price: number | null; fee_rate: number | null; fba_fee: number | null }
+      asinCodeToData.set(a.asin, {
+        amazon_price: a.amazon_price,
+        fee_rate: a.fee_rate,
+        fba_fee: a.fba_fee
+      })
+    })
+
+    // 利益計算
     let totalProfitAmount = 0
     let totalProfitRate = 0
     let profitCount = 0
 
-    if (products) {
-      for (const product of products) {
-        const productData = product as {
-          shop_name: string | null
-          sale_price: number | null
-          price: number | null
-          product_asins?: Array<{
-            asins: {
-              amazon_price: number | null
-              fee_rate: number | null
-              fba_fee: number | null
-            } | null
-          }>
+    for (const product of products) {
+      const productData = product as {
+        source_url: string | null
+        shop_name: string | null
+        sale_price: number | null
+        price: number | null
+      }
+
+      if (!productData.source_url) continue
+      
+      const asinCode = urlToAsinCode.get(productData.source_url)
+      if (!asinCode) continue
+
+      const asinData = asinCodeToData.get(asinCode)
+      if (!asinData) continue
+
+      // 実効価格を計算（割引適用後）
+      let purchasePrice = productData.sale_price || productData.price || 0
+      const discount = productData.shop_name ? discountMap.get(productData.shop_name) : null
+
+      if (discount) {
+        if (discount.type === "percentage") {
+          purchasePrice = purchasePrice * (1 - discount.value / 100)
+        } else {
+          purchasePrice = purchasePrice - discount.value
         }
+      }
 
-        const asinData = productData.product_asins?.[0]?.asins
-        if (!asinData) continue
+      const amazonPrice = asinData.amazon_price || 0
+      const feeRate = asinData.fee_rate || 0
+      const fbaFee = asinData.fba_fee || 0
 
-        // 実効価格を計算（割引適用後）
-        let purchasePrice = productData.sale_price || productData.price || 0
-        const discount = productData.shop_name ? discountMap.get(productData.shop_name) : null
+      if (amazonPrice > 0 && purchasePrice > 0) {
+        const salesFee = amazonPrice * (feeRate / 100)
+        const profitAmount = amazonPrice - purchasePrice - salesFee - fbaFee
+        const profitRate = (profitAmount / purchasePrice) * 100
 
-        if (discount) {
-          if (discount.type === "percentage") {
-            purchasePrice = purchasePrice * (1 - discount.value / 100)
-          } else {
-            purchasePrice = purchasePrice - discount.value
-          }
-        }
-
-        const amazonPrice = asinData.amazon_price || 0
-        const feeRate = asinData.fee_rate || 0
-        const fbaFee = asinData.fba_fee || 0
-
-        if (amazonPrice > 0 && purchasePrice > 0) {
-          const salesFee = amazonPrice * (feeRate / 100)
-          const profitAmount = amazonPrice - purchasePrice - salesFee - fbaFee
-          const profitRate = (profitAmount / purchasePrice) * 100
-
-          totalProfitAmount += profitAmount
-          totalProfitRate += profitRate
-          profitCount++
-        }
+        totalProfitAmount += profitAmount
+        totalProfitRate += profitRate
+        profitCount++
       }
     }
 
@@ -164,23 +209,45 @@ export async function getShopStats(): Promise<ShopStats[]> {
     // 全商品を取得
     const { data: products } = await supabase
       .from("products")
-      .select(`
-        id,
-        shop_type,
-        shop_name,
-        price,
-        sale_price,
-        product_asins!inner (
-          asin_id,
-          asins (
-            amazon_price,
-            fee_rate,
-            fba_fee
-          )
-        )
-      `)
+      .select("*")
 
     if (!products) return []
+
+    // source_url一覧を取得
+    const sourceUrls = products.map(p => p.source_url).filter(Boolean) as string[]
+    
+    // product_asinsを一括取得
+    const { data: productAsins } = await supabase
+      .from("product_asins")
+      .select("source_url, asin")
+      .in("source_url", sourceUrls)
+
+    // ASINコード一覧を取得
+    const asinCodes = productAsins?.map(pa => pa.asin).filter(Boolean) || []
+    
+    // ASINデータを一括取得
+    const { data: asins } = await supabase
+      .from("asins")
+      .select("*")
+      .in("asin", asinCodes)
+
+    // マップを作成
+    const urlToAsinCode = new Map<string, string>()
+    productAsins?.forEach(pa => {
+      if (pa.source_url && pa.asin) {
+        urlToAsinCode.set(pa.source_url, pa.asin)
+      }
+    })
+
+    const asinCodeToData = new Map<string, { amazon_price: number | null; fee_rate: number | null; fba_fee: number | null }>()
+    asins?.forEach(asin => {
+      const a = asin as { asin: string; amazon_price: number | null; fee_rate: number | null; fba_fee: number | null }
+      asinCodeToData.set(a.asin, {
+        amazon_price: a.amazon_price,
+        fee_rate: a.fee_rate,
+        fba_fee: a.fba_fee
+      })
+    })
 
     // ショップごとに集計
     const shopMap = new Map<string, {
@@ -196,15 +263,9 @@ export async function getShopStats(): Promise<ShopStats[]> {
       const productData = product as {
         shop_type: string
         shop_name: string
+        source_url: string | null
         sale_price: number | null
         price: number | null
-        product_asins?: Array<{
-          asins: {
-            amazon_price: number | null
-            fee_rate: number | null
-            fba_fee: number | null
-          } | null
-        }>
       }
 
       const key = `${productData.shop_type}-${productData.shop_name}`
@@ -225,33 +286,39 @@ export async function getShopStats(): Promise<ShopStats[]> {
 
       stats.totalCount++
 
-      const asinData = productData.product_asins?.[0]?.asins
-      if (asinData) {
-        stats.asinCount++
+      // ASIN情報を取得
+      if (productData.source_url) {
+        const asinCode = urlToAsinCode.get(productData.source_url)
+        if (asinCode) {
+          const asinData = asinCodeToData.get(asinCode)
+          if (asinData) {
+            stats.asinCount++
 
-        // 実効価格を計算（割引適用後）
-        let purchasePrice = productData.sale_price || productData.price || 0
-        const discount = discountMap.get(productData.shop_name)
+            // 実効価格を計算（割引適用後）
+            let purchasePrice = productData.sale_price || productData.price || 0
+            const discount = discountMap.get(productData.shop_name)
 
-        if (discount) {
-          if (discount.type === "percentage") {
-            purchasePrice = purchasePrice * (1 - discount.value / 100)
-          } else {
-            purchasePrice = purchasePrice - discount.value
+            if (discount) {
+              if (discount.type === "percentage") {
+                purchasePrice = purchasePrice * (1 - discount.value / 100)
+              } else {
+                purchasePrice = purchasePrice - discount.value
+              }
+            }
+
+            const amazonPrice = asinData.amazon_price || 0
+            const feeRate = asinData.fee_rate || 0
+            const fbaFee = asinData.fba_fee || 0
+
+            if (amazonPrice > 0 && purchasePrice > 0) {
+              const salesFee = amazonPrice * (feeRate / 100)
+              const profitAmount = amazonPrice - purchasePrice - salesFee - fbaFee
+              const profitRate = (profitAmount / purchasePrice) * 100
+
+              stats.profitRateSum += profitRate
+              stats.profitCount++
+            }
           }
-        }
-
-        const amazonPrice = asinData.amazon_price || 0
-        const feeRate = asinData.fee_rate || 0
-        const fbaFee = asinData.fba_fee || 0
-
-        if (amazonPrice > 0 && purchasePrice > 0) {
-          const salesFee = amazonPrice * (feeRate / 100)
-          const profitAmount = amazonPrice - purchasePrice - salesFee - fbaFee
-          const profitRate = (profitAmount / purchasePrice) * 100
-
-          stats.profitRateSum += profitRate
-          stats.profitCount++
         }
       }
     }
