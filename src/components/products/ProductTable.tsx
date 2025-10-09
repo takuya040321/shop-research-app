@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react"
-import Image from "next/image"
+import Image, { ImageLoader } from "next/image"
 import { toast } from "sonner"
 import {
   Table,
@@ -38,6 +38,11 @@ import { useProductTable } from "@/hooks/products/useProductTable"
 interface ProductTableProps {
   className?: string
   shopFilter?: string
+}
+
+// プロキシ環境用のカスタム画像ローダー
+const myLoader: ImageLoader = ({ src, width, quality }) => {
+  return `${src}?w=${width}&q=${quality ?? 75}`
 }
 
 export function ProductTable({ className, shopFilter }: ProductTableProps) {
@@ -460,6 +465,7 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                   {product.image_url ? (
                     <div className="relative w-16 h-16 group">
                       <Image
+                        loader={myLoader}
                         src={product.image_url}
                         alt={product.name}
                         width={64}
@@ -470,6 +476,7 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                       {/* ホバー時の拡大表示 */}
                       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 pointer-events-none" style={{ zIndex: 9999 }}>
                         <Image
+                          loader={myLoader}
                           src={product.image_url}
                           alt={product.name}
                           width={384}
