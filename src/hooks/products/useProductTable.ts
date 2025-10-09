@@ -57,10 +57,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
     try {
       setLoading(true)
       setError(null)
-      console.time('商品データ読み込み（ページネーション）')
       const data = await getProductsWithAsinAndProfits()
-      console.timeEnd('商品データ読み込み（ページネーション）')
-      console.log(`${data.length}件の商品データを読み込みました（ページネーション対応）`)
       setProducts(data)
       setCurrentPage(1)
     } catch (err) {
@@ -285,12 +282,16 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
             asinToLink = newAsin
           }
 
-          // 商品とASINを紐付け
+          // 商品のsource_urlを取得してASINを紐付け
+          if (!product.source_url) {
+            throw new Error("商品URLが設定されていないため、ASIN紐付けできません")
+          }
+
           const { error: linkError } = await supabase
             .from("product_asins")
             .insert({
-              product_id: productId,
-              asin_id: asinToLink.id
+              source_url: product.source_url,
+              asin: value
             } as never)
 
           if (linkError) {
