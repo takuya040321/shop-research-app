@@ -292,40 +292,6 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
             throw new Error("商品ASIN更新に失敗しました")
           }
 
-          // product_asinsテーブルにも紐付けを保存（source_urlがある場合のみ）
-          if (product.source_url) {
-            // 既存の紐付けをチェック
-            const { data: existingLink } = await supabase
-              .from("product_asins")
-              .select("*")
-              .eq("source_url", product.source_url)
-              .maybeSingle()
-
-            if (existingLink) {
-              // 既存紐付けを更新
-              const { error: updateLinkError } = await supabase
-                .from("product_asins")
-                .update({ asin: value } as never)
-                .eq("source_url", product.source_url)
-
-              if (updateLinkError) {
-                throw new Error("商品-ASIN紐付け更新に失敗しました")
-              }
-            } else {
-              // 新規紐付けを作成
-              const { error: insertLinkError } = await supabase
-                .from("product_asins")
-                .insert({
-                  source_url: product.source_url,
-                  asin: value
-                } as never)
-
-              if (insertLinkError) {
-                throw new Error("商品-ASIN紐付け作成に失敗しました")
-              }
-            }
-          }
-
           updatedAsin = asinToLink
           success = true
         } else if (product.asin) {
