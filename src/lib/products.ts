@@ -6,8 +6,8 @@ import { supabase } from "./supabase"
 import type { Product, Asin, ShopDiscount, ProductUpdate, AsinUpdate } from "@/types/database"
 
 // 拡張された商品型（ASIN情報と利益計算を含む）
-export interface ExtendedProduct extends Product {
-  asin?: Asin
+export interface ExtendedProduct extends Omit<Product, "asin"> {
+  asin?: Asin | null
   profit_amount?: number
   profit_rate?: number
   roi?: number
@@ -30,21 +30,30 @@ export async function getProductsWithAsinAndProfits(): Promise<ExtendedProduct[]
 
     const products = productData as Product[]
 
-    // product_asinsとasinsを一括取得（source_url基準）
-    // URLリストが多い場合は全件取得してフィルタリング（.in()クエリはURL長制限があるため）
+    // ASINコードを収集（products.asin優先、なければproduct_asinsから取得）
+    const asinCodes = new Set<string>()
+
+    // products.asinから収集
+    products.forEach(p => {
+      if (p.asin) asinCodes.add(p.asin)
+    })
+
+    // product_asinsからも収集（フォールバック用）
     const { data: productAsinData } = await supabase
       .from("product_asins")
       .select("source_url, asin")
 
-    // ASINコードのリストを取得
-    const asinCodes = productAsinData?.map(pa => pa.asin).filter(Boolean) || []
+    productAsinData?.forEach(pa => {
+      if (pa.asin) asinCodes.add(pa.asin)
+    })
 
+    // ASINデータを一括取得
     const { data: asinData } = await supabase
       .from("asins")
       .select("*")
-      .in("asin", asinCodes)
+      .in("asin", Array.from(asinCodes))
 
-    // source_url -> ASIN のマップを作成
+    // source_url -> ASIN のマップを作成（フォールバック用）
     const urlToAsinCodeMap = new Map<string, string>()
     productAsinData?.forEach(pa => {
       if (pa.source_url && pa.asin) {
@@ -73,16 +82,26 @@ export async function getProductsWithAsinAndProfits(): Promise<ExtendedProduct[]
 
     // 商品データを変換
     const extendedProducts: ExtendedProduct[] = products.map((product) => {
-      const extendedProduct: ExtendedProduct = { ...product }
+      // asinを除外してExtendedProductを作成
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { asin: _, ...productWithoutAsin } = product
+      const extendedProduct: ExtendedProduct = { ...productWithoutAsin, asin: null }
 
-      // source_url から ASIN情報を取得
-      if (product.source_url) {
-        const asinCode = urlToAsinCodeMap.get(product.source_url)
-        if (asinCode) {
-          const asinInfo = asinCodeToDataMap.get(asinCode)
-          if (asinInfo) {
-            extendedProduct.asin = asinInfo
-          }
+      // products.asinを優先、なければsource_urlから取得
+      let asinCode: string | null = null
+
+      if (product.asin) {
+        // products.asinが設定されている場合は優先
+        asinCode = product.asin
+      } else if (product.source_url) {
+        // なければsource_urlからproduct_asinsを検索
+        asinCode = urlToAsinCodeMap.get(product.source_url) || null
+      }
+
+      if (asinCode) {
+        const asinInfo = asinCodeToDataMap.get(asinCode)
+        if (asinInfo) {
+          extendedProduct.asin = asinInfo
         }
       }
 
