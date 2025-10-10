@@ -241,7 +241,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
       if (!product) return
 
       let success = false
-      let updatedAsin: Asin | null = null
+      let needsReload = false
 
       if (field.startsWith("asin_")) {
         const asinField = field.replace("asin_", "")
@@ -254,12 +254,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
             .eq("asin", value)
             .single<Asin>()
 
-          let asinToLink: Asin
-
-          if (existingAsin) {
-            // 既存ASINを使用
-            asinToLink = existingAsin
-          } else {
+          if (!existingAsin) {
             // 新規ASIN作成
             const { data: newAsin, error: createAsinError } = await supabase
               .from("asins")
@@ -278,8 +273,6 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
             if (createAsinError || !newAsin) {
               throw new Error("ASIN作成に失敗しました")
             }
-
-            asinToLink = newAsin
           }
 
           // products.asinを更新
@@ -292,8 +285,8 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
             throw new Error("商品ASIN更新に失敗しました")
           }
 
-          updatedAsin = asinToLink
           success = true
+          needsReload = true  // ASIN登録時は利益計算のため再読み込み
         } else if (product.asin) {
           const updates: Record<string, unknown> = {}
 
@@ -307,12 +300,9 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
 
           success = await updateAsin(product.asin.id, updates)
 
-          // 更新成功時にローカルのASINオブジェクトを更新
-          if (success) {
-            updatedAsin = {
-              ...product.asin,
-              ...updates
-            } as Asin
+          // Amazon価格、手数料率、FBA料が更新された場合は利益計算のため再読み込み
+          if (success && ["amazon_price", "fee_rate", "fba_fee"].includes(asinField)) {
+            needsReload = true
           }
         }
       } else {
@@ -320,6 +310,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
 
         if (["price", "sale_price"].includes(field)) {
           updates[field] = value ? parseFloat(value) : null
+          needsReload = true  // 価格更新時は利益計算のため再読み込み
         } else if (field === "is_hidden") {
           updates[field] = value === "true"
         } else {
@@ -327,32 +318,15 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
         }
 
         success = await updateProduct(productId, updates)
-
-        // 更新成功時にローカルのproductsステートを部分更新
-        if (success) {
-          setProducts(prevProducts =>
-            prevProducts.map(p =>
-              p.id === productId
-                ? { ...p, ...updates }
-                : p
-            )
-          )
-        }
       }
 
       if (success) {
-        // ASIN関連フィールドの場合は、ASINオブジェクトを更新
-        if (field.startsWith("asin_") && updatedAsin) {
-          setProducts(prevProducts =>
-            prevProducts.map(p =>
-              p.id === productId
-                ? { ...p, asin: updatedAsin }
-                : p
-            )
-          )
-        }
-
         setEditingCell(null)
+
+        // 利益計算に影響する項目が更新された場合は再読み込み
+        if (needsReload) {
+          await loadProducts()
+        }
       } else {
         setError("更新に失敗しました")
       }
@@ -360,7 +334,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
       console.error("編集保存エラー:", err)
       setError("更新中にエラーが発生しました")
     }
-  }, [editingCell, products])
+  }, [editingCell, products, loadProducts])
 
   const handleCopyProduct = useCallback(async (product: ExtendedProduct) => {
     try {
