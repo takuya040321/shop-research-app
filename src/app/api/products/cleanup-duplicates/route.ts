@@ -12,6 +12,7 @@ type ProductWithAsins = {
   shop_name: string | null
   source_url: string | null
   created_at: string | null
+  asin: string | null
 }
 
 // POST /api/products/cleanup-duplicates
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     // 商品データを取得
     const { data: productsWithAsins } = await supabase
       .from("products")
-      .select("id, name, shop_type, shop_name, source_url, created_at")
+      .select("id, name, shop_type, shop_name, source_url, created_at, asin")
       .neq("memo", "コピー商品")
       .order("created_at")
 
@@ -34,40 +35,18 @@ export async function POST(request: NextRequest) {
       filteredProducts = filteredProducts.filter(p => p.shop_name === shopName)
     }
 
-    // source_urlのリストを取得
-    const sourceUrls = filteredProducts.map(p => p.source_url).filter(Boolean) as string[]
-
-    // product_asinsを一括取得してマップを作成
-    const { data: productAsins } = await supabase
-      .from("product_asins")
-      .select("source_url, asin")
-      .in("source_url", sourceUrls)
-
-    const urlToAsin = new Map<string, string>()
-    productAsins?.forEach(pa => {
-      if (pa.source_url && pa.asin) {
-        urlToAsin.set(pa.source_url, pa.asin)
-      }
-    })
-
     // 重複グループを検出（正確なキーで）
     const duplicateGroups = new Map<string, ProductWithAsins[]>()
 
     for (const product of filteredProducts) {
       let key: string
 
-      // source_urlからASINを取得
-      if (product.source_url) {
-        const asin = urlToAsin.get(product.source_url)
-        if (asin) {
-          // ASINありの場合：shop_type + shop_name + name + asin
-          key = `${product.shop_type}-${product.shop_name}-${product.name}-${asin}`
-        } else {
-          // source_urlはあるがASIN紐付けなし
-          key = `${product.shop_type}-${product.shop_name}-${product.name}-null`
-        }
+      // products.asinから取得
+      if (product.asin) {
+        // ASINありの場合：shop_type + shop_name + name + asin
+        key = `${product.shop_type}-${product.shop_name}-${product.name}-${product.asin}`
       } else {
-        // source_urlなし
+        // ASINなし
         key = `${product.shop_type}-${product.shop_name}-${product.name}-null`
       }
 

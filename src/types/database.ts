@@ -109,35 +109,6 @@ export type Database = {
         }
         Relationships: []
       }
-      product_asins: {
-        Row: {
-          asin: string
-          created_at: string | null
-          id: string
-          source_url: string
-        }
-        Insert: {
-          asin: string
-          created_at?: string | null
-          id?: string
-          source_url: string
-        }
-        Update: {
-          asin?: string
-          created_at?: string | null
-          id?: string
-          source_url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_asins_asin_fkey"
-            columns: ["asin"]
-            isOneToOne: false
-            referencedRelation: "asins"
-            referencedColumns: ["asin"]
-          },
-        ]
-      }
       products: {
         Row: {
           asin: string | null
@@ -405,18 +376,15 @@ export const Constants = {
 // 共通型のエクスポート
 export type Product = Tables<"products">
 export type Asin = Tables<"asins">
-export type ProductAsin = Tables<"product_asins">
 export type ShopDiscount = Tables<"shop_discounts">
 export type ApiSetting = Tables<"api_settings">
 
 export type ProductInsert = TablesInsert<"products">
 export type AsinInsert = TablesInsert<"asins">
-export type ProductAsinInsert = TablesInsert<"product_asins">
 export type ShopDiscountInsert = TablesInsert<"shop_discounts">
 export type ApiSettingInsert = TablesInsert<"api_settings">
 
 export type ProductUpdate = TablesUpdate<"products">
 export type AsinUpdate = TablesUpdate<"asins">
-export type ProductAsinUpdate = TablesUpdate<"product_asins">
 export type ShopDiscountUpdate = TablesUpdate<"shop_discounts">
 export type ApiSettingUpdate = TablesUpdate<"api_settings">
