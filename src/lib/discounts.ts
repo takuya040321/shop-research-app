@@ -184,10 +184,10 @@ function mapToDiscountSetting(data: ShopDiscount): DiscountSetting {
   return {
     id: data.id,
     shopName: data.shop_name,
-    discountType: data.discount_type,
+    discountType: data.discount_type as "percentage" | "fixed",
     discountValue: data.discount_value,
-    isEnabled: data.is_enabled,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at
+    isEnabled: data.is_enabled ?? false,
+    createdAt: data.created_at ?? "",
+    updatedAt: data.updated_at ?? ""
   }
 }
