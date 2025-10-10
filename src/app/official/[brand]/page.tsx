@@ -68,9 +68,9 @@ export default function BrandPage() {
         .single<Database["public"]["Tables"]["shop_discounts"]["Row"]>()
 
       if (data) {
-        setDiscountType(data.discount_type)
+        setDiscountType(data.discount_type as "percentage" | "fixed")
         setDiscountValue(String(data.discount_value))
-        setIsDiscountEnabled(data.is_enabled)
+        setIsDiscountEnabled(data.is_enabled ?? false)
       }
     }
 

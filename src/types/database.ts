@@ -140,6 +140,7 @@ export type Database = {
       }
       products: {
         Row: {
+          asin: string | null
           created_at: string | null
           id: string
           image_url: string | null
@@ -155,6 +156,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          asin?: string | null
           created_at?: string | null
           id?: string
           image_url?: string | null
@@ -170,6 +172,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          asin?: string | null
           created_at?: string | null
           id?: string
           image_url?: string | null
