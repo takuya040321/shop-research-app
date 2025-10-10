@@ -5,7 +5,7 @@
  * 商品情報とASIN情報を結合して表示し、インライン編集機能を提供
  */
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image, { ImageLoader } from "next/image"
 import { toast } from "sonner"
 import {
@@ -71,6 +71,27 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
     shopFilter,
     pageSize: 9999 // 全件表示するため大きな値を設定
   })
+
+  // 横スクロールコンテナのref
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+
+  // Shift+ホイールで横スクロール
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.shiftKey) {
+        e.preventDefault()
+        container.scrollLeft += e.deltaY
+      }
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => {
+      container.removeEventListener('wheel', handleWheel)
+    }
+  }, [])
 
   // 右クリックメニューの項目
   const getContextMenuItems = (product: ExtendedProduct) => {
@@ -220,7 +241,10 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
       />
 
       <Card>
-      <div className="overflow-auto max-h-screen">
+      <div
+        ref={scrollContainerRef}
+        className="overflow-x-auto overflow-y-auto max-h-screen"
+      >
         <Table>
           <TableHeader>
             <TableRow>

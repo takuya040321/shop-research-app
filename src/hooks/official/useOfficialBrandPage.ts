@@ -22,8 +22,10 @@ export function useOfficialBrandPage({
 
   const handleRefresh = async () => {
     if (!brandConfig.hasScrapingAPI) {
-      alert(`${brandConfig.displayName}スクレイピング機能は未実装です`)
-      return
+      return {
+        success: false,
+        message: `${brandConfig.displayName}スクレイピング機能は未実装です`
+      }
     }
 
     setIsRefreshing(true)
@@ -42,28 +44,20 @@ export function useOfficialBrandPage({
       const result = await response.json()
 
       if (result.success) {
-        alert(`スクレイピング完了!\n取得: ${result.data.totalProducts}件\n保存: ${result.data.savedProducts}件\nスキップ: ${result.data.skippedProducts}件`)
         // テーブルを再読み込み
         window.location.reload()
-      } else {
-        alert(`スクレイピングに失敗しました: ${result.message}`)
       }
+      
+      return result
     } catch (error) {
       console.error("スクレイピングエラー:", error)
-      alert("スクレイピング中にエラーが発生しました")
+      return {
+        success: false,
+        message: "スクレイピング中にエラーが発生しました"
+      }
     } finally {
       setIsRefreshing(false)
     }
-  }
-
-  const handleExport = () => {
-    // TODO: データエクスポート機能実装
-    console.log("エクスポート機能（未実装）")
-  }
-
-  const handleSettings = () => {
-    // TODO: 設定画面実装
-    console.log("設定画面（未実装）")
   }
 
   return {
@@ -71,8 +65,6 @@ export function useOfficialBrandPage({
     isRefreshing,
 
     // Actions
-    handleRefresh,
-    handleExport,
-    handleSettings
+    handleRefresh
   }
 }

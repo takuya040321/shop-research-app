@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
     // 新しい商品IDを生成
     const newProductId = randomUUID()
 
+    // コピー元商品がコピー商品の場合は、元の商品IDを取得
+    // コピー元商品が通常商品の場合は、そのIDを使用
+    const originalProductId = originalProduct.original_product_id || productId
+
     // 商品データをコピー（asinをクリアしてASIN紐付けを解除、source_urlは保持）
     const copiedProduct = {
       id: newProductId,
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
       asin: null, // asinをクリアしてASIN紐付けを解除
       is_hidden: originalProduct.is_hidden,
       memo: originalProduct.memo ? `${originalProduct.memo} (コピー)` : "コピー商品",
-      original_product_id: productId, // 元商品への参照
+      original_product_id: originalProductId, // 常に元の商品を参照
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
