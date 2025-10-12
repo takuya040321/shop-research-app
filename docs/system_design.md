@@ -100,13 +100,8 @@ shop-research-app/
 │   │   │   ├── asins/          # ASIN管理
 │   │   │   └── settings/       # 全体設定
 │   │   ├── official/           # 公式サイト（独立ルート）
-│   │   │   ├── page.tsx        # 公式サイト一覧
-│   │   │   ├── vt/
-│   │   │   │   └── page.tsx
-│   │   │   ├── dhc/
-│   │   │   │   └── page.tsx
-│   │   │   └── innisfree/
-│   │   │       └── page.tsx
+│   │   │   ├── [brand]/        # ブランド別動的ルート
+│   │   │   │   └── page.tsx    # ブランドページ（VT/DHC/innisfree等）
 │   │   ├── rakuten/            # 楽天市場（独立ルート）
 │   │   │   ├── page.tsx        # 楽天一覧
 │   │   │   ├── muji/
@@ -233,10 +228,12 @@ App Layout
 - AsinForm
 - SettingsForm
 - FileUploadForm
-- ProductTable
+- **ProductTable**: 商品テーブルコンポーネント（Shift+ホイールで横スクロール対応）
 - EditableCell
 - SortableHeader
 - FilterRow
+- **DiscountSettings**: ショップ別割引設定コンポーネント（UI/ロジック分離済み）
+- ContextMenu: 右クリックメニュー
 - DashboardLayout
 - AuthLayout
 - PageHeader
@@ -251,14 +248,18 @@ App Layout
 - **POST /api/products**: 商品作成
 - **PUT /api/products/[id]**: 商品更新
 - **DELETE /api/products/[id]**: 商品削除
-- **POST /api/products/[id]/copy**: 商品コピー
+- **POST /api/products/copy**: 商品コピー
+  - コピー商品の`original_product_id`は常に元の商品IDを参照
+  - コピー商品をコピーした場合も、元の商品IDを継承
+  - ASIN紐付けはクリアされる
 
 #### 4.1.2 ASIN API
 - **GET /api/asins**: ASIN一覧取得
 - **POST /api/asins**: ASIN作成
 - **PUT /api/asins/[id]**: ASIN更新
 - **POST /api/asins/upload**: ASIN一括アップロード
-- **POST /api/products/[productId]/asins/[asinId]/link**: ASIN紐付け
+
+**注**: ASIN紐付けはproductsテーブルのasinカラムで管理されます。
 
 #### 4.1.3 ショップ別スクレイピングAPI
 - **POST /api/scraping/official/vt**: VTスクレイピング
@@ -337,37 +338,35 @@ Supabase Authが自動管理（参照のみ使用）
 - **ショップ名**: shop_name ('vt', 'dhc', 'muji', etc.)
 - **親ショップ**: parent_shop (階層構造用)
 - **ソースURL**: source_url
+- **ASIN**: asin (商品に紐づくASIN、asinsテーブルのasinカラムを参照)
 - **非表示フラグ**: is_hidden
 - **メモ**: memo
-- **元商品ID**: original_product_id (コピー元商品のID)
+- **元商品ID**: original_product_id (コピー元商品のID、コピー商品の場合は常に最初の元商品を参照)
 - **作成日時**: created_at
 - **更新日時**: updated_at
 
 #### 5.1.4 asins テーブル
 - **主キー**: id (UUID)
 - **外部キー**: user_id (users テーブル)
-- **ASIN**: asin (10桁)
+- **ASIN**: asin (10桁、ユニーク制約)
 - **Amazon商品名**: amazon_name
 - **Amazon価格**: amazon_price
 - **月間販売数**: monthly_sales
-- **手数料率**: fee_rate
-- **FBA手数料**: fba_fee
+- **手数料率**: fee_rate (デフォルト: 15)
+- **FBA手数料**: fba_fee (デフォルト: 0)
 - **JANコード**: jan_code
-- **危険物フラグ**: is_dangerous
-- **パーキャリ制限フラグ**: is_carrier_restricted
+- **Amazon出品有無**: has_amazon (デフォルト: false)
+- **公式サイト出品有無**: has_official (デフォルト: false)
+- **危険物フラグ**: is_dangerous (デフォルト: false)
+- **パーキャリNG**: is_per_carry_ng (デフォルト: false)
 - **苦情回数**: complaint_count
 - **メモ**: memo
 - **作成日時**: created_at
 - **更新日時**: updated_at
 
-#### 5.1.5 product_asins テーブル（商品とASINの紐付け）
-- **主キー**: id (UUID)
-- **外部キー**: user_id (users テーブル)
-- **商品ID**: product_id (products テーブル)
-- **ASIN ID**: asin_id (asins テーブル)
-- **作成日時**: created_at
+**注**: productsテーブルのasinカラムから参照されます。商品とASINは1:1の関係です。
 
-#### 5.1.6 shop_discounts テーブル（ショップ別割引設定）
+#### 5.1.5 shop_discounts テーブル（ショップ別割引設定）
 - **主キー**: id (UUID)
 - **外部キー**: user_id (users テーブル)
 - **ショップ名**: shop_name
@@ -395,7 +394,6 @@ Supabase Authが自動管理（参照のみ使用）
 - shop_categories
 - products
 - asins
-- product_asins
 - shop_discounts
 - api_settings
 

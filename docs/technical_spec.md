@@ -107,21 +107,22 @@
 ```
 /api/
 ├── products/
-│   ├── index.ts           # 商品一覧取得・作成
-│   ├── [id].ts           # 商品詳細・更新・削除
-│   └── scrape.ts         # スクレイピング実行
+│   ├── cleanup-duplicates/  # 重複商品クリーンアップ
+│   ├── copy/               # 商品コピー（original_product_id継承）
+│   └── deduplicate/        # 重複商品削除
 ├── asins/
-│   ├── index.ts          # ASIN一覧・作成
-│   ├── [id].ts          # ASIN更新・削除
-│   └── upload.ts        # ASIN一括アップロード
-├── settings/
-│   ├── discount.ts      # 割引設定
-│   ├── rakuten.ts       # 楽天API設定
-│   └── yahoo.ts         # Yahoo API設定
-└── scraping/
-    ├── vt.ts            # VTスクレイピング
-    ├── dhc.ts           # DHCスクレイピング
-    └── innisfree.ts     # innisfreeスクレイピング
+│   └── bulk-upload/        # ASIN一括アップロード
+├── scrape/
+│   ├── vt/                 # VTスクレイピング
+│   ├── dhc/                # DHCスクレイピング
+│   └── innisfree/          # innisfreeスクレイピング
+├── rakuten/
+│   └── search/             # 楽天商品検索
+├── yahoo/
+│   └── search/             # Yahoo商品検索
+└── image-proxy/            # 画像プロキシ
+
+**注**: 商品・ASIN・設定のCRUD操作はSupabase REST APIを直接使用します。
 ```
 
 ### 4.3 スクレイピング仕様
@@ -176,9 +177,18 @@ export interface Database {
         Insert: AsinInsert
         Update: AsinUpdate
       }
+      shop_discounts: {
+        Row: ShopDiscountRow
+        Insert: ShopDiscountInsert
+        Update: ShopDiscountUpdate
+      }
     }
   }
 }
+
+// 商品とASINの関係
+// - products.asin カラムでASINを参照（文字列）
+// - asins.asin とJOINして詳細情報を取得
 ```
 
 ## 6. セキュリティ仕様
