@@ -338,7 +338,7 @@ Supabase Authが自動管理（参照のみ使用）
 - **ショップ名**: shop_name ('vt', 'dhc', 'muji', etc.)
 - **親ショップ**: parent_shop (階層構造用)
 - **ソースURL**: source_url
-- **ASIN**: asin (商品に紐づくASIN、asinsテーブルのasinカラムを参照)
+- **ASIN**: asin (商品に紐づくASIN、TEXT型で直接保持)
 - **非表示フラグ**: is_hidden
 - **メモ**: memo
 - **元商品ID**: original_product_id (コピー元商品のID、コピー商品の場合は常に最初の元商品を参照)
@@ -364,7 +364,7 @@ Supabase Authが自動管理（参照のみ使用）
 - **作成日時**: created_at
 - **更新日時**: updated_at
 
-**注**: productsテーブルのasinカラムから参照されます。商品とASINは1:1の関係です。
+**注**: ASINデータは独立して管理され、商品のasinカラムと照合することで利益計算などに使用されます。
 
 #### 5.1.5 shop_discounts テーブル（ショップ別割引設定）
 - **主キー**: id (UUID)
@@ -375,6 +375,20 @@ Supabase Authが自動管理（参照のみ使用）
 - **有効フラグ**: is_enabled
 - **作成日時**: created_at
 - **更新日時**: updated_at
+
+#### 5.1.6 rakuten_shops テーブル（楽天ショップ設定）
+- **主キー**: id (UUID)
+- **外部キー**: user_id (users テーブル)
+- **ショップID**: shop_id (ユニーク制約)
+- **表示名**: display_name
+- **ショップコード**: shop_code
+- **ジャンルID**: genre_id
+- **検索キーワード**: keyword
+- **有効フラグ**: is_enabled
+- **作成日時**: created_at
+- **更新日時**: updated_at
+
+**注**: 楽天市場の各ショップごとに検索設定を管理します。shop_codeとgenre_idを使用して楽天APIから商品を取得します。
 
 #### 5.1.7 api_settings テーブル（API設定）
 - **主キー**: id (UUID)
@@ -395,6 +409,7 @@ Supabase Authが自動管理（参照のみ使用）
 - products
 - asins
 - shop_discounts
+- rakuten_shops
 - api_settings
 
 ### 5.3 データベース関数・トリガー
