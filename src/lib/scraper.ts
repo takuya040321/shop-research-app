@@ -5,6 +5,9 @@
 
 import puppeteer, { Browser, Page, LaunchOptions } from "puppeteer"
 import { determineProxySettings, generateProxyUrl, logProxyStatus, type ProxySettings } from "./proxy"
+import { supabase } from "./supabase"
+import type { ProductInsert, ProductUpdate, Product } from "@/types/database"
+import { randomUUID } from "crypto"
 
 export interface ScraperOptions {
   headless?: boolean
@@ -189,5 +192,171 @@ export class BaseScraper {
    */
   getProxySettings(): ProxySettings {
     return this.proxySettings
+  }
+
+  /**
+   * 商品データを保存・更新する汎用メソッド
+   * - 新規商品: INSERT
+   * - 価格変動がある既存商品: UPDATE
+   * - スクレイピングされなかった既存商品: is_hidden = true
+   */
+  async saveOrUpdateProducts(
+    scrapedProducts: Array<{
+      name: string
+      price: number | null
+      salePrice?: number | null
+      imageUrl?: string | null
+      productUrl?: string | null
+    }>,
+    shopType: string,
+    shopName: string
+  ): Promise<{
+    insertedCount: number
+    updatedCount: number
+    hiddenCount: number
+    skippedCount: number
+    errors: string[]
+  }> {
+    let insertedCount = 0
+    let updatedCount = 0
+    let hiddenCount = 0
+    let skippedCount = 0
+    const errors: string[] = []
+
+    try {
+      // 1. 既存商品を全取得
+      const { data: existingProducts, error: fetchError } = await supabase
+        .from("products")
+        .select("id, name, price, sale_price, image_url, source_url, is_hidden")
+        .eq("shop_type", shopType)
+        .eq("shop_name", shopName)
+        .returns<Pick<Product, "id" | "name" | "price" | "sale_price" | "image_url" | "source_url" | "is_hidden">[]>()
+
+      if (fetchError) {
+        errors.push(`既存商品の取得でエラー: ${fetchError.message}`)
+        return { insertedCount, updatedCount, hiddenCount, skippedCount, errors }
+      }
+
+      // 2. 既存商品のマップを作成
+      const existingProductsMap = new Map<string, typeof existingProducts[0]>()
+      existingProducts?.forEach(product => {
+        existingProductsMap.set(product.name, product)
+      })
+
+      // 3. スクレイピングされた商品名のセット
+      const scrapedProductNames = new Set(scrapedProducts.map(p => p.name))
+
+      // 4. 商品を分類
+      const toInsert: ProductInsert[] = []
+      const toUpdate: Array<{ id: string; data: ProductUpdate }> = []
+
+      for (const product of scrapedProducts) {
+        const existing = existingProductsMap.get(product.name)
+
+        if (!existing) {
+          // 新規商品
+          toInsert.push({
+            id: randomUUID(),
+            shop_type: shopType,
+            shop_name: shopName,
+            name: product.name,
+            price: product.price,
+            sale_price: product.salePrice || null,
+            image_url: product.imageUrl || null,
+            source_url: product.productUrl || null,
+            is_hidden: false
+          })
+        } else {
+          // 既存商品：価格またはセール価格に変動がある場合のみ更新
+          const priceChanged = existing.price !== product.price
+          const salePriceChanged = existing.sale_price !== (product.salePrice || null)
+          const imageChanged = existing.image_url !== (product.imageUrl || null)
+          const urlChanged = existing.source_url !== (product.productUrl || null)
+
+          if (priceChanged || salePriceChanged || imageChanged || urlChanged) {
+            toUpdate.push({
+              id: existing.id,
+              data: {
+                price: product.price,
+                sale_price: product.salePrice || null,
+                image_url: product.imageUrl || null,
+                source_url: product.productUrl || null,
+                is_hidden: false // 再度スクレイピングされたら表示に戻す
+              }
+            })
+          } else {
+            // 変更なしの場合でも、is_hiddenがtrueなら表示に戻す
+            if (existing.is_hidden) {
+              toUpdate.push({
+                id: existing.id,
+                data: { is_hidden: false }
+              })
+            } else {
+              skippedCount++
+            }
+          }
+        }
+      }
+
+      // 5. スクレイピングされなかった商品を非表示化
+      const toHide: string[] = []
+      existingProducts?.forEach(existing => {
+        if (!scrapedProductNames.has(existing.name) && !existing.is_hidden) {
+          toHide.push(existing.id)
+        }
+      })
+
+      // 6. バッチ処理で保存
+      // 新規商品の挿入
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from("products")
+          .insert(toInsert as never)
+
+        if (insertError) {
+          errors.push(`新規商品の挿入でエラー: ${insertError.message}`)
+        } else {
+          insertedCount = toInsert.length
+          console.log(`${insertedCount}件の新規商品を挿入しました`)
+        }
+      }
+
+      // 既存商品の更新
+      if (toUpdate.length > 0) {
+        for (const update of toUpdate) {
+          const { error: updateError } = await supabase
+            .from("products")
+            .update(update.data as never)
+            .eq("id", update.id)
+
+          if (updateError) {
+            errors.push(`商品更新でエラー (ID: ${update.id}): ${updateError.message}`)
+          } else {
+            updatedCount++
+          }
+        }
+        console.log(`${updatedCount}件の商品を更新しました`)
+      }
+
+      // 販売終了商品を非表示化
+      if (toHide.length > 0) {
+        const { error: hideError } = await supabase
+          .from("products")
+          .update({ is_hidden: true } as never)
+          .in("id", toHide)
+
+        if (hideError) {
+          errors.push(`商品非表示化でエラー: ${hideError.message}`)
+        } else {
+          hiddenCount = toHide.length
+          console.log(`${hiddenCount}件の商品を非表示化しました（販売終了と判断）`)
+        }
+      }
+
+      return { insertedCount, updatedCount, hiddenCount, skippedCount, errors }
+    } catch (error) {
+      errors.push(`商品保存処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
+      return { insertedCount, updatedCount, hiddenCount, skippedCount, errors }
+    }
   }
 }
