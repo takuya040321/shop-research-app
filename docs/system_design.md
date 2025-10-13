@@ -390,7 +390,22 @@ Supabase Authが自動管理（参照のみ使用）
 
 **注**: 楽天市場の各ショップごとに検索設定を管理します。shop_codeとgenre_idを使用して楽天APIから商品を取得します。
 
-#### 5.1.7 api_settings テーブル（API設定）
+#### 5.1.7 yahoo_shops テーブル（Yahoo!ショッピングショップ設定）
+- **主キー**: id (UUID)
+- **ショップID**: shop_id (ユニーク制約、URLパスに使用)
+- **表示名**: display_name
+- **親カテゴリ**: parent_category (null: 直販, 'lohaco': LOHACO, 'zozotown': ZOZOTOWN)
+- **ストアID**: store_id (Yahoo API用、任意)
+- **カテゴリID**: category_id (Yahoo API用、任意)
+- **ブランドID**: brand_id (ZOZOTOWN用、任意)
+- **検索キーワード**: default_keyword (商品検索時のデフォルトキーワード)
+- **有効フラグ**: is_active
+- **作成日時**: created_at
+- **更新日時**: updated_at
+
+**注**: Yahoo!ショッピングの各ショップごとに検索設定を管理します。階層構造に対応し、LOHACO/ZOZOTOWN配下のブランドショップもサポートします。brand_idはZOZOTOWN配下のブランド検索に使用します。
+
+#### 5.1.8 api_settings テーブル（API設定）
 - **主キー**: id (UUID)
 - **外部キー**: user_id (users テーブル)
 - **プロバイダー**: provider ('rakuten', 'yahoo')
@@ -410,6 +425,7 @@ Supabase Authが自動管理（参照のみ使用）
 - asins
 - shop_discounts
 - rakuten_shops
+- yahoo_shops
 - api_settings
 
 ### 5.3 データベース関数・トリガー
@@ -431,10 +447,31 @@ Supabase Authが自動管理（参照のみ使用）
 - **エラーハンドリング**: 統一エラー処理
 - **レート制限**: アクセス間隔制御
 
-#### 6.1.2 個別スクレイパー設計
+#### 6.1.2 商品データ管理ロジック
+BaseScraperクラスに実装された`saveOrUpdateProducts`メソッドにより、商品のライフサイクル全体を自動管理：
+
+**処理フロー**:
+1. **既存商品の取得**: shop_typeとshop_nameで既存商品を全取得
+2. **商品の分類**:
+   - 新規商品 → INSERT
+   - 価格変更商品 → UPDATE (price, sale_price, image_url, source_urlを比較)
+   - 変更なし商品 → SKIP
+   - 非表示だった商品が再発見 → is_hidden=false に復元
+3. **販売終了商品の処理**: スクレイピング結果に含まれない商品 → is_hidden=true (ソフトデリート)
+4. **バッチ処理**: INSERT/UPDATE/HIDE操作をバッチで実行
+
+**利点**:
+- 価格変動の自動追跡
+- 販売終了商品の適切な管理
+- 履歴データの保持（ソフトデリート）
+- パフォーマンス向上（バッチ処理）
+
+#### 6.1.3 個別スクレイパー設計
 - **VTScraper**: VT Cosmetics専用
 - **DHCScraper**: DHC専用
 - **InnisfreeScraper**: innisfree専用
+
+各スクレイパーは`BaseScraper.saveOrUpdateProducts`を使用して、商品データの保存・更新を統一的に処理します。
 
 ### 6.2 API統合設計
 
@@ -446,9 +483,14 @@ Supabase Authが自動管理（参照のみ使用）
 
 #### 6.2.2 Yahoo!ショッピングAPI統合
 - **認証**: クライアントID/シークレット
-- **商品検索**: Shopping API
-- **パラメータ**: query, categoryId, storeId
+- **商品検索**: Shopping API v3
+- **パラメータ**:
+  - query (検索キーワード)
+  - seller_id (ストアID)
+  - category_id (カテゴリID)
+  - brand_id (ブランドID - ZOZOTOWN用)
 - **レスポンス変換**: 統一Product形式への変換
+- **階層構造対応**: LOHACO/ZOZOTOWN配下のブランドショップをサポート
 
 ## 7. 状態管理設計
 

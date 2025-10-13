@@ -143,6 +143,43 @@
 - **セレクター**: CSS セレクター使用
 - **データクレンジング**: 自動テキスト整形
 
+#### 4.3.4 商品データ管理
+```typescript
+// lib/scraper.ts - BaseScraper
+async saveOrUpdateProducts(
+  scrapedProducts: Array<{
+    name: string
+    price: number | null
+    salePrice?: number | null
+    imageUrl?: string | null
+    productUrl?: string | null
+  }>,
+  shopType: string,
+  shopName: string
+): Promise<{
+  insertedCount: number
+  updatedCount: number
+  hiddenCount: number
+  skippedCount: number
+  errors: string[]
+}>
+```
+
+**処理フロー**:
+1. 既存商品を全取得（shop_type, shop_nameで絞り込み）
+2. スクレイピング結果と比較：
+   - 新規商品 → INSERT（is_hidden=false）
+   - 価格等変更 → UPDATE（price, sale_price, image_url, source_url）
+   - 変更なし → SKIP
+   - 非表示商品の再発見 → UPDATE（is_hidden=false）
+3. 販売終了商品 → UPDATE（is_hidden=true）
+4. バッチ処理で効率的に実行
+
+**利点**:
+- 価格履歴の自動追跡
+- 販売終了商品の適切な管理
+- データの完全性保持（ソフトデリート）
+
 ## 5. データベース仕様
 
 ### 5.1 Supabase設定
@@ -182,6 +219,16 @@ export interface Database {
         Insert: ShopDiscountInsert
         Update: ShopDiscountUpdate
       }
+      rakuten_shops: {
+        Row: RakutenShopRow
+        Insert: RakutenShopInsert
+        Update: RakutenShopUpdate
+      }
+      yahoo_shops: {
+        Row: YahooShopRow
+        Insert: YahooShopInsert
+        Update: YahooShopUpdate
+      }
     }
   }
 }
@@ -189,6 +236,10 @@ export interface Database {
 // 商品とASINの関係
 // - products.asin カラムでASINを参照（文字列）
 // - asins.asin とJOINして詳細情報を取得
+
+// Yahoo!ショップ設定
+// - yahoo_shops.brand_id: ZOZOTOWNブランド検索用
+// - yahoo_shops.parent_category: 階層構造（null, 'lohaco', 'zozotown'）
 ```
 
 ## 6. セキュリティ仕様

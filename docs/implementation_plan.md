@@ -169,6 +169,9 @@
   - ✅ UI：スクレイピング実行ボタン
   - ✅ 全カテゴリ一括スクレイピング
   - ✅ 詳細ページから正確な価格情報取得
+  - ✅ 商品ライフサイクル管理（INSERT/UPDATE/HIDE）
+  - ✅ 価格変動の自動追跡
+  - ✅ 販売終了商品の自動非表示（is_hidden=true）
 
 #### 3.2.4 DHCスクレイピング
 - **優先度**: 高
@@ -277,17 +280,21 @@
   - 商品検索API実装
   - レスポンス変換処理
 
-#### 4.2.5 Yahooショップ階層実装
+#### 4.2.5 Yahooショップ階層実装 ✅
 - **優先度**: 高
 - **依存関係**: Yahoo API基盤
+- **ステータス**: 部分完了
 - **実装内容**:
-  - LOHACOページ
-    - LOHACO-DHCページ
-    - LOHACO-VTページ
-  - ZOZOTOWNページ
-    - ZOZOTOWN-DHCページ
-    - ZOZOTOWN-VTページ
-  - Yahoo直販-VTページ
+  - ✅ yahoo_shopsテーブル作成（shop_id, display_name, parent_category, store_id, category_id, brand_id）
+  - ✅ Yahooショップ設定画面実装（/settings/yahoo）
+  - ✅ 階層構造対応（直販、LOHACO、ZOZOTOWN）
+  - ✅ ZOZOTOWNブランドID対応（brand_idカラム）
+  - ✅ 条件付きフォーム表示（ZOZOTOWNの場合のみbrand_id入力欄表示）
+  - ✅ サイドバーでの階層表示
+  - ⏳ 各ショップページ実装（未実装）
+  - ⏳ Yahoo API統合（未実装）
+
+**注**: yahoo_shopsテーブルのbrand_idはZOZOTOWN配下のブランド検索に使用されます。parent_categoryがnullの場合は直販、'lohaco'の場合はLOHACO、'zozotown'の場合はZOZOTOWNとして扱われます。
 
 #### 4.2.6 カテゴリ一覧ページ実装
 - **優先度**: 中

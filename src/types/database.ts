@@ -1,8 +1,3 @@
-/**
- * データベース型定義
- * Supabaseスキーマに基づく型定義
- */
-
 export type Json =
   | string
   | number
@@ -12,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
@@ -234,6 +227,48 @@ export type Database = {
         }
         Relationships: []
       }
+      yahoo_shops: {
+        Row: {
+          brand_id: string | null
+          category_id: string | null
+          created_at: string
+          default_keyword: string | null
+          display_name: string
+          id: string
+          is_active: boolean
+          parent_category: string | null
+          shop_id: string
+          store_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          default_keyword?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean
+          parent_category?: string | null
+          shop_id: string
+          store_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          default_keyword?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          parent_category?: string | null
+          shop_id?: string
+          store_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -373,18 +408,13 @@ export const Constants = {
   },
 } as const
 
-// 共通型のエクスポート
-export type Product = Tables<"products">
-export type Asin = Tables<"asins">
-export type ShopDiscount = Tables<"shop_discounts">
-export type ApiSetting = Tables<"api_settings">
+// Type aliases for convenience
+export type Product = Database["public"]["Tables"]["products"]["Row"]
+export type ProductInsert = Database["public"]["Tables"]["products"]["Insert"]
+export type ProductUpdate = Database["public"]["Tables"]["products"]["Update"]
 
-export type ProductInsert = TablesInsert<"products">
-export type AsinInsert = TablesInsert<"asins">
-export type ShopDiscountInsert = TablesInsert<"shop_discounts">
-export type ApiSettingInsert = TablesInsert<"api_settings">
+export type Asin = Database["public"]["Tables"]["asins"]["Row"]
+export type AsinInsert = Database["public"]["Tables"]["asins"]["Insert"]
+export type AsinUpdate = Database["public"]["Tables"]["asins"]["Update"]
 
-export type ProductUpdate = TablesUpdate<"products">
-export type AsinUpdate = TablesUpdate<"asins">
-export type ShopDiscountUpdate = TablesUpdate<"shop_discounts">
-export type ApiSettingUpdate = TablesUpdate<"api_settings">
+export type ShopDiscount = Database["public"]["Tables"]["shop_discounts"]["Row"]
