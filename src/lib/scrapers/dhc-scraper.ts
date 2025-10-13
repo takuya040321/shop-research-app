@@ -5,9 +5,6 @@
 import { Page } from "puppeteer"
 import * as cheerio from "cheerio"
 import { BaseScraper, ScraperResult, ScraperOptions } from "../scraper"
-import { supabase } from "../supabase"
-import type { ProductInsert, Product } from "@/types/database"
-import { randomUUID } from "crypto"
 import { deduplicateAfterScraping } from "../deduplication"
 
 // DHC商品データ型
@@ -364,78 +361,32 @@ export class DHCScraper extends BaseScraper {
 
   /**
    * スクレイピングした商品をデータベースに保存
+   * BaseScraperの汎用メソッドを使用
    */
   async saveProductsToDatabase(products: DHCProduct[]): Promise<{
     savedCount: number
     skippedCount: number
     errors: string[]
   }> {
-    let savedCount = 0
-    let skippedCount = 0
-    const errors: string[] = []
+    // BaseScraperの汎用メソッドを使用
+    const result = await this.saveOrUpdateProducts(
+      products.map(p => ({
+        name: p.name,
+        price: p.price,
+        salePrice: p.salePrice || null,
+        imageUrl: p.imageUrl,
+        productUrl: p.productUrl
+      })),
+      "official",
+      "DHC"
+    )
 
-    // バッチでの重複チェック
-    const productNames = products.map(p => p.name)
-
-    const { data: existingProducts } = await supabase
-      .from("products")
-      .select("id, name, shop_type, shop_name")
-      .eq("shop_type", "official")
-      .eq("shop_name", "DHC")
-      .in("name", productNames)
-      .returns<Pick<Product, "id" | "name" | "shop_type" | "shop_name">[]>()
-
-    // 既存商品の重複キーセットを作成
-    const existingProductKeys = new Set<string>()
-    existingProducts?.forEach(product => {
-      const key = `${product.shop_type}-${product.shop_name}-${product.name}`
-      existingProductKeys.add(key)
-    })
-
-    // 新規商品のみを抽出
-    const newProducts = products.filter(product => {
-      const productKey = `official-DHC-${product.name}`
-
-      if (existingProductKeys.has(productKey)) {
-        skippedCount++
-        return false
-      }
-      return true
-    })
-
-    if (newProducts.length === 0) {
-      return { savedCount, skippedCount, errors }
+    // 結果を従来の形式に変換して返す
+    return {
+      savedCount: result.insertedCount + result.updatedCount,
+      skippedCount: result.skippedCount,
+      errors: result.errors
     }
-
-    // バッチ挿入（パフォーマンス向上）
-    const productsToInsert: ProductInsert[] = newProducts.map(product => ({
-      id: randomUUID(),
-      shop_type: "official",
-      shop_name: "DHC",
-      name: product.name,
-      price: product.price,
-      sale_price: product.salePrice,
-      image_url: product.imageUrl,
-      source_url: product.productUrl,
-      is_hidden: false,
-      memo: product.description || "DHCスクレイピングで取得"
-    }))
-
-    try {
-      const { error } = await supabase
-        .from("products")
-        .insert(productsToInsert as never)
-
-      if (error) {
-        errors.push(`バッチ保存でエラー: ${error.message}`)
-      } else {
-        savedCount = productsToInsert.length
-      }
-    } catch (error) {
-      errors.push(`バッチ保存処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
-    }
-
-    return { savedCount, skippedCount, errors }
   }
 
   /**
