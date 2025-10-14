@@ -5,6 +5,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { getDashboardSummary, getShopStats } from "@/lib/dashboard"
+import { getFavoriteProducts } from "@/lib/products"
 
 export function useDashboard() {
   // ダッシュボードサマリーデータ取得
@@ -19,12 +20,19 @@ export function useDashboard() {
     queryFn: () => getShopStats(),
   })
 
-  const loading = summaryLoading || statsLoading
+  // お気に入り商品データ取得
+  const { data: favoriteProducts = [], isLoading: favoritesLoading } = useQuery({
+    queryKey: ["favoriteProducts"],
+    queryFn: () => getFavoriteProducts(),
+  })
+
+  const loading = summaryLoading || statsLoading || favoritesLoading
 
   return {
     // State
     summary,
     shopStats,
+    favoriteProducts,
     loading
   }
 }

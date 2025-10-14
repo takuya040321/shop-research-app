@@ -14,6 +14,7 @@ export interface ProductFilters {
   minROI: number | null
   maxROI: number | null
   asinStatus: "all" | "with_asin" | "without_asin"
+  favoriteStatus: "all" | "favorite_only" | "non_favorite_only"
 }
 
 export function useProductSearch() {
@@ -54,7 +55,8 @@ export function useProductSearch() {
       maxProfitRate: null,
       minROI: null,
       maxROI: null,
-      asinStatus: "all"
+      asinStatus: "all",
+      favoriteStatus: "all"
     })
   }
 
@@ -63,6 +65,7 @@ export function useProductSearch() {
     return Object.entries(filters).reduce((count, [key, value]) => {
       if (key === "searchText" && value) return count + 1
       if (key === "asinStatus" && value !== "all") return count + 1
+      if (key === "favoriteStatus" && value !== "all") return count + 1
       if (typeof value === "number" && value !== null) return count + 1
       return count
     }, 0)

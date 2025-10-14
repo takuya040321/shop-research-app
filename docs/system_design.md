@@ -178,6 +178,7 @@ App Layout
     └── MainContent
         ├── DashboardHome (全体概要)
         │   ├── SummaryCards
+        │   ├── FavoriteProducts (お気に入り商品一覧)
         │   ├── RecentActivity
         │   └── QuickActions
         ├── AllProductsPage (全商品一覧)
@@ -228,7 +229,7 @@ App Layout
 - AsinForm
 - SettingsForm
 - FileUploadForm
-- **ProductTable**: 商品テーブルコンポーネント（Shift+ホイールで横スクロール対応）
+- **ProductTable**: 商品テーブルコンポーネント（Shift+ホイールで横スクロール対応、お気に入り機能付き）
 - EditableCell
 - SortableHeader
 - FilterRow
@@ -340,6 +341,7 @@ Supabase Authが自動管理（参照のみ使用）
 - **ソースURL**: source_url
 - **ASIN**: asin (商品に紐づくASIN、TEXT型で直接保持)
 - **非表示フラグ**: is_hidden
+- **お気に入りフラグ**: is_favorite (デフォルト: false)
 - **メモ**: memo
 - **元商品ID**: original_product_id (コピー元商品のID、コピー商品の場合は常に最初の元商品を参照)
 - **作成日時**: created_at
@@ -981,7 +983,17 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <GlobalSummaryCards />
       </div>
-      
+
+      {/* お気に入り商品一覧 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>お気に入り商品</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FavoriteProductsList />
+        </CardContent>
+      </Card>
+
       {/* ショップ別概要 */}
       <Card>
         <CardHeader>
@@ -991,7 +1003,7 @@ export default function DashboardPage() {
           <ShopOverviewTable />
         </CardContent>
       </Card>
-      
+
       {/* 最近のアクティビティ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
@@ -1574,6 +1586,7 @@ App Layout
     └── MainContent
         ├── DashboardHome (全体概要)
         │   ├── SummaryCards
+        │   ├── FavoriteProducts (お気に入り商品一覧)
         │   ├── RecentActivity
         │   └── QuickActions
         ├── AllProductsPage (全商品一覧)
