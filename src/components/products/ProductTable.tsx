@@ -26,7 +26,8 @@ import {
   SaveIcon,
   XIcon,
   CopyIcon,
-  TrashIcon
+  TrashIcon,
+  StarIcon
 } from "lucide-react"
 
 import type { ExtendedProduct } from "@/lib/products"
@@ -74,6 +75,24 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
 
   // 横スクロールコンテナのref
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+
+  // お気に入りトグルハンドラー
+  const handleToggleFavorite = async (product: ExtendedProduct) => {
+    try {
+      const success = await updateProduct(product.id, {
+        is_favorite: !product.is_favorite
+      })
+      if (success) {
+        await loadProducts()
+        toast.success(product.is_favorite ? "お気に入りを解除しました" : "お気に入りに追加しました")
+      } else {
+        toast.error("更新に失敗しました")
+      }
+    } catch (err) {
+      console.error("お気に入り更新エラー:", err)
+      toast.error("更新中にエラーが発生しました")
+    }
+  }
 
   // Shift+ホイールで横スクロール
   useEffect(() => {
@@ -248,6 +267,16 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead
+                className="cursor-pointer hover:bg-gray-50 w-12 text-xs text-center"
+                onClick={() => handleSort("is_favorite")}
+              >
+                <div className="flex items-center justify-center">
+                  <StarIcon className="w-4 h-4" />
+                  {renderSortIcon("is_favorite")}
+                </div>
+              </TableHead>
+
               <TableHead
                 className="cursor-pointer hover:bg-gray-50 w-24 text-xs text-center"
                 onClick={() => handleSort("image_url")}
@@ -484,6 +513,22 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                 className={rowClassName}
                 onContextMenu={(e) => handleRowRightClick(e, product)}
               >
+                {/* お気に入り */}
+                <TableCell className="w-12 text-center">
+                  <button
+                    onClick={() => handleToggleFavorite(product)}
+                    className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  >
+                    <StarIcon
+                      className={`w-5 h-5 ${
+                        product.is_favorite
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-gray-400"
+                      }`}
+                    />
+                  </button>
+                </TableCell>
+
                 {/* 画像 */}
                 <TableCell className="py-2 w-20">
                   {product.image_url ? (
