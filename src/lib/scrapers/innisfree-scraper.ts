@@ -40,8 +40,8 @@ const INNISFREE_CONFIG = {
 }
 
 export class InnisfreeScraper extends BaseScraper {
-  constructor() {
-    super()
+  constructor(suppressProxyLog: boolean = false) {
+    super(suppressProxyLog)
   }
 
   /**

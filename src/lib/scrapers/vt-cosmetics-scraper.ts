@@ -44,8 +44,8 @@ const VT_COSMETICS_CONFIG = {
 }
 
 export class VTCosmeticsScraper extends BaseScraper {
-  constructor() {
-    super()
+  constructor(suppressProxyLog: boolean = false) {
+    super(suppressProxyLog)
   }
 
   /**

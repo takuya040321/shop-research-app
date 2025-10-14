@@ -45,8 +45,8 @@ const DHC_CONFIG = {
 }
 
 export class DHCScraper extends BaseScraper {
-  constructor() {
-    super()
+  constructor(suppressProxyLog: boolean = false) {
+    super(suppressProxyLog)
   }
 
   /**
@@ -54,7 +54,7 @@ export class DHCScraper extends BaseScraper {
    */
   async scrapeProductDetails(productUrl: string, page: Page): Promise<{price: number | null, salePrice: number | null, description: string | null}> {
     try {
-      await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 })
+      await page.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
 
       const html = await page.content()
       const $ = cheerio.load(html)
