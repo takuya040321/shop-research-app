@@ -229,7 +229,8 @@ App Layout
 - AsinForm
 - SettingsForm
 - FileUploadForm
-- **ProductTable**: 商品テーブルコンポーネント（Shift+ホイールで横スクロール対応、お気に入り機能付き）
+- **ProductTable**: 商品テーブルコンポーネント（Shift+ホイールで横スクロール対応、お気に入り機能付き、行レベル更新対応）
+- **FavoriteProductTable**: お気に入り商品専用テーブル（ProductTableをラップ、initialFavoriteFilterで絞り込み）
 - EditableCell
 - SortableHeader
 - FilterRow
@@ -270,6 +271,7 @@ App Layout
 - **POST /api/scraping/rakuten/vt**: 楽天-VTAPI取得
 - **POST /api/scraping/yahoo/lohaco/dhc**: Yahoo-LOHACO-DHCAPI取得
 - **POST /api/scraping/yahoo/zozotown/vt**: Yahoo-ZOZOTOWN-VTAPI取得
+- **POST /api/scrape/favorites**: お気に入り商品の価格更新スクレイピング
 
 #### 4.1.4 統計API
 - **GET /api/shops/[shopType]/stats**: カテゴリ別統計
@@ -444,10 +446,13 @@ Supabase Authが自動管理（参照のみ使用）
 
 #### 6.1.1 共通スクレイピング基盤
 - **基底クラス**: BaseScraper
+  - `suppressProxyLog`パラメータでプロキシログ出力を制御可能
+  - 子スクレイパーでログ重複を防止
 - **設定駆動**: ScrapingConfig
 - **プロキシ制御**: 環境変数による完全制御
 - **エラーハンドリング**: 統一エラー処理
 - **レート制限**: アクセス間隔制御
+- **タイムアウト設定**: ブランド別に最適化（DHC: 30秒、他: 15秒）
 
 #### 6.1.2 商品データ管理ロジック
 BaseScraperクラスに実装された`saveOrUpdateProducts`メソッドにより、商品のライフサイクル全体を自動管理：
@@ -470,8 +475,12 @@ BaseScraperクラスに実装された`saveOrUpdateProducts`メソッドによ�
 
 #### 6.1.3 個別スクレイパー設計
 - **VTScraper**: VT Cosmetics専用
-- **DHCScraper**: DHC専用
+- **DHCScraper**: DHC専用（タイムアウト30秒、domcontentloaded待機戦略）
 - **InnisfreeScraper**: innisfree専用
+- **FavoriteScraper**: お気に入り商品専用
+  - 既存スクレイパーを活用して各ブランドの商品を個別更新
+  - プロキシログを1回のみ出力（子スクレイパーのログを抑制）
+  - source_urlから自動的にブランドを判定して適切なスクレイパーを使用
 
 各スクレイパーは`BaseScraper.saveOrUpdateProducts`を使用して、商品データの保存・更新を統一的に処理します。
 
