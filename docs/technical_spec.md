@@ -180,6 +180,49 @@ async saveOrUpdateProducts(
 - 販売終了商品の適切な管理
 - データの完全性保持（ソフトデリート）
 
+### 4.4 商品データ取得関数
+#### 4.4.1 全商品取得関数
+```typescript
+// lib/products.ts
+export async function getProductsWithAsinAndProfits(): Promise<ExtendedProduct[]>
+```
+- **機能**: 全商品をASIN情報と利益計算付きで取得
+- **戻り値**: ExtendedProduct型の配列
+- **処理内容**:
+  1. 商品データを一括取得
+  2. ASIN情報を一括取得してマッピング
+  3. ショップ割引情報を一括取得
+  4. 利益計算を実行（最適化版）
+
+#### 4.4.2 お気に入り商品取得関数
+```typescript
+// lib/products.ts
+export async function getFavoriteProducts(): Promise<ExtendedProduct[]>
+```
+- **機能**: お気に入り商品のみをASIN情報と利益計算付きで取得
+- **戻り値**: ExtendedProduct型の配列
+- **処理内容**:
+  1. `is_favorite=true`の商品のみを取得
+  2. ASIN情報を一括取得してマッピング
+  3. ショップ割引情報を一括取得
+  4. 利益計算を実行（最適化版）
+- **用途**: ダッシュボードのお気に入り一覧表示
+
+#### 4.4.3 商品更新関数
+```typescript
+// lib/products.ts
+export async function updateProduct(
+  productId: string,
+  updates: ProductUpdate
+): Promise<boolean>
+```
+- **機能**: 商品情報を更新
+- **パラメータ**:
+  - `productId`: 商品ID
+  - `updates`: 更新内容（is_favoriteフィールドを含む）
+- **戻り値**: 成功時true、失敗時false
+- **用途**: お気に入りトグル、その他フィールド更新
+
 ## 5. データベース仕様
 
 ### 5.1 Supabase設定
@@ -231,6 +274,34 @@ export interface Database {
       }
     }
   }
+}
+
+// Product型（主要フィールド）
+export type Product = Database["public"]["Tables"]["products"]["Row"]
+// フィールド:
+// - id: string
+// - name: string
+// - price: number | null
+// - sale_price: number | null
+// - image_url: string | null
+// - asin: string | null (ASIN参照用)
+// - is_hidden: boolean | null
+// - is_favorite: boolean (お気に入りフラグ)
+// - memo: string | null
+// - original_product_id: string | null
+// など
+
+// 商品フィルター型
+export interface ProductFilters {
+  searchText: string
+  minPrice: number | null
+  maxPrice: number | null
+  minProfitRate: number | null
+  maxProfitRate: number | null
+  minROI: number | null
+  maxROI: number | null
+  asinStatus: "all" | "with_asin" | "without_asin"
+  favoriteStatus: "all" | "favorite_only" | "non_favorite_only"
 }
 
 // 商品とASINの関係
