@@ -467,3 +467,83 @@ export function formatPercentage(value: number | null | undefined): string {
   if (!value) return "0%"
   return `${value}%`
 }
+
+/**
+ * お気に入り商品一覧を取得（ASIN情報と利益計算付き）
+ */
+export async function getFavoriteProducts(): Promise<ExtendedProduct[]> {
+  try {
+    // お気に入り商品のみを取得
+    const { data: productData, error: productsError } = await supabase
+      .from("products")
+      .select("*")
+      .eq("is_favorite", true)
+      .order("created_at", { ascending: false })
+
+    if (productsError) throw productsError
+    if (!productData) return []
+
+    const products = productData as Product[]
+
+    // ASINコードを収集
+    const asinCodes = new Set<string>()
+    products.forEach(p => {
+      if (p.asin) asinCodes.add(p.asin)
+    })
+
+    // ASINデータを一括取得
+    const { data: asinData } = await supabase
+      .from("asins")
+      .select("*")
+      .in("asin", Array.from(asinCodes))
+
+    // ASINコード -> Asin データのマップを作成
+    const asinCodeToDataMap = new Map<string, Asin>()
+    asinData?.forEach(asin => {
+      asinCodeToDataMap.set(asin.asin, asin as Asin)
+    })
+
+    // ショップ割引情報を一括取得
+    const shopNames = [...new Set(products.map(p => p.shop_name).filter((name): name is string => name !== null && name !== undefined))]
+    const { data: discounts } = await supabase
+      .from("shop_discounts")
+      .select("*")
+      .in("shop_name", shopNames) as { data: ShopDiscount[] | null }
+
+    // ショップ割引のマップを作成
+    const discountMap = new Map<string, ShopDiscount>()
+    discounts?.forEach(discount => {
+      discountMap.set(discount.shop_name, discount)
+    })
+
+    // 商品データを変換
+    const extendedProducts: ExtendedProduct[] = products.map((product) => {
+      // asinを除外してExtendedProductを作成
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { asin: _, ...productWithoutAsin } = product
+      const extendedProduct: ExtendedProduct = { ...productWithoutAsin, asin: null }
+
+      // products.asinからASIN情報を取得
+      if (product.asin) {
+        const asinInfo = asinCodeToDataMap.get(product.asin)
+        if (asinInfo) {
+          extendedProduct.asin = asinInfo
+        }
+      }
+
+      // 利益計算を実行
+      const profitInfo = calculateProfitOptimized(product, extendedProduct.asin ?? null, discountMap)
+      extendedProduct.profit_amount = profitInfo.amount
+      extendedProduct.profit_rate = profitInfo.rate
+      extendedProduct.roi = profitInfo.roi
+      extendedProduct.effective_price = profitInfo.effectivePrice
+
+      return extendedProduct
+    })
+
+    return extendedProducts
+  } catch (error) {
+    console.error("お気に入り商品取得エラー:", error)
+    throw error
+  }
+}

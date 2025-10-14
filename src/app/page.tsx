@@ -17,13 +17,14 @@ import {
   Search,
   DollarSign,
   Percent,
+  StarIcon,
 } from "lucide-react"
 import { formatPrice, formatPercentage } from "@/lib/products"
 import { useDashboard } from "@/hooks/dashboard/useDashboard"
 
 export default function Home() {
   // カスタムフックから全てのロジックを取得
-  const { summary, shopStats, loading } = useDashboard()
+  const { summary, shopStats, favoriteProducts, loading } = useDashboard()
 
   return (
     <MainLayout>
@@ -130,6 +131,82 @@ export default function Home() {
                 ))}
               </TableBody>
             </Table>
+          )}
+        </div>
+
+        {/* お気に入り一覧 */}
+        <div className="rounded-lg border bg-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <StarIcon className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+            <h3 className="font-semibold">お気に入り商品</h3>
+          </div>
+          {loading ? (
+            <p className="text-center py-8 text-muted-foreground">読み込み中...</p>
+          ) : favoriteProducts.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">
+              お気に入り商品がありません
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>商品名</TableHead>
+                  <TableHead className="text-right">仕入価格</TableHead>
+                  <TableHead className="text-right">Amazon価格</TableHead>
+                  <TableHead className="text-right">利益額</TableHead>
+                  <TableHead className="text-right">利益率</TableHead>
+                  <TableHead className="text-right">ROI</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {favoriteProducts.slice(0, 10).map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium max-w-[300px] truncate">
+                      {product.source_url ? (
+                        <a
+                          href={product.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          {product.name}
+                        </a>
+                      ) : (
+                        product.name
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatPrice(product.effective_price)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatPrice(product.asin?.amazon_price)}
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${
+                      (product.profit_amount || 0) > 0 ? "text-green-600" : "text-red-600"
+                    }`}>
+                      {formatPrice(product.profit_amount)}
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${
+                      (product.profit_rate || 0) > 0 ? "text-green-600" : "text-red-600"
+                    }`}>
+                      {formatPercentage(product.profit_rate)}
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${
+                      (product.roi || 0) > 0 ? "text-green-600" : "text-red-600"
+                    }`}>
+                      {formatPercentage(product.roi)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {favoriteProducts.length > 10 && (
+            <div className="text-center mt-4">
+              <p className="text-sm text-muted-foreground">
+                さらに{favoriteProducts.length - 10}件のお気に入り商品があります
+              </p>
+            </div>
           )}
         </div>
 
