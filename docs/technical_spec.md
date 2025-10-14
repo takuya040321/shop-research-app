@@ -114,8 +114,9 @@
 │   └── bulk-upload/        # ASIN一括アップロード
 ├── scrape/
 │   ├── vt/                 # VTスクレイピング
-│   ├── dhc/                # DHCスクレイピング
-│   └── innisfree/          # innisfreeスクレイピング
+│   ├── dhc/                # DHCスクレイピング（タイムアウト30秒）
+│   ├── innisfree/          # innisfreeスクレイピング
+│   └── favorites/          # お気に入り商品価格更新
 ├── rakuten/
 │   └── search/             # 楽天商品検索
 ├── yahoo/
@@ -137,6 +138,9 @@
 - **制御フロー**: 事前判定必須
 - **プロキシ設定**: 一元管理
 - **フェイルオーバー**: プロキシ失敗時のダイレクト接続
+- **ログ制御**: BaseScraperの`suppressProxyLog`パラメータでログ重複を防止
+  - 親スクレイパー（FavoriteScraper）でのみログ出力
+  - 子スクレイパー（VT/DHC/Innisfree）ではログを抑制
 
 #### 4.3.3 Cheerio設定
 - **用途**: HTMLパース・要素抽出
@@ -301,7 +305,14 @@ export interface ProductFilters {
   minROI: number | null
   maxROI: number | null
   asinStatus: "all" | "with_asin" | "without_asin"
-  favoriteStatus: "all" | "favorite_only" | "non_favorite_only"
+  favoriteStatus: "all" | "favorite_only" | "non_favorite_only"  // お気に入りフィルター
+}
+
+// ProductTableコンポーネントProps
+export interface ProductTableProps {
+  className?: string
+  shopFilter?: string
+  initialFavoriteFilter?: "all" | "favorite_only" | "non_favorite_only"  // 初期フィルター設定
 }
 
 // 商品とASINの関係

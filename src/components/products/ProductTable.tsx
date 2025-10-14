@@ -39,6 +39,7 @@ import { useProductTable } from "@/hooks/products/useProductTable"
 interface ProductTableProps {
   className?: string
   shopFilter?: string
+  initialFavoriteFilter?: "all" | "favorite_only" | "non_favorite_only"
 }
 
 // プロキシ環境用のカスタム画像ローダー
@@ -46,7 +47,7 @@ const myLoader: ImageLoader = ({ src, width, quality }) => {
   return `${src}?w=${width}&q=${quality ?? 75}`
 }
 
-export function ProductTable({ className, shopFilter }: ProductTableProps) {
+export function ProductTable({ className, shopFilter, initialFavoriteFilter }: ProductTableProps) {
   const [selectedProductForMenu, setSelectedProductForMenu] = useState<ExtendedProduct | null>(null)
   const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu()
 
@@ -60,7 +61,7 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
     filters,
     setFilters,
     setEditingCell,
-    loadProducts,
+    updateProductInState,
     handleSort,
     startEditing,
     cancelEditing,
@@ -73,18 +74,29 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
     pageSize: 9999 // 全件表示するため大きな値を設定
   })
 
+  // 初期フィルター設定
+  useEffect(() => {
+    if (initialFavoriteFilter) {
+      setFilters(prev => ({
+        ...prev,
+        favoriteStatus: initialFavoriteFilter
+      }))
+    }
+  }, [initialFavoriteFilter, setFilters])
+
   // 横スクロールコンテナのref
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
 
   // お気に入りトグルハンドラー
   const handleToggleFavorite = async (product: ExtendedProduct) => {
+    const newFavoriteStatus = !product.is_favorite
     try {
       const success = await updateProduct(product.id, {
-        is_favorite: !product.is_favorite
+        is_favorite: newFavoriteStatus
       })
       if (success) {
-        await loadProducts()
-        toast.success(product.is_favorite ? "お気に入りを解除しました" : "お気に入りに追加しました")
+        updateProductInState(product.id, { is_favorite: newFavoriteStatus })
+        toast.success(newFavoriteStatus ? "お気に入りに追加しました" : "お気に入りを解除しました")
       } else {
         toast.error("更新に失敗しました")
       }
@@ -723,10 +735,11 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                     type="checkbox"
                     checked={product.is_hidden || false}
                     onChange={async (e) => {
+                      const newValue = e.target.checked
                       try {
-                        const success = await updateProduct(product.id, { is_hidden: e.target.checked })
+                        const success = await updateProduct(product.id, { is_hidden: newValue })
                         if (success) {
-                          await loadProducts()
+                          updateProductInState(product.id, { is_hidden: newValue })
                         } else {
                           toast.error("更新に失敗しました")
                         }
@@ -747,10 +760,13 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                     disabled={!product.asin}
                     onChange={async (e) => {
                       if (!product.asin) return
+                      const newValue = e.target.checked
                       try {
-                        const success = await updateAsin(product.asin.id, { has_amazon: e.target.checked })
+                        const success = await updateAsin(product.asin.id, { has_amazon: newValue })
                         if (success) {
-                          await loadProducts()
+                          updateProductInState(product.id, {
+                            asin: { ...product.asin, has_amazon: newValue }
+                          })
                         } else {
                           toast.error("更新に失敗しました")
                         }
@@ -771,10 +787,13 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                     disabled={!product.asin}
                     onChange={async (e) => {
                       if (!product.asin) return
+                      const newValue = e.target.checked
                       try {
-                        const success = await updateAsin(product.asin.id, { has_official: e.target.checked })
+                        const success = await updateAsin(product.asin.id, { has_official: newValue })
                         if (success) {
-                          await loadProducts()
+                          updateProductInState(product.id, {
+                            asin: { ...product.asin, has_official: newValue }
+                          })
                         } else {
                           toast.error("更新に失敗しました")
                         }
@@ -796,11 +815,13 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                         value={product.asin.complaint_count || 0}
                         onChange={async (e) => {
                           if (!product.asin) return
+                          const newValue = e.target.value ? parseInt(e.target.value) : 0
                           try {
-                            const value = e.target.value ? parseInt(e.target.value) : 0
-                            const success = await updateAsin(product.asin.id, { complaint_count: value })
+                            const success = await updateAsin(product.asin.id, { complaint_count: newValue })
                             if (success) {
-                              await loadProducts()
+                              updateProductInState(product.id, {
+                                asin: { ...product.asin, complaint_count: newValue }
+                              })
                             } else {
                               toast.error("更新に失敗しました")
                             }
@@ -826,10 +847,13 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                     disabled={!product.asin}
                     onChange={async (e) => {
                       if (!product.asin) return
+                      const newValue = e.target.checked
                       try {
-                        const success = await updateAsin(product.asin.id, { is_dangerous: e.target.checked })
+                        const success = await updateAsin(product.asin.id, { is_dangerous: newValue })
                         if (success) {
-                          await loadProducts()
+                          updateProductInState(product.id, {
+                            asin: { ...product.asin, is_dangerous: newValue }
+                          })
                         } else {
                           toast.error("更新に失敗しました")
                         }
@@ -850,10 +874,13 @@ export function ProductTable({ className, shopFilter }: ProductTableProps) {
                     disabled={!product.asin}
                     onChange={async (e) => {
                       if (!product.asin) return
+                      const newValue = e.target.checked
                       try {
-                        const success = await updateAsin(product.asin.id, { is_per_carry_ng: e.target.checked })
+                        const success = await updateAsin(product.asin.id, { is_per_carry_ng: newValue })
                         if (success) {
-                          await loadProducts()
+                          updateProductInState(product.id, {
+                            asin: { ...product.asin, is_per_carry_ng: newValue }
+                          })
                         } else {
                           toast.error("更新に失敗しました")
                         }

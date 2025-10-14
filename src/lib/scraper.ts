@@ -26,10 +26,14 @@ export class BaseScraper {
   private browser: Browser | null = null
   private proxySettings: ProxySettings
 
-  constructor() {
+  constructor(suppressProxyLog: boolean = false) {
     // プロキシ設定の事前判定（必須）
     this.proxySettings = determineProxySettings()
-    logProxyStatus(this.proxySettings)
+
+    // プロキシログを抑制しない場合のみ出力
+    if (!suppressProxyLog) {
+      logProxyStatus(this.proxySettings)
+    }
   }
 
   /**

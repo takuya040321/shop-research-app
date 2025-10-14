@@ -53,6 +53,13 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
     favoriteStatus: "all"
   })
 
+  // 個別商品を状態で直接更新（全体リロード不要）
+  const updateProductInState = useCallback((productId: string, updates: Partial<ExtendedProduct>) => {
+    setProducts(prev => prev.map(p =>
+      p.id === productId ? { ...p, ...updates } : p
+    ))
+  }, [])
+
   // データ読み込み
   const loadProducts = useCallback(async () => {
     try {
@@ -407,6 +414,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
     setFilters,
     setEditingCell,
     loadProducts,
+    updateProductInState,
     handleSelectProduct,
     handleSort,
     goToFirstPage,
