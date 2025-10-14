@@ -1,3 +1,8 @@
+/**
+ * データベース型定義
+ * Supabaseスキーマに基づく型定義
+ */
+
 export type Json =
   | string
   | number
@@ -7,6 +12,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
@@ -108,6 +115,7 @@ export type Database = {
           created_at: string | null
           id: string
           image_url: string | null
+          is_favorite: boolean
           is_hidden: boolean | null
           memo: string | null
           name: string
@@ -124,6 +132,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          is_favorite?: boolean
           is_hidden?: boolean | null
           memo?: string | null
           name: string
@@ -140,6 +149,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           image_url?: string | null
+          is_favorite?: boolean
           is_hidden?: boolean | null
           memo?: string | null
           name?: string
@@ -418,3 +428,17 @@ export type AsinInsert = Database["public"]["Tables"]["asins"]["Insert"]
 export type AsinUpdate = Database["public"]["Tables"]["asins"]["Update"]
 
 export type ShopDiscount = Database["public"]["Tables"]["shop_discounts"]["Row"]
+export type ShopDiscountInsert = Database["public"]["Tables"]["shop_discounts"]["Insert"]
+export type ShopDiscountUpdate = Database["public"]["Tables"]["shop_discounts"]["Update"]
+
+export type ApiSetting = Database["public"]["Tables"]["api_settings"]["Row"]
+export type ApiSettingInsert = Database["public"]["Tables"]["api_settings"]["Insert"]
+export type ApiSettingUpdate = Database["public"]["Tables"]["api_settings"]["Update"]
+
+export type YahooShop = Database["public"]["Tables"]["yahoo_shops"]["Row"]
+export type YahooShopInsert = Database["public"]["Tables"]["yahoo_shops"]["Insert"]
+export type YahooShopUpdate = Database["public"]["Tables"]["yahoo_shops"]["Update"]
+
+export type RakutenShop = Database["public"]["Tables"]["rakuten_shops"]["Row"]
+export type RakutenShopInsert = Database["public"]["Tables"]["rakuten_shops"]["Insert"]
+export type RakutenShopUpdate = Database["public"]["Tables"]["rakuten_shops"]["Update"]
