@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { MainLayout } from "@/components/layout/MainLayout"
 import { Button } from "@/components/ui/Button"
@@ -18,13 +19,17 @@ import {
   DollarSign,
   Percent,
   StarIcon,
+  RefreshCw,
 } from "lucide-react"
 import { formatPrice, formatPercentage } from "@/lib/products"
 import { useDashboard } from "@/hooks/dashboard/useDashboard"
+import { FavoriteProductTable } from "@/components/products/FavoriteProductTable"
+import { toast } from "sonner"
 
 export default function Home() {
   // カスタムフックから全てのロジックを取得
   const { summary, shopStats, favoriteProducts, loading } = useDashboard()
+  const [isScraping, setIsScraping] = useState(false)
 
   return (
     <MainLayout>
@@ -136,9 +141,48 @@ export default function Home() {
 
         {/* お気に入り一覧 */}
         <div className="rounded-lg border bg-card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <StarIcon className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-            <h3 className="font-semibold">お気に入り商品</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <StarIcon className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+              <h3 className="font-semibold">お気に入り商品</h3>
+            </div>
+            <Button
+              onClick={async () => {
+                if (favoriteProducts.length === 0) {
+                  toast.error("お気に入り商品がありません")
+                  return
+                }
+
+                setIsScraping(true)
+                toast.info("お気に入り商品のスクレイピングを開始します...")
+
+                try {
+                  const response = await fetch("/api/scrape/favorites", {
+                    method: "POST"
+                  })
+
+                  const result = await response.json()
+
+                  if (response.ok && result.success) {
+                    toast.success(result.message)
+                    // データを再読み込み
+                    window.location.reload()
+                  } else {
+                    toast.error(result.message || "スクレイピングに失敗しました")
+                  }
+                } catch (error) {
+                  console.error("スクレイピングエラー:", error)
+                  toast.error("スクレイピング中にエラーが発生しました")
+                } finally {
+                  setIsScraping(false)
+                }
+              }}
+              disabled={isScraping || favoriteProducts.length === 0}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isScraping ? "animate-spin" : ""}`} />
+              {isScraping ? "スクレイピング中..." : "価格を更新"}
+            </Button>
           </div>
           {loading ? (
             <p className="text-center py-8 text-muted-foreground">読み込み中...</p>
@@ -147,66 +191,7 @@ export default function Home() {
               お気に入り商品がありません
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>商品名</TableHead>
-                  <TableHead className="text-right">仕入価格</TableHead>
-                  <TableHead className="text-right">Amazon価格</TableHead>
-                  <TableHead className="text-right">利益額</TableHead>
-                  <TableHead className="text-right">利益率</TableHead>
-                  <TableHead className="text-right">ROI</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {favoriteProducts.slice(0, 10).map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium max-w-[300px] truncate">
-                      {product.source_url ? (
-                        <a
-                          href={product.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {product.name}
-                        </a>
-                      ) : (
-                        product.name
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatPrice(product.effective_price)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatPrice(product.asin?.amazon_price)}
-                    </TableCell>
-                    <TableCell className={`text-right font-medium ${
-                      (product.profit_amount || 0) > 0 ? "text-green-600" : "text-red-600"
-                    }`}>
-                      {formatPrice(product.profit_amount)}
-                    </TableCell>
-                    <TableCell className={`text-right font-medium ${
-                      (product.profit_rate || 0) > 0 ? "text-green-600" : "text-red-600"
-                    }`}>
-                      {formatPercentage(product.profit_rate)}
-                    </TableCell>
-                    <TableCell className={`text-right font-medium ${
-                      (product.roi || 0) > 0 ? "text-green-600" : "text-red-600"
-                    }`}>
-                      {formatPercentage(product.roi)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-          {favoriteProducts.length > 10 && (
-            <div className="text-center mt-4">
-              <p className="text-sm text-muted-foreground">
-                さらに{favoriteProducts.length - 10}件のお気に入り商品があります
-              </p>
-            </div>
+            <FavoriteProductTable />
           )}
         </div>
 
