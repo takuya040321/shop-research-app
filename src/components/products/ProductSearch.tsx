@@ -172,6 +172,24 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
                 </SelectContent>
               </Select>
             </div>
+
+            {/* お気に入り */}
+            <div className="space-y-2">
+              <div className="text-sm font-medium">お気に入り</div>
+              <Select
+                value={filters.favoriteStatus}
+                onValueChange={(value) => handleFilterChange(filters, onFiltersChange, "favoriteStatus", value as typeof filters.favoriteStatus)}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="すべて" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべて</SelectItem>
+                  <SelectItem value="favorite_only">お気に入りのみ</SelectItem>
+                  <SelectItem value="non_favorite_only">お気に入り以外</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       )}

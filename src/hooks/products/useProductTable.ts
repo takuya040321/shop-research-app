@@ -49,7 +49,8 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
     maxProfitRate: null,
     minROI: null,
     maxROI: null,
-    asinStatus: "all"
+    asinStatus: "all",
+    favoriteStatus: "all"
   })
 
   // データ読み込み
@@ -132,6 +133,12 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
       filtered = filtered.filter(product => product.asin)
     } else if (filters.asinStatus === "without_asin") {
       filtered = filtered.filter(product => !product.asin)
+    }
+
+    if (filters.favoriteStatus === "favorite_only") {
+      filtered = filtered.filter(product => product.is_favorite)
+    } else if (filters.favoriteStatus === "non_favorite_only") {
+      filtered = filtered.filter(product => !product.is_favorite)
     }
 
     if (!sortField || !sortDirection) return filtered
