@@ -475,6 +475,19 @@ BaseScraperクラスに実装された`saveOrUpdateProducts`メソッドによ�
 
 #### 6.1.3 個別スクレイパー設計
 - **VTScraper**: VT Cosmetics専用
+  - **価格取得戦略**: 3段階フォールバック方式
+    1. 一覧ページから価格抽出（¥マーク付きテキスト検索）
+    2. 価格系class名検索（`.price`, `[class*="price"]`等）
+    3. 妥当な範囲の数字パターンマッチング（100-50000円）
+  - **詳細ページアクセス最適化**: 一覧ページで価格取得できない場合のみアクセス
+  - **価格解析**:
+    - 元価格: `#span_product_price_text`
+    - セール価格: `#span_product_price_sale`
+    - JavaScript変数: `product_price`, `product_sale_price`
+  - **カテゴリ対応**: 9カテゴリ（CICA、Pro CICA、REEDLE Shot等）を自動巡回
+  - **ページネーション**: 最大10ページまで対応
+  - **負荷軽減**: 詳細ページアクセス後300ms、ページ間500ms、カテゴリ間800msの待機
+
 - **DHCScraper**: DHC専用（タイムアウト30秒、domcontentloaded待機戦略）
 - **InnisfreeScraper**: innisfree専用
 - **FavoriteScraper**: お気に入り商品専用

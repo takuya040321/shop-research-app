@@ -141,6 +141,19 @@
 - **ログ制御**: BaseScraperの`suppressProxyLog`パラメータでログ重複を防止
   - 親スクレイパー（FavoriteScraper）でのみログ出力
   - 子スクレイパー（VT/DHC/Innisfree）ではログを抑制
+- **プロキシ除外制御**: 外部API・データベース接続時は環境変数を一時除外
+  - **対象**: 楽天API、Yahoo API、Supabase、画像プロキシ（プロキシ無効時）
+  - **実装方法**:
+    ```typescript
+    const originalHttpProxy = process.env.HTTP_PROXY
+    const originalHttpsProxy = process.env.HTTPS_PROXY
+    delete process.env.HTTP_PROXY
+    delete process.env.HTTPS_PROXY
+    // fetch実行
+    if (originalHttpProxy) process.env.HTTP_PROXY = originalHttpProxy
+    if (originalHttpsProxy) process.env.HTTPS_PROXY = originalHttpsProxy
+    ```
+  - **理由**: グローバルfetch設定がある環境でも、外部API・DBには直接接続する必要がある
 
 #### 4.3.3 Cheerio設定
 - **用途**: HTMLパース・要素抽出
@@ -226,6 +239,87 @@ export async function updateProduct(
   - `updates`: 更新内容（is_favoriteフィールドを含む）
 - **戻り値**: 成功時true、失敗時false
 - **用途**: お気に入りトグル、その他フィールド更新
+
+### 4.5 商品テーブル状態管理（行レベル更新）
+```typescript
+// hooks/products/useProductTable.ts
+export function useProductTable({ shopFilter, pageSize }: UseProductTableOptions)
+```
+
+#### 4.5.1 行レベル更新機能
+**目的**: テーブル全体をリロードせず、変更された行のみを更新することでパフォーマンスを最適化
+
+**実装手法**:
+```typescript
+// 個別商品更新関数
+const updateProductInState = useCallback((productId: string, updates: Partial<ExtendedProduct>) => {
+  setProducts(prev => prev.map(p =>
+    p.id === productId ? { ...p, ...updates } : p
+  ))
+}, [])
+```
+
+**対応操作**:
+1. **ASIN登録・変更・削除**
+   - ASIN削除時: 利益計算をリセット
+   - ASIN変更時: 新しいASIN情報で利益を再計算
+   - 行のみ更新（`updateProductInState`使用）
+
+2. **Amazon価格・手数料更新**
+   - 変更時に利益を自動再計算
+   - 行のみ更新（全体リロード不要）
+
+3. **商品価格更新**
+   - price/sale_price変更時に利益を自動再計算
+   - 行のみ更新（全体リロード不要）
+
+4. **商品コピー**
+   - API結果から新商品データを取得
+   - `setProducts(prev => [...prev, newProduct])`で追加
+   - 全体リロード不要
+
+5. **商品削除**
+   - `setProducts(prev => prev.filter(p => p.id !== productId))`で削除
+   - 全体リロード不要
+
+#### 4.5.2 利益計算ヘルパー
+```typescript
+const calculateProfit = useCallback((
+  product: ExtendedProduct,
+  asin: Asin | null,
+  updatedPrice?: number,
+  updatedSalePrice?: number
+) => {
+  // 価格を決定
+  const basePrice = updatedSalePrice ?? updatedPrice ?? product.sale_price ?? product.price ?? 0
+
+  // ASIN情報がない場合は利益計算不可
+  if (!asin?.amazon_price) {
+    return { profit_amount: 0, profit_rate: 0, roi: 0 }
+  }
+
+  // 手数料計算
+  const commissionFee = asin.amazon_price * (asin.fee_rate / 100)
+  const totalCost = basePrice + asin.fba_fee + commissionFee
+
+  // 利益計算
+  const profitAmount = asin.amazon_price - totalCost
+  const profitRate = totalCost > 0 ? (profitAmount / totalCost) * 100 : 0
+  const roi = basePrice > 0 ? (profitAmount / basePrice) * 100 : 0
+
+  return {
+    profit_amount: Math.round(profitAmount),
+    profit_rate: Math.round(profitRate * 100) / 100,
+    roi: Math.round(roi * 100) / 100
+  }
+}, [])
+```
+
+**利点**:
+- 全体リロード不要でUX向上
+- ネットワークトラフィック削減
+- データベース負荷削減
+- リアルタイム性の向上
 
 ## 5. データベース仕様
 
