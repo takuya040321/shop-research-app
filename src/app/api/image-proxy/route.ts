@@ -87,20 +87,32 @@ export async function GET(request: NextRequest) {
         return new NextResponse("プロキシ経由の画像取得に失敗しました", { status: 500 })
       }
     } else {
-      // プロキシなしで画像を取得
-      const imageResponse = await fetch(imageUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
-      })
+      // プロキシなしで画像を取得（環境変数のプロキシ設定を除外）
+      const originalHttpProxy = process.env.HTTP_PROXY
+      const originalHttpsProxy = process.env.HTTPS_PROXY
 
-      if (!imageResponse.ok) {
-        console.error(`画像取得エラー: ${imageUrl} (${imageResponse.status})`)
-        return new NextResponse("画像の取得に失敗しました", { status: imageResponse.status })
+      try {
+        delete process.env.HTTP_PROXY
+        delete process.env.HTTPS_PROXY
+
+        const imageResponse = await fetch(imageUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          },
+        })
+
+        if (!imageResponse.ok) {
+          console.error(`画像取得エラー: ${imageUrl} (${imageResponse.status})`)
+          return new NextResponse("画像の取得に失敗しました", { status: imageResponse.status })
+        }
+
+        const arrayBuffer = await imageResponse.arrayBuffer()
+        imageBuffer = Buffer.from(arrayBuffer)
+      } finally {
+        // 環境変数を復元
+        if (originalHttpProxy) process.env.HTTP_PROXY = originalHttpProxy
+        if (originalHttpsProxy) process.env.HTTPS_PROXY = originalHttpsProxy
       }
-
-      const arrayBuffer = await imageResponse.arrayBuffer()
-      imageBuffer = Buffer.from(arrayBuffer)
     }
 
     // 画像の種類を推測（URLの拡張子から）

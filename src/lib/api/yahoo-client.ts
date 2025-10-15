@@ -143,15 +143,28 @@ export class YahooAPIClient {
           await new Promise(resolve => setTimeout(resolve, 100))
         }
 
-        const response = await fetch(url, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(10000) // 10秒タイムアウト
-        })
+        // プロキシを使用せずにfetchを実行（外部APIへの直接接続）
+        const originalHttpProxy = process.env.HTTP_PROXY
+        const originalHttpsProxy = process.env.HTTPS_PROXY
 
-        return response
+        try {
+          delete process.env.HTTP_PROXY
+          delete process.env.HTTPS_PROXY
+
+          const response = await fetch(url, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            signal: AbortSignal.timeout(10000) // 10秒タイムアウト
+          })
+
+          return response
+        } finally {
+          // 環境変数を復元
+          if (originalHttpProxy) process.env.HTTP_PROXY = originalHttpProxy
+          if (originalHttpsProxy) process.env.HTTPS_PROXY = originalHttpsProxy
+        }
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error))

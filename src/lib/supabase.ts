@@ -24,6 +24,26 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
   },
+  global: {
+    // Supabase接続時はプロキシを使用しない（グローバルfetch設定を上書き）
+    fetch: (...args) => {
+      // 環境変数からプロキシ設定を一時的に除外
+      const originalHttpProxy = process.env.HTTP_PROXY
+      const originalHttpsProxy = process.env.HTTPS_PROXY
+      
+      delete process.env.HTTP_PROXY
+      delete process.env.HTTPS_PROXY
+      
+      // fetchを実行
+      const result = fetch(...args)
+      
+      // 環境変数を復元
+      if (originalHttpProxy) process.env.HTTP_PROXY = originalHttpProxy
+      if (originalHttpsProxy) process.env.HTTPS_PROXY = originalHttpsProxy
+      
+      return result
+    }
+  }
 })
 
 
