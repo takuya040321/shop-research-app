@@ -10,7 +10,6 @@ import {
   getProductsWithAsinAndProfits,
   updateProduct,
   updateAsin,
-  copyProduct,
   deleteProduct,
 } from "@/lib/products"
 import { supabase } from "@/lib/supabase"
@@ -246,6 +245,58 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
     setEditingCell(null)
   }, [])
 
+  // 利益計算ヘルパー関数
+  const calculateProfit = useCallback((
+    product: ExtendedProduct,
+    asin: Asin | null,
+    updatedPrice?: number,
+    updatedSalePrice?: number
+  ) => {
+    try {
+      // 価格を決定
+      const basePrice = updatedSalePrice !== undefined
+        ? updatedSalePrice
+        : updatedPrice !== undefined
+        ? updatedPrice
+        : product.sale_price || product.price || 0
+
+      // ASIN情報がない、またはAmazon価格がない場合は利益計算不可
+      if (!asin || !asin.amazon_price) {
+        return {
+          profit_amount: 0,
+          profit_rate: 0,
+          roi: 0
+        }
+      }
+
+      const amazonPrice = asin.amazon_price
+      const feeRate = asin.fee_rate || 0
+      const fbaFee = asin.fba_fee || 0
+
+      // 手数料計算
+      const commissionFee = amazonPrice * (feeRate / 100)
+      const totalCost = basePrice + fbaFee + commissionFee
+
+      // 利益計算
+      const profitAmount = amazonPrice - totalCost
+      const profitRate = totalCost > 0 ? (profitAmount / totalCost) * 100 : 0
+      const roi = basePrice > 0 ? (profitAmount / basePrice) * 100 : 0
+
+      return {
+        profit_amount: Math.round(profitAmount),
+        profit_rate: Math.round(profitRate * 100) / 100,
+        roi: Math.round(roi * 100) / 100
+      }
+    } catch (error) {
+      console.error("利益計算エラー:", error)
+      return {
+        profit_amount: 0,
+        profit_rate: 0,
+        roi: 0
+      }
+    }
+  }, [])
+
   const saveEdit = useCallback(async () => {
     if (!editingCell) return
 
@@ -255,12 +306,32 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
       if (!product) return
 
       let success = false
-      let needsReload = false
 
       if (field.startsWith("asin_")) {
         const asinField = field.replace("asin_", "")
 
-        if (!product.asin && asinField === "asin" && value) {
+        // ASIN削除の処理
+        if (asinField === "asin" && !value) {
+          const { error: productUpdateError } = await supabase
+            .from("products")
+            .update({ asin: null } as never)
+            .eq("id", productId)
+
+          if (productUpdateError) {
+            throw new Error("ASIN削除に失敗しました")
+          }
+
+          success = true
+          // 行レベル更新: ASINをnullに設定し、利益計算をリセット
+          updateProductInState(productId, {
+            asin: null,
+            profit_amount: 0,
+            profit_rate: 0,
+            roi: 0
+          })
+        }
+        // ASIN新規登録・変更の処理
+        else if (asinField === "asin" && value) {
           // 既存ASINをチェック
           const { data: existingAsin } = await supabase
             .from("asins")
@@ -268,14 +339,16 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
             .eq("asin", value)
             .single<Asin>()
 
+          let asinData: Asin | null = existingAsin
+
           if (!existingAsin) {
             // 新規ASIN作成
             const { data: newAsin, error: createAsinError } = await supabase
               .from("asins")
               .insert({
                 asin: value,
-                fee_rate: 15,  // デフォルト値を明示的に指定
-                fba_fee: 0,    // デフォルト値を明示的に指定
+                fee_rate: 15,
+                fba_fee: 0,
                 has_amazon: false,
                 has_official: false,
                 is_dangerous: false,
@@ -287,6 +360,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
             if (createAsinError || !newAsin) {
               throw new Error("ASIN作成に失敗しました")
             }
+            asinData = newAsin
           }
 
           // products.asinを更新
@@ -300,8 +374,15 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
           }
 
           success = true
-          needsReload = true  // ASIN登録時は利益計算のため再読み込み
-        } else if (product.asin) {
+          // 行レベル更新: ASIN変更後の利益計算
+          const profitInfo = calculateProfit(product, asinData)
+          updateProductInState(productId, {
+            asin: asinData,
+            ...profitInfo
+          })
+        }
+        // ASIN情報の更新（Amazon価格、手数料率など）
+        else if (product.asin) {
           const updates: Record<string, unknown> = {}
 
           if (["amazon_price", "monthly_sales", "fee_rate", "fba_fee", "complaint_count"].includes(asinField)) {
@@ -314,17 +395,28 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
 
           success = await updateAsin(product.asin.id, updates)
 
-          // Amazon価格、手数料率、FBA料が更新された場合は利益計算のため再読み込み
-          if (success && ["amazon_price", "fee_rate", "fba_fee"].includes(asinField)) {
-            needsReload = true
+          if (success) {
+            const updatedAsin = { ...product.asin, ...updates } as Asin
+
+            // 利益計算に影響する場合は再計算
+            if (["amazon_price", "fee_rate", "fba_fee"].includes(asinField)) {
+              const profitInfo = calculateProfit(product, updatedAsin)
+              updateProductInState(productId, {
+                asin: updatedAsin,
+                ...profitInfo
+              })
+            } else {
+              // 利益計算に影響しない場合は、ASIN情報のみ更新
+              updateProductInState(productId, { asin: updatedAsin })
+            }
           }
         }
       } else {
+        // 商品情報の更新（価格など）
         const updates: Record<string, unknown> = {}
 
         if (["price", "sale_price"].includes(field)) {
           updates[field] = value ? parseFloat(value) : null
-          needsReload = true  // 価格更新時は利益計算のため再読み込み
         } else if (field === "is_hidden") {
           updates[field] = value === "true"
         } else {
@@ -332,15 +424,29 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
         }
 
         success = await updateProduct(productId, updates)
+
+        if (success) {
+          // 価格更新の場合は利益を再計算
+          if (["price", "sale_price"].includes(field)) {
+            const profitInfo = calculateProfit(
+              product,
+              product.asin ?? null,
+              field === "price" ? (value ? parseFloat(value) : 0) : undefined,
+              field === "sale_price" ? (value ? parseFloat(value) : 0) : undefined
+            )
+            updateProductInState(productId, {
+              ...updates as Partial<ExtendedProduct>,
+              ...profitInfo
+            })
+          } else {
+            // 利益計算に影響しない場合は、該当フィールドのみ更新
+            updateProductInState(productId, updates as Partial<ExtendedProduct>)
+          }
+        }
       }
 
       if (success) {
         setEditingCell(null)
-
-        // 利益計算に影響する項目が更新された場合は再読み込み
-        if (needsReload) {
-          await loadProducts()
-        }
       } else {
         setError("更新に失敗しました")
       }
@@ -348,17 +454,42 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
       console.error("編集保存エラー:", err)
       setError("更新中にエラーが発生しました")
     }
-  }, [editingCell, products, loadProducts])
+  }, [editingCell, products, updateProductInState, calculateProfit])
 
   const handleCopyProduct = useCallback(async (product: ExtendedProduct) => {
     try {
-      const success = await copyProduct(product.id)
+      const response = await fetch("/api/products/copy", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productId: product.id
+        })
+      })
 
-      if (success) {
-        await loadProducts()
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "商品のコピーに失敗しました")
+      }
+
+      // 行レベル更新: 新しい商品を状態に追加（全体リロード不要）
+      if (result.data?.copiedProduct) {
+        const newProduct: ExtendedProduct = {
+          ...result.data.copiedProduct,
+          asin: null,
+          profit_amount: 0,
+          profit_rate: 0,
+          roi: 0
+        }
+
+        setProducts(prev => [...prev, newProduct])
         setError(null)
       } else {
-        setError("商品のコピーに失敗しました")
+        // フォールバック: データが返ってこなかった場合のみリロード
+        await loadProducts()
+        setError(null)
       }
     } catch (err) {
       console.error("商品コピーエラー:", err instanceof Error ? err.message : String(err))
@@ -374,10 +505,14 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
     try {
       const success = await deleteProduct(product.id)
       if (success) {
-        await loadProducts()
+        // 行レベル更新: 削除された商品をstateから除外（全体リロード不要）
+        setProducts(prev => prev.filter(p => p.id !== product.id))
+
+        // 選択状態からも削除
         const newSelection = new Set(selectedProducts)
         newSelection.delete(product.id)
         setSelectedProducts(newSelection)
+
         setError(null)
       } else {
         setError("商品の削除に失敗しました")
@@ -386,7 +521,7 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
       console.error("商品削除エラー:", err)
       setError("商品の削除中にエラーが発生しました")
     }
-  }, [loadProducts, selectedProducts])
+  }, [selectedProducts])
 
   const getSortIcon = useCallback((field: string) => {
     if (sortField !== field) return null
