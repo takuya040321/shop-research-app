@@ -62,15 +62,9 @@ export class BaseScraper {
 
       // プロキシ設定の適用
       if (this.proxySettings.enabled && this.proxySettings.config) {
-        const proxyUrl = generateProxyUrl(this.proxySettings.config)
-        launchOptions.args?.push(`--proxy-server=${proxyUrl}`)
-
-        // 認証が必要な場合のプロキシ認証設定
-        if (this.proxySettings.config.username && this.proxySettings.config.password) {
-          launchOptions.args?.push(
-            `--proxy-auth=${this.proxySettings.config.username}:${this.proxySettings.config.password}`
-          )
-        }
+        // プロキシサーバーのみを指定（認証情報は含めない）
+        const proxyServer = `http://${this.proxySettings.config.host}:${this.proxySettings.config.port}`
+        launchOptions.args?.push(`--proxy-server=${proxyServer}`)
       }
 
       this.browser = await puppeteer.launch(launchOptions)

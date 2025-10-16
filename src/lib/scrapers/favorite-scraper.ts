@@ -101,6 +101,18 @@ export class FavoriteScraper {
       // ページを作成（全商品で共通のページを使用）
       const page = await this.browser.newPage()
 
+      // プロキシ認証を設定（認証情報がある場合）
+      if (this.useProxy) {
+        const proxyUsername = process.env.PROXY_USERNAME
+        const proxyPassword = process.env.PROXY_PASSWORD
+        if (proxyUsername && proxyPassword) {
+          await page.authenticate({
+            username: proxyUsername,
+            password: proxyPassword
+          })
+        }
+      }
+
       // 各商品を個別にスクレイピング
       for (const product of products) {
         try {
@@ -271,31 +283,47 @@ export class FavoriteScraper {
   private async launchBrowser(): Promise<void> {
     const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
     }
 
-    // プロキシ設定
+    // プロキシ設定（BaseScraperと同じ環境変数を使用）
     if (this.useProxy) {
-      const proxyServer = process.env.PROXY_SERVER
+      const proxyHost = process.env.PROXY_HOST
+      const proxyPort = process.env.PROXY_PORT
       const proxyUsername = process.env.PROXY_USERNAME
       const proxyPassword = process.env.PROXY_PASSWORD
 
-      if (proxyServer && proxyUsername && proxyPassword) {
+      if (proxyHost && proxyPort) {
+        // プロキシサーバーのみを指定（認証情報は含めない）
+        const proxyServer = `http://${proxyHost}:${proxyPort}`
         launchOptions.args = launchOptions.args || []
         launchOptions.args.push(`--proxy-server=${proxyServer}`)
-        console.log("プロキシ設定を適用しました")
+        console.log(`プロキシ設定を適用: ${proxyHost}:${proxyPort}`)
 
         this.browser = await puppeteer.launch(launchOptions)
 
-        // プロキシ認証を設定
-        const page = await this.browser.newPage()
-        await page.authenticate({
-          username: proxyUsername,
-          password: proxyPassword
-        })
-        await page.close()
+        // プロキシ認証を設定（認証情報がある場合）
+        if (proxyUsername && proxyPassword) {
+          const page = await this.browser.newPage()
+          await page.authenticate({
+            username: proxyUsername,
+            password: proxyPassword
+          })
+          await page.close()
+          console.log("プロキシ認証を設定しました")
+        }
 
         return
+      } else {
+        console.warn("USE_PROXY=trueですが、PROXY_HOSTまたはPROXY_PORTが設定されていません。プロキシなしで起動します。")
       }
     }
 
