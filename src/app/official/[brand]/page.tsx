@@ -5,6 +5,7 @@
  */
 
 import { useParams, notFound } from "next/navigation"
+import { toast } from "sonner"
 import { MainLayout } from "@/components/layout/MainLayout"
 import { ProductTable } from "@/components/products/ProductTable"
 import { Button } from "@/components/ui/Button"
@@ -43,9 +44,9 @@ export default function BrandPage() {
     const result = await handleRefresh()
 
     if (result.success) {
-      alert(`スクレイピング完了!\n取得: ${result.data?.totalProducts || 0}件\n保存: ${result.data?.savedProducts || 0}件\nスキップ: ${result.data?.skippedProducts || 0}件`)
+      toast.success(`スクレイピング完了! 取得: ${result.data?.totalProducts || 0}件 / 保存: ${result.data?.savedProducts || 0}件 / スキップ: ${result.data?.skippedProducts || 0}件`)
     } else {
-      alert(`エラー: ${result.message || "スクレイピングに失敗しました"}`)
+      toast.error(`エラー: ${result.message || "スクレイピングに失敗しました"}`)
     }
   }
 
