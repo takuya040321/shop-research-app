@@ -230,8 +230,11 @@ App Layout
 - SettingsForm
 - FileUploadForm
 - **ProductTable**: 商品テーブルコンポーネント（Shift+ホイールで横スクロール対応、お気に入り機能付き、行レベル更新対応）
+  - **ProductTableHeader**: ソート機能付きテーブルヘッダー（23列のソート対応）
+  - **ProductRow**: 商品行コンポーネント（お気に入り、画像、編集セル、各種フラグの管理）
+  - **EditableCell**: インライン編集可能なセルコンポーネント（テキスト、数値、真偽値入力対応、Enter保存・Escape キャンセル）
+  - **ImagePreview**: 商品画像プレビューコンポーネント（ホバー時拡大表示、プロキシ対応）
 - **FavoriteProductTable**: お気に入り商品専用テーブル（ProductTableをラップ、initialFavoriteFilterで絞り込み）
-- EditableCell
 - SortableHeader
 - FilterRow
 - **DiscountSettings**: ショップ別割引設定コンポーネント（UI/ロジック分離済み）
