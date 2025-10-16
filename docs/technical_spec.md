@@ -409,6 +409,44 @@ export interface ProductTableProps {
   initialFavoriteFilter?: "all" | "favorite_only" | "non_favorite_only"  // 初期フィルター設定
 }
 
+// ProductTableHeaderコンポーネントProps
+export interface ProductTableHeaderProps {
+  onSort: (field: string) => void
+  getSortIcon: (field: string) => "asc" | "desc" | null
+}
+
+// ProductRowコンポーネントProps
+export interface ProductRowProps {
+  product: ExtendedProduct
+  editingCell: EditingCell | null
+  onContextMenu: (event: React.MouseEvent, product: ExtendedProduct) => void
+  onToggleFavorite: (product: ExtendedProduct) => void
+  onStartEdit: (productId: string, field: string, value: unknown) => void
+  onCancelEdit: () => void
+  onSaveEdit: () => void
+  onEditingValueChange: (value: string) => void
+  onUpdateProductInState: (productId: string, updates: Partial<ExtendedProduct>) => void
+}
+
+// EditableCellコンポーネントProps
+export interface EditableCellProps {
+  productId: string
+  field: string
+  value: unknown
+  type?: "text" | "number" | "boolean"
+  editingCell: EditingCell | null
+  onStartEdit: (productId: string, field: string, value: unknown) => void
+  onCancelEdit: () => void
+  onSaveEdit: () => void
+  onEditingValueChange: (value: string) => void
+}
+
+// ImagePreviewコンポーネントProps
+export interface ImagePreviewProps {
+  imageUrl: string | null
+  productName: string
+}
+
 // 商品とASINの関係
 // - products.asin カラムでASINを参照（文字列）
 // - asins.asin とJOINして詳細情報を取得
