@@ -329,14 +329,75 @@ const calculateProfit = useCallback((
 - **ローカル使用**: 単一ユーザー向け設定
 
 ### 5.2 接続設定
+
+#### 5.2.1 汎用Supabaseクライアント（Anonキー、プロキシ対応）
 ```typescript
 // lib/supabase.ts
 import { createClient } from '@supabase/supabase-js'
+import { HttpsProxyAgent } from 'https-proxy-agent'
+import { determineProxySettings, generateProxyUrl } from '@/lib/proxy'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+function createSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+  // プロキシ設定判定
+  const proxySettings = determineProxySettings()
+  
+  let customFetch: typeof fetch
+  if (proxySettings.enabled && proxySettings.config) {
+    const agent = new HttpsProxyAgent(generateProxyUrl(proxySettings.config))
+    customFetch = (url, init) => fetch(url, { ...init, agent })
+  } else {
+    customFetch = fetch
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+    global: { fetch: customFetch }
+  })
+}
+
+export const supabase = createSupabaseClient()
+```
+
+#### 5.2.2 サーバー専用Supabaseクライアント（サービスロールキー、プロキシ対応）
+```typescript
+// lib/supabase-server.ts
+import { createClient } from '@supabase/supabase-js'
+import { HttpsProxyAgent } from 'https-proxy-agent'
+import { determineProxySettings, generateProxyUrl } from '@/lib/proxy'
+
+function createServerSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  // プロキシ設定判定
+  const proxySettings = determineProxySettings()
+  
+  let customFetch: typeof fetch
+  if (proxySettings.enabled && proxySettings.config) {
+    const agent = new HttpsProxyAgent(generateProxyUrl(proxySettings.config))
+    customFetch = (url, init) => fetch(url, { ...init, agent })
+  } else {
+    customFetch = fetch
+  }
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false
+    },
+    global: { fetch: customFetch }
+  })
+}
+
+export const supabaseServer = createServerSupabaseClient()
 ```
 
 ### 5.3 型定義

@@ -1546,7 +1546,9 @@ shop-research-app/
 │   │           ├── useBeauty.ts
 │   │           └── useSkincare.ts
 │   ├── lib/                  # Utilities
-│   │   ├── supabase.ts
+│   │   ├── supabase.ts          # Supabaseクライアント（Anonキー、プロキシ対応）
+│   │   ├── supabase-server.ts   # サーバー専用Supabaseクライアント（サービスロールキー、プロキシ対応）
+│   │   ├── proxy.ts             # プロキシ設定管理
 │   │   ├── auth.ts
 │   │   ├── scraper/
 │   │   │   ├── base.ts

@@ -4,8 +4,8 @@
  */
 
 import puppeteer, { Browser, Page, LaunchOptions } from "puppeteer"
-import { determineProxySettings, generateProxyUrl, logProxyStatus, type ProxySettings } from "./proxy"
-import { supabase } from "./supabase"
+import { determineProxySettings, logProxyStatus, type ProxySettings } from "./proxy"
+import { supabaseServer } from "./supabase-server"
 import type { ProductInsert, ProductUpdate, Product } from "@/types/database"
 import { randomUUID } from "crypto"
 
@@ -223,7 +223,9 @@ export class BaseScraper {
 
     try {
       // 1. 既存商品を全取得
-      const { data: existingProducts, error: fetchError } = await supabase
+      // スクレイピング処理ではプロキシ対応のサーバークライアントを使用
+      const db = supabaseServer
+      const { data: existingProducts, error: fetchError } = await db
         .from("products")
         .select("id, name, price, sale_price, image_url, source_url, is_hidden")
         .eq("shop_type", shopType)
@@ -307,7 +309,7 @@ export class BaseScraper {
       // 6. バッチ処理で保存
       // 新規商品の挿入
       if (toInsert.length > 0) {
-        const { error: insertError } = await supabase
+        const { error: insertError } = await db
           .from("products")
           .insert(toInsert as never)
 
@@ -322,7 +324,7 @@ export class BaseScraper {
       // 既存商品の更新
       if (toUpdate.length > 0) {
         for (const update of toUpdate) {
-          const { error: updateError } = await supabase
+          const { error: updateError } = await db
             .from("products")
             .update(update.data as never)
             .eq("id", update.id)
@@ -338,7 +340,7 @@ export class BaseScraper {
 
       // 販売終了商品を非表示化
       if (toHide.length > 0) {
-        const { error: hideError } = await supabase
+        const { error: hideError } = await db
           .from("products")
           .update({ is_hidden: true } as never)
           .in("id", toHide)
