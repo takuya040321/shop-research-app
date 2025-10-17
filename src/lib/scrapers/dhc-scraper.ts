@@ -52,9 +52,19 @@ export class DHCScraper extends BaseScraper {
   /**
    * 商品詳細ページから価格情報を取得
    */
-  async scrapeProductDetails(productUrl: string, page: Page): Promise<{price: number | null, salePrice: number | null, description: string | null}> {
+  async scrapeProductDetails(
+    productUrl: string,
+    page: Page
+  ): Promise<{
+    price: number | null
+    salePrice: number | null
+    description: string | null
+  }> {
     try {
-      await page.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
+      await page.goto(productUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000
+      })
 
       const html = await page.content()
       const $ = cheerio.load(html)
@@ -63,57 +73,50 @@ export class DHCScraper extends BaseScraper {
       let salePrice: number | null = null
       let description: string | null = null
 
-      // 価格取得（複数のセレクタを試行）
-      const priceSelectors = [
-        '.price', '.cost', '.regular-price', '[class*="price"]',
-        '#price', '.product-price'
-      ]
-
-      for (const selector of priceSelectors) {
-        if (!price) {
-          const priceEl = $(selector).first()
-          if (priceEl.length > 0) {
-            const priceText = priceEl.text().trim()
-            price = this.parsePrice(priceText)
-          }
-        }
+      // DHC特有の価格構造を解析
+      // 通常購入価格の取得（例: "通常購入 ¥1,760（税込）"）
+      const regularPriceText = $("body").text()
+      
+      // 通常購入価格を抽出
+      const regularPriceMatch = regularPriceText.match(/通常購入[^¥]*¥([0-9,]+)/);
+      if (regularPriceMatch && regularPriceMatch[1]) {
+        price = this.parsePrice(regularPriceMatch[1])
       }
 
-      // セール価格取得
-      const salePriceSelectors = [
-        '.sale-price', '.special-price', '[class*="sale"]',
-        '.discount-price'
-      ]
-
-      for (const selector of salePriceSelectors) {
-        if (!salePrice) {
-          const salePriceEl = $(selector).first()
-          if (salePriceEl.length > 0) {
-            const salePriceText = salePriceEl.text().trim()
-            salePrice = this.parsePrice(salePriceText)
-          }
-        }
+      // WEB限定価格（セール価格）の取得
+      const webPriceMatch = regularPriceText.match(/WEB限定価格[^¥]*¥([0-9,]+)/);
+      if (webPriceMatch && webPriceMatch[1]) {
+        salePrice = this.parsePrice(webPriceMatch[1])
       }
 
-      // 商品説明取得
-      const descriptionSelectors = [
-        '.description', '.product-description', '.detail',
-        '[class*="description"]'
-      ]
-
-      for (const selector of descriptionSelectors) {
-        if (!description) {
-          const descEl = $(selector).first()
-          if (descEl.length > 0) {
-            description = descEl.text().trim().substring(0, 500) // 最大500文字
-          }
-        }
+      // 定期お届けコース価格もセール扱いとして取得
+      const subscriptionPriceMatch = regularPriceText.match(/定期お届けコース[^¥]*¥([0-9,]+)/);
+      if (subscriptionPriceMatch && subscriptionPriceMatch[1] && !salePrice) {
+        salePrice = this.parsePrice(subscriptionPriceMatch[1])
       }
 
-      return { price, salePrice, description }
+      // 商品説明を取得
+      const descriptionEl = $(".product-description, .description, [class*='description']").first()
+      if (descriptionEl.length > 0) {
+        description = descriptionEl.text().trim()
+      }
+
+      console.log(`[DHC商品詳細] URL: ${productUrl}`)
+      console.log(`  通常価格: ${price ? `¥${price}` : "取得失敗"}`)
+      console.log(`  セール価格: ${salePrice ? `¥${salePrice}` : "なし"}`)
+
+      return {
+        price,
+        salePrice,
+        description
+      }
     } catch (error) {
       console.warn(`商品詳細ページの取得でエラー (${productUrl}):`, error)
-      return { price: null, salePrice: null, description: null }
+      return {
+        price: null,
+        salePrice: null,
+        description: null
+      }
     }
   }
 
