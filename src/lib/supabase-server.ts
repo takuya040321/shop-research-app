@@ -3,10 +3,13 @@
  * プロキシ対応とサービスロールキー認証を実装
  */
 
-import { createClient } from "@supabase/supabase-js"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import { Database } from "@/types/database"
 import { determineProxySettings, generateProxyUrl, logProxyStatus } from "@/lib/proxy"
+
+// グローバルなクライアントインスタンス（遅延初期化）
+let supabaseServerInstance: SupabaseClient<Database> | null = null
 
 /**
  * サーバーサイドSupabaseクライアントの初期化
@@ -18,7 +21,7 @@ import { determineProxySettings, generateProxyUrl, logProxyStatus } from "@/lib/
  * 4. プロキシ無効時は通常のfetchを使用
  * 5. サービスロールキーで認証（RLS回避、管理者権限）
  */
-function createServerSupabaseClient() {
+function createServerSupabaseClient(): SupabaseClient<Database> {
   // 1. 環境変数の取得と検証
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -51,7 +54,7 @@ function createServerSupabaseClient() {
     customFetch = (url: RequestInfo | URL, init?: RequestInit) => {
       return fetch(url, {
         ...init,
-        // @ts-ignore - agent属性はNode.js環境でのみ有効
+        // @ts-expect-error - agent属性はNode.js環境でのみ有効
         agent,
       })
     }
@@ -79,18 +82,29 @@ function createServerSupabaseClient() {
   return client
 }
 
-// サーバーサイド専用クライアントをエクスポート
-export const supabaseServer = createServerSupabaseClient()
-
 /**
- * サーバーサイドSupabaseクライアントを取得
+ * サーバーサイドSupabaseクライアントを取得（遅延初期化）
+ * ビルド時のエラーを防ぐため、クライアントは初回アクセス時に初期化されます
  *
  * 使用例:
  * ```typescript
- * import { getServerSupabaseClient } from "@/lib/supabase-server"
+ * import { supabaseServer } from "@/lib/supabase-server"
  *
- * const supabase = getServerSupabaseClient()
- * const { data, error } = await supabase.from("products").select("*")
+ * const { data, error } = await supabaseServer.from("products").select("*")
  * ```
+ */
+export const supabaseServer = new Proxy({} as SupabaseClient<Database>, {
+  get(_target, prop) {
+    // クライアントがまだ初期化されていない場合は初期化
+    if (!supabaseServerInstance) {
+      supabaseServerInstance = createServerSupabaseClient()
+    }
+    return supabaseServerInstance[prop as keyof SupabaseClient<Database>]
+  }
+})
+
+/**
+ * サーバーサイドSupabaseクライアントを取得
+ * @deprecated supabaseServerを直接使用してください
  */
 export const getServerSupabaseClient = () => supabaseServer
