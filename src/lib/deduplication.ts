@@ -17,10 +17,10 @@ export async function removeDuplicateProducts(): Promise<{
     const errors: string[] = []
     let deletedCount = 0
 
-    // 全商品を取得
+    // 全商品を取得（original_product_id も取得してコピー商品を識別）
     const { data: allProducts, error: fetchError } = await supabase
       .from("products")
-      .select("id, shop_type, shop_name, name, created_at")
+      .select("id, shop_type, shop_name, name, created_at, original_product_id")
       .order("created_at", { ascending: false }) as {
         data: Array<{
           id: string
@@ -28,6 +28,7 @@ export async function removeDuplicateProducts(): Promise<{
           shop_name: string
           name: string
           created_at: string
+          original_product_id: string | null
         }> | null
         error: { message: string } | null
       }
@@ -44,11 +45,18 @@ export async function removeDuplicateProducts(): Promise<{
       return { success: true, deletedCount: 0, errors: [] }
     }
 
-    // 重複を検出
+    // 重複を検出（コピー商品は除外）
     const productMap = new Map<string, string>() // key -> 最新商品ID
     const duplicateIds: string[] = []
+    let copiedProductsSkipped = 0
 
     for (const product of allProducts) {
+      // コピー商品はスキップ
+      if (product.original_product_id) {
+        copiedProductsSkipped++
+        continue
+      }
+
       const key = `${product.shop_type}-${product.shop_name}-${product.name}`
 
       if (productMap.has(key)) {
@@ -63,8 +71,6 @@ export async function removeDuplicateProducts(): Promise<{
     if (duplicateIds.length === 0) {
       return { success: true, deletedCount: 0, errors: [] }
     }
-
-    console.log(`${duplicateIds.length}件の重複商品を検出しました`)
 
     // バッチで削除（最大1000件ずつ）
     const batchSize = 100
