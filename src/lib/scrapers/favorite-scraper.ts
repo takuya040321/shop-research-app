@@ -4,7 +4,7 @@
  */
 
 import puppeteer, { type Browser, type Page } from "puppeteer"
-import { supabase } from "@/lib/supabase"
+import { supabaseServer as supabase } from "@/lib/supabase-server"
 import type { Product } from "@/types/database"
 import { VTCosmeticsScraper } from "./vt-cosmetics-scraper"
 import { InnisfreeScraper } from "./innisfree-scraper"
@@ -205,8 +205,29 @@ export class FavoriteScraper {
 
       // データベースを更新
       const updates: Record<string, number | string | null> = {}
-      if (scrapedData.price !== undefined && scrapedData.price !== null) updates.price = scrapedData.price
-      if (scrapedData.salePrice !== undefined && scrapedData.salePrice !== null) updates.sale_price = scrapedData.salePrice
+
+      // 定価を更新
+      if (scrapedData.price !== undefined && scrapedData.price !== null) {
+        updates.price = scrapedData.price
+      }
+
+      // セール価格を更新（セールがない場合は明示的にnullにして既存のセール価格をクリア）
+      updates.sale_price = (scrapedData.salePrice !== undefined && scrapedData.salePrice !== null)
+        ? scrapedData.salePrice
+        : null
+
+      // 更新内容をログ出力
+      console.log(`[DB更新] 商品ID: ${product.id}, 更新内容:`, JSON.stringify(updates))
+
+      if (Object.keys(updates).length === 0) {
+        console.warn(`[DB更新] 更新データが空のためスキップ`)
+        return {
+          success: false,
+          productId: product.id,
+          productName: product.name,
+          error: "価格データが取得できませんでした"
+        }
+      }
 
       const { error: updateError } = await supabase
         .from("products")
@@ -216,6 +237,8 @@ export class FavoriteScraper {
       if (updateError) {
         throw new Error(`データベース更新エラー: ${updateError.message}`)
       }
+
+      console.log(`[DB更新] 成功 - 商品: ${product.name}`)
 
       return {
         success: true,

@@ -121,7 +121,6 @@ export class InnisfreeScraper extends BaseScraper {
 
     while (true) {
       const url = pageNum === 1 ? categoryUrl : `${categoryUrl}&page=${pageNum}`
-      console.log(`スクレイピング中: ${url}`)
 
       await page.goto(url, { waitUntil: 'networkidle2' })
 
@@ -129,7 +128,6 @@ export class InnisfreeScraper extends BaseScraper {
       try {
         await page.waitForSelector('li, .item, .product-item', { timeout: 10000 })
       } catch {
-        console.log(`ページ ${pageNum} で商品が見つかりませんでした`)
         break
       }
 
@@ -183,7 +181,6 @@ export class InnisfreeScraper extends BaseScraper {
 
           // 一覧ページから価格が取得できなかった場合は詳細ページにアクセス
           if (!price) {
-            console.log(`詳細ページから価格を取得: ${name}`)
             const details = await this.scrapeProductDetails(productUrl, page)
             price = details.price
             salePrice = details.salePrice
@@ -217,8 +214,6 @@ export class InnisfreeScraper extends BaseScraper {
         }
       }
 
-      console.log(`ページ ${pageNum}: ${pageProducts}件の商品を取得`)
-
       // 次のページがあるかチェック
       const hasNextPage = $("a[href*='page=']").length > 0 && pageProducts > 0
       if (!hasNextPage) {
@@ -229,7 +224,6 @@ export class InnisfreeScraper extends BaseScraper {
 
       // 安全のため最大10ページまで
       if (pageNum > 10) {
-        console.log("最大ページ数に達しました")
         break
       }
 
@@ -259,20 +253,12 @@ export class InnisfreeScraper extends BaseScraper {
             console.log(`カテゴリをスクレイピング中: ${categoryPath}`)
             const categoryProducts = await this.scrapeCategoryPage(categoryUrl, page)
 
-            // 商品をバッチ保存（パフォーマンス向上）
-            if (categoryProducts.length > 0) {
-              const saveResult = await this.saveProductsToDatabase(categoryProducts)
-              console.log(`カテゴリ ${categoryPath}: ${categoryProducts.length}件取得、${saveResult.savedCount}件保存、${saveResult.skippedCount}件スキップ`)
-
-              if (saveResult.errors.length > 0) {
-                console.warn(`カテゴリ ${categoryPath} で保存エラー:`, saveResult.errors)
-              }
-            }
+            console.log(`カテゴリ ${categoryPath}: ${categoryProducts.length}件の商品を取得`)
 
             allProducts.push(...categoryProducts)
 
-            // カテゴリ間の短い待機
-            await new Promise(resolve => setTimeout(resolve, 800))
+            // カテゴリ間の待機（レート制限対策）
+            await new Promise(resolve => setTimeout(resolve, 2000))
           } catch (error) {
             console.error(`カテゴリ ${categoryPath} のスクレイピングでエラー:`, error)
           }
@@ -312,6 +298,7 @@ export class InnisfreeScraper extends BaseScraper {
   async saveProductsToDatabase(products: InnisfreeProduct[]): Promise<{
     savedCount: number
     skippedCount: number
+    duplicatesRemovedCount: number
     errors: string[]
   }> {
     // BaseScraperの汎用メソッドを使用
@@ -331,6 +318,7 @@ export class InnisfreeScraper extends BaseScraper {
     return {
       savedCount: result.insertedCount + result.updatedCount,
       skippedCount: result.skippedCount,
+      duplicatesRemovedCount: result.duplicatesRemovedCount,
       errors: result.errors
     }
   }
@@ -366,8 +354,15 @@ export class InnisfreeScraper extends BaseScraper {
       const products = scrapingResult.data
       console.log(`合計 ${products.length}件の商品データを取得しました`)
 
-      // 商品は既にカテゴリごとに保存済み
-      console.log("すべてのカテゴリの商品保存が完了しました")
+      // 全カテゴリのスクレイピング完了後、商品を一括保存
+      console.log("商品データをデータベースに保存中...")
+      const saveResult = await this.saveProductsToDatabase(products)
+
+      console.log(`保存完了: 新規${saveResult.savedCount}件 | スキップ${saveResult.skippedCount}件 | 重複削除${saveResult.duplicatesRemovedCount}件`)
+
+      if (saveResult.errors.length > 0) {
+        console.warn("保存エラー:", saveResult.errors)
+      }
 
       // 重複削除を実行
       await deduplicateAfterScraping()
@@ -375,9 +370,9 @@ export class InnisfreeScraper extends BaseScraper {
       return {
         success: true,
         totalProducts: products.length,
-        savedProducts: products.length, // カテゴリごとに保存済み
-        skippedProducts: 0,
-        errors: [],
+        savedProducts: saveResult.savedCount,
+        skippedProducts: saveResult.skippedCount,
+        errors: saveResult.errors,
         proxyUsed: scrapingResult.proxyUsed
       }
     } catch (error) {

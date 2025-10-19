@@ -83,9 +83,6 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = products
 
-    // デフォルトでis_hidden=trueの商品を除外
-    filtered = filtered.filter(product => !product.is_hidden)
-
     if (shopFilter) {
       filtered = filtered.filter(product => product.shop_name === shopFilter)
     }
@@ -420,8 +417,6 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
 
         if (["price", "sale_price"].includes(field)) {
           updates[field] = value ? parseFloat(value) : null
-        } else if (field === "is_hidden") {
-          updates[field] = value === "true"
         } else {
           updates[field] = value || null
         }

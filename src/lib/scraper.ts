@@ -196,7 +196,12 @@ export class BaseScraper {
    * 商品データを保存・更新する汎用メソッド
    * - 新規商品: INSERT
    * - 価格変動がある既存商品: UPDATE
-   * - スクレイピングされなかった既存商品: is_hidden = true
+   * - スクレイピングされなかった既存商品: DELETE（物理削除）
+   * - 重複商品: 処理終了後に削除（カテゴリー横断で同じ商品が登録されるのを防ぐ）
+   *
+   * 商品の一致判定: source_url AND name の両方で判定
+   * - 理由1: セール等で商品名が変わる可能性がある
+   * - 理由2: 同じURLで単品/セット商品が両方存在する可能性がある
    */
   async saveOrUpdateProducts(
     scrapedProducts: Array<{
@@ -211,14 +216,16 @@ export class BaseScraper {
   ): Promise<{
     insertedCount: number
     updatedCount: number
-    hiddenCount: number
+    deletedCount: number
     skippedCount: number
+    duplicatesRemovedCount: number
     errors: string[]
   }> {
     let insertedCount = 0
     let updatedCount = 0
-    let hiddenCount = 0
+    let deletedCount = 0
     let skippedCount = 0
+    let duplicatesRemovedCount = 0
     const errors: string[] = []
 
     try {
@@ -227,31 +234,36 @@ export class BaseScraper {
       const db = supabaseServer
       const { data: existingProducts, error: fetchError } = await db
         .from("products")
-        .select("id, name, price, sale_price, image_url, source_url, is_hidden")
+        .select("id, name, price, sale_price, image_url, source_url, original_product_id")
         .eq("shop_type", shopType)
         .eq("shop_name", shopName)
-        .returns<Pick<Product, "id" | "name" | "price" | "sale_price" | "image_url" | "source_url" | "is_hidden">[]>()
+        .returns<Pick<Product, "id" | "name" | "price" | "sale_price" | "image_url" | "source_url" | "original_product_id">[]>()
 
       if (fetchError) {
         errors.push(`既存商品の取得でエラー: ${fetchError.message}`)
-        return { insertedCount, updatedCount, hiddenCount, skippedCount, errors }
+        return { insertedCount, updatedCount, deletedCount, skippedCount, duplicatesRemovedCount, errors }
       }
 
-      // 2. 既存商品のマップを作成
+      // 2. 既存商品のマップを作成（source_url + name で一意に識別）
       const existingProductsMap = new Map<string, typeof existingProducts[0]>()
       existingProducts?.forEach(product => {
-        existingProductsMap.set(product.name, product)
+        const key = `${product.source_url || ""}|||${product.name}`
+        existingProductsMap.set(key, product)
       })
 
-      // 3. スクレイピングされた商品名のセット
-      const scrapedProductNames = new Set(scrapedProducts.map(p => p.name))
+      // 3. スクレイピングされた商品のキーセット
+      const scrapedProductKeys = new Set(
+        scrapedProducts.map(p => `${p.productUrl || ""}|||${p.name}`)
+      )
 
       // 4. 商品を分類
       const toInsert: ProductInsert[] = []
       const toUpdate: Array<{ id: string; data: ProductUpdate }> = []
 
       for (const product of scrapedProducts) {
-        const existing = existingProductsMap.get(product.name)
+        // source_url + name で既存商品を検索
+        const key = `${product.productUrl || ""}|||${product.name}`
+        const existing = existingProductsMap.get(key)
 
         if (!existing) {
           // 新規商品
@@ -267,42 +279,40 @@ export class BaseScraper {
             is_hidden: false
           })
         } else {
-          // 既存商品：価格またはセール価格に変動がある場合のみ更新
+          // 既存商品：price, sale_price, image_url のいずれかが変更された場合のみ更新
+          // source_url は一致判定に使用するため、比較対象から除外
           const priceChanged = existing.price !== product.price
           const salePriceChanged = existing.sale_price !== (product.salePrice || null)
           const imageChanged = existing.image_url !== (product.imageUrl || null)
-          const urlChanged = existing.source_url !== (product.productUrl || null)
 
-          if (priceChanged || salePriceChanged || imageChanged || urlChanged) {
+          if (priceChanged || salePriceChanged || imageChanged) {
             toUpdate.push({
               id: existing.id,
               data: {
                 price: product.price,
                 sale_price: product.salePrice || null,
-                image_url: product.imageUrl || null,
-                source_url: product.productUrl || null,
-                is_hidden: false // 再度スクレイピングされたら表示に戻す
+                image_url: product.imageUrl || null
               }
             })
           } else {
-            // 変更なしの場合でも、is_hiddenがtrueなら表示に戻す
-            if (existing.is_hidden) {
-              toUpdate.push({
-                id: existing.id,
-                data: { is_hidden: false }
-              })
-            } else {
-              skippedCount++
-            }
+            skippedCount++
           }
         }
       }
 
-      // 5. スクレイピングされなかった商品を非表示化
-      const toHide: string[] = []
+      // 5. スクレイピングされなかった商品を物理削除対象として収集
+      // source_url + name の組み合わせで判定
+      // コピー商品（original_product_id が null でない）は削除対象外
+      const toDelete: string[] = []
       existingProducts?.forEach(existing => {
-        if (!scrapedProductNames.has(existing.name) && !existing.is_hidden) {
-          toHide.push(existing.id)
+        // コピー商品はスキップ
+        if (existing.original_product_id) {
+          return
+        }
+
+        const key = `${existing.source_url || ""}|||${existing.name}`
+        if (!scrapedProductKeys.has(key)) {
+          toDelete.push(existing.id)
         }
       })
 
@@ -317,7 +327,6 @@ export class BaseScraper {
           errors.push(`新規商品の挿入でエラー: ${insertError.message}`)
         } else {
           insertedCount = toInsert.length
-          console.log(`${insertedCount}件の新規商品を挿入しました`)
         }
       }
 
@@ -335,28 +344,108 @@ export class BaseScraper {
             updatedCount++
           }
         }
-        console.log(`${updatedCount}件の商品を更新しました`)
       }
 
-      // 販売終了商品を非表示化
-      if (toHide.length > 0) {
-        const { error: hideError } = await db
+      // 販売終了商品を物理削除
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await db
           .from("products")
-          .update({ is_hidden: true } as never)
-          .in("id", toHide)
+          .delete()
+          .in("id", toDelete)
 
-        if (hideError) {
-          errors.push(`商品非表示化でエラー: ${hideError.message}`)
+        if (deleteError) {
+          errors.push(`商品削除でエラー: ${deleteError.message}`)
         } else {
-          hiddenCount = toHide.length
-          console.log(`${hiddenCount}件の商品を非表示化しました（販売終了と判断）`)
+          deletedCount = toDelete.length
+
+          // 削除されたオリジナル商品を参照しているコピー商品も削除
+          const { data: copiedProducts, error: copiedFetchError } = await db
+            .from("products")
+            .select("id")
+            .in("original_product_id", toDelete)
+
+          if (copiedFetchError) {
+            errors.push(`コピー商品の取得でエラー: ${copiedFetchError.message}`)
+          } else if (copiedProducts && copiedProducts.length > 0) {
+            const copiedProductIds = copiedProducts.map(p => p.id)
+            const { error: copiedDeleteError } = await db
+              .from("products")
+              .delete()
+              .in("id", copiedProductIds)
+
+            if (copiedDeleteError) {
+              errors.push(`コピー商品削除でエラー: ${copiedDeleteError.message}`)
+            } else {
+              deletedCount += copiedProducts.length
+            }
+          }
         }
       }
 
-      return { insertedCount, updatedCount, hiddenCount, skippedCount, errors }
+      // 7. 重複商品の削除
+      // カテゴリー横断で同じ商品（source_url + name が同じ）が複数登録されている場合、
+      // 最新のもの以外を削除
+      // コピー商品（original_product_id が null でない）は削除対象外
+      const { data: allProductsAfterUpdate, error: duplicateCheckError } = await db
+        .from("products")
+        .select("id, name, source_url, created_at, original_product_id")
+        .eq("shop_type", shopType)
+        .eq("shop_name", shopName)
+        .order("created_at", { ascending: false })
+
+      if (duplicateCheckError) {
+        errors.push(`重複チェックでエラー: ${duplicateCheckError.message}`)
+      } else if (allProductsAfterUpdate) {
+        // source_url + name でグループ化して重複を検出
+        const seenKeys = new Set<string>()
+        const duplicateIds: string[] = []
+
+        allProductsAfterUpdate.forEach(product => {
+          // コピー商品はスキップ
+          if (product.original_product_id) {
+            return
+          }
+
+          const key = `${product.source_url || ""}|||${product.name}`
+
+          if (seenKeys.has(key)) {
+            // すでに見たキー = 重複商品（古い方）
+            duplicateIds.push(product.id)
+          } else {
+            seenKeys.add(key)
+          }
+        })
+
+        // 重複商品を削除
+        if (duplicateIds.length > 0) {
+          const { error: duplicateDeleteError } = await db
+            .from("products")
+            .delete()
+            .in("id", duplicateIds)
+
+          if (duplicateDeleteError) {
+            errors.push(`重複商品削除でエラー: ${duplicateDeleteError.message}`)
+          } else {
+            duplicatesRemovedCount = duplicateIds.length
+          }
+        }
+      }
+
+      // 8. 結果サマリーをログ出力
+      console.log("===== スクレイピング結果サマリー =====")
+      console.log(`ショップ: ${shopType} - ${shopName}`)
+      console.log(`新規追加: ${insertedCount}件`)
+      console.log(`更新: ${updatedCount}件`)
+      console.log(`削除（販売終了）: ${deletedCount}件`)
+      console.log(`スキップ（変更なし）: ${skippedCount}件`)
+      console.log(`重複削除: ${duplicatesRemovedCount}件`)
+      console.log(`合計処理数: ${insertedCount + updatedCount + deletedCount + skippedCount}件`)
+      console.log("=====================================")
+
+      return { insertedCount, updatedCount, deletedCount, skippedCount, duplicatesRemovedCount, errors }
     } catch (error) {
       errors.push(`商品保存処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
-      return { insertedCount, updatedCount, hiddenCount, skippedCount, errors }
+      return { insertedCount, updatedCount, deletedCount, skippedCount, duplicatesRemovedCount, errors }
     }
   }
 }

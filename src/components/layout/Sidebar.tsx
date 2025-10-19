@@ -233,7 +233,7 @@ export function Sidebar({ className }: SidebarProps) {
 
     const checkAndExpand = (items: NavigationItem[]) => {
       items.forEach(item => {
-        const itemMatches = pathname === item.href || pathname.startsWith(item.href + "/")
+        const itemMatches = pathname === item.href || pathname.startsWith(`${item.href}/`)
         
         if (item.children) {
           const hasActiveChild = item.children.some(child => {
@@ -376,7 +376,7 @@ export function Sidebar({ className }: SidebarProps) {
               }
               
               // 通常の子要素（2階層目）
-              const isChildActive = pathname === child.href || pathname.startsWith(child.href + "/")
+              const isChildActive = pathname === child.href || pathname.startsWith(`${child.href}/`)
               return (
                 <Link key={child.name} href={child.href}>
                   <Button

@@ -3,7 +3,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
+import { supabaseServer as supabase } from "@/lib/supabase-server"
 import { randomUUID } from "crypto"
 import type { Product } from "@/types/database"
 
@@ -62,9 +62,10 @@ export async function POST(request: NextRequest) {
       image_url: originalProduct.image_url,
       source_url: originalProduct.source_url, // source_urlは保持
       asin: null, // asinをクリアしてASIN紐付けを解除
-      is_hidden: originalProduct.is_hidden,
       memo: originalProduct.memo ? `${originalProduct.memo} (コピー)` : "コピー商品",
       original_product_id: originalProductId, // 常に元の商品を参照
+      is_favorite: false,
+      is_hidden: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
