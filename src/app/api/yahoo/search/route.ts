@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { getYahooClient, YahooProduct } from "@/lib/api/yahoo-client"
-import { supabase } from "@/lib/supabase"
+import { supabaseServer as supabase } from "@/lib/supabase-server"
 import type { ProductInsert, Product } from "@/types/database"
 import { randomUUID } from "crypto"
 

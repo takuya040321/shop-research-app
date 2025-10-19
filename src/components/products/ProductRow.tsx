@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input"
 import { StarIcon } from "lucide-react"
 import { toast } from "sonner"
 import type { ExtendedProduct } from "@/lib/products"
-import { formatPrice, formatPercentage, updateProduct, updateAsin } from "@/lib/products"
+import { formatPrice, formatPercentage, updateAsin, updateProduct } from "@/lib/products"
 import { ImagePreview } from "./ImagePreview"
 import { EditableCell } from "./EditableCell"
 
