@@ -183,19 +183,29 @@ async saveOrUpdateProducts(
 ```
 
 **処理フロー**:
-1. 既存商品を全取得（shop_type, shop_nameで絞り込み）
+1. 既存商品を全取得（shop_type, shop_nameで絞り込み、original_product_id含む）
 2. スクレイピング結果と比較：
-   - 新規商品 → INSERT（is_hidden=false）
-   - 価格等変更 → UPDATE（price, sale_price, image_url, source_url）
+   - 新規商品 → INSERT
+   - 価格等変更 → UPDATE（price, sale_price, image_url）
    - 変更なし → SKIP
-   - 非表示商品の再発見 → UPDATE（is_hidden=false）
-3. 販売終了商品 → UPDATE（is_hidden=true）
-4. バッチ処理で効率的に実行
+3. 販売終了商品の物理削除：
+   - **コピー商品の保護**: original_product_idが設定されているコピー商品は削除対象外
+   - **カスケード削除**: オリジナル商品削除時、それを参照するコピー商品も自動削除
+4. 重複商品の削除: カテゴリ横断で同じ商品（source_url + name）が重複している場合、最新以外を削除
+   - **コピー商品の除外**: コピー商品は重複チェック対象外
+5. 全カテゴリのスクレイピング完了後、一括でINSERT/UPDATE/DELETE操作を実行（バッチ処理）
+
+**コピー商品の特別処理**:
+- `original_product_id`フィールドで元商品を追跡
+- コピー商品はスクレイピングによる削除・重複削除から保護
+- 元商品削除時のみカスケード削除で自動削除
 
 **利点**:
 - 価格履歴の自動追跡
-- 販売終了商品の適切な管理
-- データの完全性保持（ソフトデリート）
+- 販売終了商品の適切な削除
+- コピー商品の保護による誤削除防止
+- カテゴリ横断での重複排除
+- パフォーマンス向上（バッチ処理）
 
 ### 4.4 商品データ取得関数
 #### 4.4.1 全商品取得関数
