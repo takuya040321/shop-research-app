@@ -471,6 +471,7 @@ export interface ProductFilters {
   maxROI: number | null
   asinStatus: "all" | "with_asin" | "without_asin"
   favoriteStatus: "all" | "favorite_only" | "non_favorite_only"  // お気に入りフィルター
+  saleStatus: "all" | "on_sale" | "regular_price"  // セール状況フィルター
 }
 
 // ProductTableコンポーネントProps
