@@ -49,7 +49,8 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
     minROI: null,
     maxROI: null,
     asinStatus: "all",
-    favoriteStatus: "all"
+    favoriteStatus: "all",
+    saleStatus: "all"
   })
 
   // 個別商品を状態で直接更新（全体リロード不要）
@@ -145,6 +146,12 @@ export function useProductTable({ shopFilter, pageSize = 50 }: UseProductTableOp
       filtered = filtered.filter(product => product.is_favorite)
     } else if (filters.favoriteStatus === "non_favorite_only") {
       filtered = filtered.filter(product => !product.is_favorite)
+    }
+
+    if (filters.saleStatus === "on_sale") {
+      filtered = filtered.filter(product => product.sale_price !== null && product.sale_price > 0)
+    } else if (filters.saleStatus === "regular_price") {
+      filtered = filtered.filter(product => !product.sale_price || product.sale_price === 0)
     }
 
     if (!sortField || !sortDirection) return filtered

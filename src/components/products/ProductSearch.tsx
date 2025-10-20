@@ -190,6 +190,24 @@ export function ProductSearch({ filters, onFiltersChange }: ProductSearchProps) 
                 </SelectContent>
               </Select>
             </div>
+
+            {/* セール状況 */}
+            <div className="space-y-2">
+              <div className="text-sm font-medium">セール状況</div>
+              <Select
+                value={filters.saleStatus}
+                onValueChange={(value) => handleFilterChange(filters, onFiltersChange, "saleStatus", value as typeof filters.saleStatus)}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="すべて" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべて</SelectItem>
+                  <SelectItem value="on_sale">セール中のみ</SelectItem>
+                  <SelectItem value="regular_price">通常価格のみ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       )}
