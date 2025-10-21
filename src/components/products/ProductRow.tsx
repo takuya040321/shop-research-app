@@ -308,6 +308,7 @@ export function ProductRow({
               const success = await updateProduct(product.id, { is_hidden: newValue })
               if (success) {
                 onUpdateProductInState(product.id, { is_hidden: newValue })
+                toast.success(newValue ? "商品を非表示にしました" : "商品を表示に戻しました")
               } else {
                 toast.error("更新に失敗しました")
               }
