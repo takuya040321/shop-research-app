@@ -10,6 +10,10 @@ export interface DisplaySettings {
   columnWidths: Record<string, number>
   // テーマ設定
   theme: "light" | "dark" | "system"
+  // ページサイズ
+  pageSize: number
+  // 列の表示/非表示設定
+  visibleColumns: Record<string, boolean>
 }
 
 // ソート設定
@@ -76,7 +80,32 @@ export const DEFAULT_SETTINGS: GlobalSettings = {
       profit_rate: 96,
       roi: 96
     },
-    theme: "system"
+    theme: "system",
+    pageSize: 50,
+    visibleColumns: {
+      favorite: true,
+      image: true,
+      name: true,
+      price: true,
+      purchase_price: true,
+      asin: true,
+      amazon_name: true,
+      amazon_price: true,
+      monthly_sales: true,
+      fee_rate: true,
+      fba_fee: true,
+      jan_code: true,
+      profit_amount: true,
+      profit_rate: true,
+      roi: true,
+      is_hidden: true,
+      has_amazon: true,
+      has_official: true,
+      complaint_count: true,
+      is_dangerous: true,
+      is_per_carry_ng: true,
+      memo: true
+    }
   },
   sort: {
     defaultSortColumn: "name",
@@ -103,6 +132,8 @@ export function validateSettings(settings: unknown): settings is GlobalSettings 
     typeof s.system === "object" &&
     Array.isArray(s.display?.defaultColumns) &&
     typeof s.display?.columnWidths === "object" &&
+    typeof s.display?.pageSize === "number" &&
+    typeof s.display?.visibleColumns === "object" &&
     typeof s.sort?.defaultSortColumn === "string" &&
     (s.sort?.defaultSortDirection === "asc" || s.sort?.defaultSortDirection === "desc") &&
     typeof s.system?.enableNotifications === "boolean" &&
