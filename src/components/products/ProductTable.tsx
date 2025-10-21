@@ -14,6 +14,7 @@ import { CopyIcon, TrashIcon } from "lucide-react"
 import type { ExtendedProduct } from "@/lib/products"
 import { updateProduct } from "@/lib/products"
 import { ProductSearch } from "./ProductSearch"
+import { DisplaySettingsPanel } from "./DisplaySettingsPanel"
 import { ContextMenu, useContextMenu } from "@/components/ui/ContextMenu"
 import { useProductTable } from "@/hooks/products/useProductTable"
 import { ProductTableHeader } from "./ProductTableHeader"
@@ -152,6 +153,9 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
 
   return (
     <div className={className}>
+      {/* 表示設定 */}
+      <DisplaySettingsPanel onSettingsChange={() => window.location.reload()} />
+
       {/* 検索・フィルター */}
       <ProductSearch
         filters={filters}
