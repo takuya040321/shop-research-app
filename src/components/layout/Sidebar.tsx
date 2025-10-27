@@ -16,6 +16,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Star,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import type { Database as DB } from "@/types/database"
@@ -47,6 +48,11 @@ const staticNavigation = [
     name: "ダッシュボード",
     href: "/",
     icon: Home,
+  },
+  {
+    name: "お気に入り",
+    href: "/favorites",
+    icon: Star,
   },
   {
     name: "公式",
