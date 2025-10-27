@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { MainLayout } from "@/components/layout/MainLayout"
 import { Button } from "@/components/ui/Button"
@@ -18,18 +17,13 @@ import {
   Search,
   DollarSign,
   Percent,
-  StarIcon,
-  RefreshCw,
 } from "lucide-react"
 import { formatPrice, formatPercentage } from "@/lib/products"
 import { useDashboard } from "@/hooks/dashboard/useDashboard"
-import { FavoriteProductTable } from "@/components/products/FavoriteProductTable"
-import { toast } from "sonner"
 
 export default function Home() {
   // カスタムフックから全てのロジックを取得
-  const { summary, shopStats, favoriteProducts, loading } = useDashboard()
-  const [isScraping, setIsScraping] = useState(false)
+  const { summary, shopStats, loading } = useDashboard()
 
   return (
     <MainLayout>
@@ -136,62 +130,6 @@ export default function Home() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </div>
-
-        {/* お気に入り一覧 */}
-        <div className="rounded-lg border bg-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <StarIcon className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-              <h3 className="font-semibold">お気に入り商品</h3>
-            </div>
-            <Button
-              onClick={async () => {
-                if (favoriteProducts.length === 0) {
-                  toast.error("お気に入り商品がありません")
-                  return
-                }
-
-                setIsScraping(true)
-                toast.info("お気に入り商品のスクレイピングを開始します...")
-
-                try {
-                  const response = await fetch("/api/scrape/favorites", {
-                    method: "POST"
-                  })
-
-                  const result = await response.json()
-
-                  if (response.ok && result.success) {
-                    toast.success(result.message)
-                    // データを再読み込み
-                    window.location.reload()
-                  } else {
-                    toast.error(result.message || "スクレイピングに失敗しました")
-                  }
-                } catch (error) {
-                  console.error("スクレイピングエラー:", error)
-                  toast.error("スクレイピング中にエラーが発生しました")
-                } finally {
-                  setIsScraping(false)
-                }
-              }}
-              disabled={isScraping || favoriteProducts.length === 0}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${isScraping ? "animate-spin" : ""}`} />
-              {isScraping ? "スクレイピング中..." : "価格を更新"}
-            </Button>
-          </div>
-          {loading ? (
-            <p className="text-center py-8 text-muted-foreground">読み込み中...</p>
-          ) : favoriteProducts.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">
-              お気に入り商品がありません
-            </p>
-          ) : (
-            <FavoriteProductTable />
           )}
         </div>
 
