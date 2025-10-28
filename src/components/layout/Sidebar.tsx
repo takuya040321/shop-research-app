@@ -81,6 +81,7 @@ const bottomNavigation = [
       { name: "割引設定", href: "/settings/discounts" },
       { name: "楽天ショップ設定", href: "/rakuten" },
       { name: "Yahooショップ設定", href: "/settings/yahoo" },
+      { name: "Yahoo APIテスト", href: "/test/yahoo-api" },
       { name: "エラーログ", href: "/settings/logs" },
     ],
   },
