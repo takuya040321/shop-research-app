@@ -32,6 +32,13 @@ interface APITestResult {
   returnedCount: number
 }
 
+interface APIResponse {
+  success: boolean
+  data?: APITestResult
+  error?: string
+  debug?: string[]
+}
+
 export default function YahooAPITestPage() {
   // フォーム状態
   const [appId, setAppId] = useState("")
@@ -48,6 +55,8 @@ export default function YahooAPITestPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<APITestResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [debugLog, setDebugLog] = useState<string[]>([])
+  const [showDebug, setShowDebug] = useState(false)
 
   // API呼び出し
   const handleSearch = async () => {
@@ -59,39 +68,71 @@ export default function YahooAPITestPage() {
     setLoading(true)
     setError(null)
     setResult(null)
+    setDebugLog([])
+    setShowDebug(false)
+
+    const clientLog: string[] = []
+    clientLog.push("[CLIENT] API呼び出し開始")
 
     try {
+      const requestBody = {
+        appId: appId.trim(),
+        affiliateId: affiliateId.trim() || undefined,
+        query: query.trim() || undefined,
+        sellerId: sellerId.trim() || undefined,
+        categoryId: categoryId.trim() || undefined,
+        brandName: brandName.trim() || undefined,
+        hits: parseInt(hits) || 30,
+        offset: parseInt(offset) || 1,
+        sort: sort.trim() || undefined
+      }
+      clientLog.push(`[CLIENT] リクエストボディ: ${JSON.stringify(requestBody, null, 2)}`)
+
+      clientLog.push("[CLIENT] fetch実行中...")
       const response = await fetch("/api/test/yahoo", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          appId: appId.trim(),
-          affiliateId: affiliateId.trim() || undefined,
-          query: query.trim() || undefined,
-          sellerId: sellerId.trim() || undefined,
-          categoryId: categoryId.trim() || undefined,
-          brandName: brandName.trim() || undefined,
-          hits: parseInt(hits) || 30,
-          offset: parseInt(offset) || 1,
-          sort: sort.trim() || undefined
-        })
+        body: JSON.stringify(requestBody)
       })
 
-      const data = await response.json()
+      clientLog.push(`[CLIENT] レスポンス受信: HTTP ${response.status} ${response.statusText}`)
+
+      const data: APIResponse = await response.json()
+      clientLog.push(`[CLIENT] JSONパース完了`)
+
+      // サーバーからのデバッグログを結合
+      const combinedLog = [...clientLog, ...(data.debug || [])]
+      setDebugLog(combinedLog)
+      console.log("=== デバッグログ ===")
+      console.log(combinedLog.join("\n"))
 
       if (!response.ok || !data.success) {
+        clientLog.push(`[CLIENT ERROR] エラーレスポンス: ${data.error}`)
+        setDebugLog([...clientLog, ...(data.debug || [])])
         throw new Error(data.error || "API呼び出しに失敗しました")
       }
 
+      if (!data.data) {
+        throw new Error("レスポンスデータが不正です")
+      }
+
+      clientLog.push(`[CLIENT] 成功: ${data.data.returnedCount}件の商品を取得`)
       setResult(data.data)
       toast.success(`${data.data.returnedCount}件の商品を取得しました`)
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "不明なエラーが発生しました"
+      clientLog.push(`[CLIENT ERROR] ${errorMessage}`)
+      if (err instanceof Error && err.stack) {
+        clientLog.push(`[CLIENT ERROR STACK] ${err.stack}`)
+      }
+      setDebugLog(clientLog)
       setError(errorMessage)
       toast.error(errorMessage)
+      console.error("=== クライアントエラー ===")
+      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -266,6 +307,27 @@ export default function YahooAPITestPage() {
             </Button>
           </div>
         </Card>
+
+        {/* デバッグログ表示 */}
+        {debugLog.length > 0 && (
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-medium">デバッグログ</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDebug(!showDebug)}
+              >
+                {showDebug ? "非表示" : "表示"}
+              </Button>
+            </div>
+            {showDebug && (
+              <pre className="bg-gray-900 text-green-400 p-4 rounded text-xs overflow-x-auto max-h-96 overflow-y-auto">
+                {debugLog.join("\n")}
+              </pre>
+            )}
+          </Card>
+        )}
 
         {/* エラー表示 */}
         {error && (
