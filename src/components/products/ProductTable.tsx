@@ -5,18 +5,17 @@
  * 商品情報とASIN情報を結合して表示し、インライン編集機能を提供
  */
 
-import { useState, useEffect, useRef } from "react"
-import { toast } from "sonner"
+import { useState, useEffect } from "react"
 import { Table, TableBody } from "@/components/ui/Table"
 import { Card } from "@/components/ui/Card"
 import { CopyIcon, TrashIcon } from "lucide-react"
 
 import type { ExtendedProduct } from "@/lib/products"
-import { updateProduct } from "@/lib/products"
 import { ProductSearch } from "./ProductSearch"
 import { DisplaySettingsPanel } from "./DisplaySettingsPanel"
 import { ContextMenu, useContextMenu } from "@/components/ui/ContextMenu"
 import { useProductTable } from "@/hooks/products/useProductTable"
+import { useProductTableUI } from "@/hooks/products/useProductTableUI"
 import { ProductTableHeader } from "./ProductTableHeader"
 import { ProductRow } from "./ProductRow"
 
@@ -53,6 +52,17 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
     pageSize: 9999 // 全件表示するため大きな値を設定
   })
 
+  // UI関連のロジックを取得
+  const {
+    scrollContainerRef,
+    handleToggleFavorite,
+    getContextMenuItems
+  } = useProductTableUI(
+    updateProductInState,
+    handleCopyProduct,
+    handleDeleteProduct
+  )
+
   // 初期フィルター設定
   useEffect(() => {
     if (initialFavoriteFilter) {
@@ -62,67 +72,6 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
       }))
     }
   }, [initialFavoriteFilter, setFilters])
-
-  // 横スクロールコンテナのref
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
-
-  // お気に入りトグルハンドラー
-  const handleToggleFavorite = async (product: ExtendedProduct) => {
-    const newFavoriteStatus = !product.is_favorite
-    try {
-      const success = await updateProduct(product.id, {
-        is_favorite: newFavoriteStatus
-      })
-      if (success) {
-        updateProductInState(product.id, { is_favorite: newFavoriteStatus })
-        toast.success(newFavoriteStatus ? "お気に入りに追加しました" : "お気に入りを解除しました")
-      } else {
-        toast.error("更新に失敗しました")
-      }
-    } catch (err) {
-      console.error("お気に入り更新エラー:", err)
-      toast.error("更新中にエラーが発生しました")
-    }
-  }
-
-  // Shift+ホイールで横スクロール
-  useEffect(() => {
-    const container = scrollContainerRef.current
-    if (!container) return
-
-    const handleWheel = (e: WheelEvent) => {
-      if (e.shiftKey) {
-        e.preventDefault()
-        container.scrollLeft += e.deltaY
-      }
-    }
-
-    container.addEventListener('wheel', handleWheel, { passive: false })
-    return () => {
-      container.removeEventListener('wheel', handleWheel)
-    }
-  }, [])
-
-  // 右クリックメニューの項目
-  const getContextMenuItems = (product: ExtendedProduct) => {
-    return [
-      {
-        label: "商品をコピー",
-        icon: <CopyIcon className="w-4 h-4" />,
-        onClick: () => handleCopyProduct(product)
-      },
-      {
-        separator: true,
-        label: "",
-        onClick: () => {}
-      },
-      {
-        label: "商品を削除",
-        icon: <TrashIcon className="w-4 h-4" />,
-        onClick: () => handleDeleteProduct(product)
-      }
-    ]
-  }
 
   // 右クリックハンドラー
   const handleRowRightClick = (event: React.MouseEvent, product: ExtendedProduct) => {
@@ -212,7 +161,11 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
           x={contextMenu.x}
           y={contextMenu.y}
           visible={contextMenu.visible}
-          items={getContextMenuItems(selectedProductForMenu)}
+          items={getContextMenuItems(
+            selectedProductForMenu,
+            <CopyIcon className="w-4 h-4" />,
+            <TrashIcon className="w-4 h-4" />
+          )}
           onClose={hideContextMenu}
         />
       )}
