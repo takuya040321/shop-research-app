@@ -486,7 +486,7 @@ export function PaginatedProductTable({ className, shopFilter, pageSize = 50 }: 
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteProduct(product)}
+                        onClick={() => handleDeleteProduct(product.id)}
                         className="h-6 w-6 p-0"
                       >
                         <TrashIcon className="w-3 h-3" />

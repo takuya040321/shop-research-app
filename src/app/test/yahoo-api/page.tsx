@@ -41,11 +41,10 @@ interface APIResponse {
 
 export default function YahooAPITestPage() {
   // フォーム状態
-  const [appId, setAppId] = useState("")
-  const [affiliateId, setAffiliateId] = useState("")
   const [query, setQuery] = useState("")
   const [sellerId, setSellerId] = useState("")
   const [categoryId, setCategoryId] = useState("")
+  const [brandId, setBrandId] = useState("")
   const [brandName, setBrandName] = useState("")
   const [hits, setHits] = useState("30")
   const [offset, setOffset] = useState("1")
@@ -60,11 +59,6 @@ export default function YahooAPITestPage() {
 
   // API呼び出し
   const handleSearch = async () => {
-    if (!appId.trim()) {
-      toast.error("App IDを入力してください")
-      return
-    }
-
     setLoading(true)
     setError(null)
     setResult(null)
@@ -76,11 +70,10 @@ export default function YahooAPITestPage() {
 
     try {
       const requestBody = {
-        appId: appId.trim(),
-        affiliateId: affiliateId.trim() || undefined,
         query: query.trim() || undefined,
         sellerId: sellerId.trim() || undefined,
         categoryId: categoryId.trim() || undefined,
+        brandId: brandId.trim() || undefined,
         brandName: brandName.trim() || undefined,
         hits: parseInt(hits) || 30,
         offset: parseInt(offset) || 1,
@@ -143,6 +136,7 @@ export default function YahooAPITestPage() {
     setQuery("")
     setSellerId("")
     setCategoryId("")
+    setBrandId("")
     setBrandName("")
     setHits("30")
     setOffset("1")
@@ -164,33 +158,11 @@ export default function YahooAPITestPage() {
         {/* APIパラメータ入力フォーム */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">APIパラメータ</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            ※ App IDは環境変数から自動的に設定されます
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* App ID（必須） */}
-            <div className="space-y-2">
-              <Label htmlFor="appId">App ID *</Label>
-              <Input
-                id="appId"
-                type="text"
-                value={appId}
-                onChange={(e) => setAppId(e.target.value)}
-                placeholder="Yahoo App ID"
-                required
-              />
-            </div>
-
-            {/* Affiliate ID（オプション） */}
-            <div className="space-y-2">
-              <Label htmlFor="affiliateId">Affiliate ID</Label>
-              <Input
-                id="affiliateId"
-                type="text"
-                value={affiliateId}
-                onChange={(e) => setAffiliateId(e.target.value)}
-                placeholder="アフィリエイトID（オプション）"
-              />
-            </div>
-
             {/* 検索キーワード */}
             <div className="space-y-2">
               <Label htmlFor="query">検索キーワード</Label>
@@ -203,9 +175,21 @@ export default function YahooAPITestPage() {
               />
             </div>
 
+            {/* ブランドID */}
+            <div className="space-y-2">
+              <Label htmlFor="brandId">ブランドID</Label>
+              <Input
+                id="brandId"
+                type="text"
+                value={brandId}
+                onChange={(e) => setBrandId(e.target.value)}
+                placeholder="例: 12345"
+              />
+            </div>
+
             {/* ブランド名フィルター */}
             <div className="space-y-2">
-              <Label htmlFor="brandName">ブランド名</Label>
+              <Label htmlFor="brandName">ブランド名（フィルター用）</Label>
               <Input
                 id="brandName"
                 type="text"
@@ -283,7 +267,7 @@ export default function YahooAPITestPage() {
           <div className="flex gap-3 mt-6">
             <Button
               onClick={handleSearch}
-              disabled={loading || !appId.trim()}
+              disabled={loading}
               className="flex items-center gap-2"
             >
               {loading ? (

@@ -541,42 +541,29 @@ export function useProductTable({
     }
   }, [loadProducts])
 
-  const handleDeleteProduct = useCallback(async (product: ExtendedProduct) => {
-    // toastで削除確認を表示
-    toast.error(`「${product.name}」を削除しますか？`, {
-      description: "この操作は取り消せません",
-      action: {
-        label: "削除",
-        onClick: async () => {
-          try {
-            const success = await deleteProduct(product.id)
-            if (success) {
-              // 行レベル更新: 削除された商品をstateから除外（全体リロード不要）
-              setProducts(prev => prev.filter(p => p.id !== product.id))
+  const handleDeleteProduct = useCallback(async (productId: string) => {
+    try {
+      const success = await deleteProduct(productId)
+      if (success) {
+        // 行レベル更新: 削除された商品をstateから除外（全体リロード不要）
+        setProducts(prev => prev.filter(p => p.id !== productId))
 
-              // 選択状態からも削除
-              const newSelection = new Set(selectedProducts)
-              newSelection.delete(product.id)
-              setSelectedProducts(newSelection)
+        // 選択状態からも削除
+        const newSelection = new Set(selectedProducts)
+        newSelection.delete(productId)
+        setSelectedProducts(newSelection)
 
-              setError(null)
-              toast.success("商品を削除しました")
-            } else {
-              setError("商品の削除に失敗しました")
-              toast.error("商品の削除に失敗しました")
-            }
-          } catch (err) {
-            console.error("商品削除エラー:", err)
-            setError("商品の削除中にエラーが発生しました")
-            toast.error("商品の削除に失敗しました")
-          }
-        }
-      },
-      cancel: {
-        label: "キャンセル",
-        onClick: () => {}
+        setError(null)
+        toast.success("商品を削除しました")
+      } else {
+        setError("商品の削除に失敗しました")
+        toast.error("商品の削除に失敗しました")
       }
-    })
+    } catch (err) {
+      console.error("商品削除エラー:", err)
+      setError("商品の削除中にエラーが発生しました")
+      toast.error("商品の削除に失敗しました")
+    }
   }, [selectedProducts])
 
   const getSortIcon = useCallback((field: string) => {
@@ -625,7 +612,8 @@ export function useProductTable({
   const getContextMenuItems = useCallback((
     product: ExtendedProduct,
     copyIcon: React.ReactNode,
-    trashIcon: React.ReactNode
+    trashIcon: React.ReactNode,
+    onDeleteClick: (product: ExtendedProduct) => void
   ): ContextMenuItem[] => {
     return [
       {
@@ -641,10 +629,10 @@ export function useProductTable({
       {
         label: "商品を削除",
         icon: trashIcon,
-        onClick: () => handleDeleteProduct(product)
+        onClick: () => onDeleteClick(product)
       }
     ]
-  }, [handleCopyProduct, handleDeleteProduct])
+  }, [handleCopyProduct])
 
   return {
     // State

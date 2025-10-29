@@ -12,9 +12,9 @@ import { randomUUID } from "crypto"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { query, sellerId, categoryId, shopName, hits, offset } = body
+    const { query, sellerId, categoryId, brandId, shopName, hits, offset } = body
 
-    console.log("Yahoo商品検索を開始します...", { query, sellerId, categoryId })
+    console.log("Yahoo商品検索を開始します...", { query, sellerId, categoryId, brandId })
 
     // Yahoo APIクライアント取得
     const client = getYahooClient()
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       query,
       seller_id: sellerId,
       category_id: categoryId,
+      brand_id: brandId,
       hits: hits || 30,
       offset: offset || 1
     })
@@ -152,6 +153,7 @@ export async function GET() {
       query: "検索クエリ",
       sellerId: "ストアID",
       categoryId: "カテゴリID",
+      brandId: "ブランドID",
       shopName: "ショップ表示名",
       hits: "取得件数（デフォルト: 30）",
       offset: "オフセット（デフォルト: 1）"

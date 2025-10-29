@@ -13,6 +13,7 @@ export interface YahooSearchParams {
   query?: string
   seller_id?: string
   category_id?: string
+  brand_id?: string
   hits?: number
   offset?: number
   sort?: string
@@ -90,6 +91,10 @@ export class YahooAPIClient {
 
       if (params.category_id) {
         searchParams.append("category_id", params.category_id)
+      }
+
+      if (params.brand_id) {
+        searchParams.append("brand_id", params.brand_id)
       }
 
       if (params.sort) {

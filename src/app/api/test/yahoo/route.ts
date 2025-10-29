@@ -14,23 +14,27 @@ export async function POST(request: NextRequest) {
     debugLog.push(`[STEP 2] リクエストボディ解析成功: ${JSON.stringify(body)}`)
 
     const {
-      appId,
-      affiliateId,
       query,
       sellerId,
       categoryId,
+      brandId,
       brandName,
       hits = 30,
       offset = 1,
       sort
     } = body
 
+    // 環境変数からApp IDを取得
+    const appId = process.env.YAHOO_CLIENT_ID
+    const affiliateId = process.env.YAHOO_AFFILIATE_ID
+
     debugLog.push(`[STEP 3] パラメータ抽出完了`)
-    debugLog.push(`  - appId: ${appId ? "設定あり" : "なし"}`)
+    debugLog.push(`  - appId: ${appId ? "環境変数から取得" : "なし"}`)
     debugLog.push(`  - affiliateId: ${affiliateId || "なし"}`)
     debugLog.push(`  - query: ${query || "なし"}`)
     debugLog.push(`  - sellerId: ${sellerId || "なし"}`)
     debugLog.push(`  - categoryId: ${categoryId || "なし"}`)
+    debugLog.push(`  - brandId: ${brandId || "なし"}`)
     debugLog.push(`  - brandName: ${brandName || "なし"}`)
     debugLog.push(`  - hits: ${hits}`)
     debugLog.push(`  - offset: ${offset}`)
@@ -38,11 +42,11 @@ export async function POST(request: NextRequest) {
 
     // 必須パラメータチェック
     if (!appId) {
-      debugLog.push("[ERROR] App IDが設定されていません")
+      debugLog.push("[ERROR] App IDが環境変数に設定されていません")
       console.log(debugLog.join("\n"))
       return NextResponse.json(
         {
-          error: "App IDは必須です",
+          error: "App IDが環境変数に設定されていません（YAHOO_CLIENT_ID）",
           debug: debugLog
         },
         { status: 400 }
@@ -68,6 +72,7 @@ export async function POST(request: NextRequest) {
       query: searchQuery || undefined,
       seller_id: sellerId || undefined,
       category_id: categoryId || undefined,
+      brand_id: brandId || undefined,
       hits,
       offset,
       sort: sort || undefined
