@@ -229,10 +229,17 @@ App Layout
 - AsinForm
 - SettingsForm
 - FileUploadForm
-- **ProductTable**: 商品テーブルコンポーネント（Shift+ホイールで横スクロール対応、お気に入り機能付き、行レベル更新対応）
+- **ProductTable**: 商品テーブルコンポーネント（Shift+ホイールで横スクロール対応、お気に入り機能付き、行レベル更新対応、Toast通知統合）
+  - **useProductTable**: 統合カスタムフック（データ管理、UI制御、Toast通知を一元化）
+    - 商品データ管理（CRUD操作）
+    - ソート・フィルタリング・ページネーション
+    - インライン編集機能
+    - Toast通知（ASIN登録成功時の利益率・ROI表示、削除確認、コピー結果）
+    - 横スクロール機能（Shift+ホイール）
+    - コンテキストメニュー項目生成
   - **ProductTableHeader**: ソート機能付きテーブルヘッダー（23列のソート対応）
   - **ProductRow**: 商品行コンポーネント（お気に入り、画像、編集セル、各種フラグの管理）
-  - **EditableCell**: インライン編集可能なセルコンポーネント（テキスト、数値、真偽値入力対応、Enter保存・Escape キャンセル）
+  - **EditableCell**: インライン編集可能なセルコンポーネント（テキスト、数値、真偽値入力対応、Enter保存・Escapeキャンセル）
   - **ImagePreview**: 商品画像プレビューコンポーネント（ホバー時拡大表示、プロキシ対応）
 - **FavoriteProductTable**: お気に入り商品専用テーブル（ProductTableをラップ、initialFavoriteFilterで絞り込み）
 - SortableHeader
