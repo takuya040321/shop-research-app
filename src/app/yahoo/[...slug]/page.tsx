@@ -17,6 +17,7 @@ import { useYahooPage } from "@/hooks/yahoo/useYahooPage"
 // Yahoo階層設定
 const YAHOO_CONFIG: Record<string, {
   displayName: string
+  parentCategory?: "lohaco" | "zozotown" | null
   sellerId?: string
   categoryId?: string
   defaultQuery?: string
@@ -24,24 +25,31 @@ const YAHOO_CONFIG: Record<string, {
   // LOHACO
   "lohaco-dhc": {
     displayName: "LOHACO-DHC",
+    parentCategory: "lohaco",
     defaultQuery: "DHC"
   },
   "lohaco-vt": {
     displayName: "LOHACO-VT",
+    parentCategory: "lohaco",
     defaultQuery: "VT Cosmetics"
   },
   // ZOZOTOWN
   "zozotown-dhc": {
     displayName: "ZOZOTOWN-DHC",
+    parentCategory: "zozotown",
+    sellerId: "zozo",
     defaultQuery: "DHC"
   },
   "zozotown-vt": {
     displayName: "ZOZOTOWN-VT",
+    parentCategory: "zozotown",
+    sellerId: "zozo",
     defaultQuery: "VT Cosmetics"
   },
   // Yahoo直販
   "vt": {
     displayName: "Yahoo-VT",
+    parentCategory: null,
     defaultQuery: "VT Cosmetics"
   }
 }
@@ -54,22 +62,34 @@ export default function YahooHierarchyPage() {
   const configKey = slug.join("-")
   const config = YAHOO_CONFIG[configKey]
 
+  // shopNameの生成（親カテゴリを考慮）
+  const generateShopName = () => {
+    if (!config) return ""
+    if (config.parentCategory) {
+      return `${config.parentCategory}/${config.displayName}`
+    }
+    return config.displayName
+  }
+
   // カスタムフックから全てのロジックを取得
   const {
     query,
     sellerId,
     categoryId,
+    brandId,
     loading,
     refreshKey,
     setQuery,
     setSellerId,
     setCategoryId,
+    setBrandId,
     handleSearch
   } = useYahooPage({
     defaultQuery: config?.defaultQuery || "",
     defaultSellerId: config?.sellerId || "",
     defaultCategoryId: config?.categoryId || "",
-    shopName: config?.displayName || ""
+    shopName: generateShopName(),
+    isZozotown: config?.parentCategory === "zozotown"
   })
 
   if (!config) {
@@ -105,7 +125,7 @@ export default function YahooHierarchyPage() {
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">商品検索</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">検索クエリ</label>
                   <Input
@@ -116,11 +136,27 @@ export default function YahooHierarchyPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">ストアID</label>
+                  <label className="text-sm font-medium">ブランドID</label>
+                  <Input
+                    placeholder="ブランドID"
+                    value={brandId}
+                    onChange={(e) => setBrandId(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    ストアID
+                    {config?.parentCategory === "zozotown" && (
+                      <span className="ml-2 text-xs text-gray-500">(ZOZOTOWN固定)</span>
+                    )}
+                  </label>
                   <Input
                     placeholder="ストアID"
-                    value={sellerId}
+                    value={config?.parentCategory === "zozotown" ? "zozo" : sellerId}
                     onChange={(e) => setSellerId(e.target.value)}
+                    disabled={config?.parentCategory === "zozotown"}
+                    className={config?.parentCategory === "zozotown" ? "bg-gray-100" : ""}
                   />
                 </div>
 

@@ -10,25 +10,33 @@ interface UseYahooPageOptions {
   defaultQuery?: string
   defaultSellerId?: string
   defaultCategoryId?: string
+  defaultBrandId?: string
   shopName: string
+  isZozotown?: boolean
 }
 
 export function useYahooPage({
   defaultQuery = "",
   defaultSellerId = "",
   defaultCategoryId = "",
-  shopName
+  defaultBrandId = "",
+  shopName,
+  isZozotown = false
 }: UseYahooPageOptions) {
   const [query, setQuery] = useState(defaultQuery)
   const [sellerId, setSellerId] = useState(defaultSellerId)
   const [categoryId, setCategoryId] = useState(defaultCategoryId)
+  const [brandId, setBrandId] = useState(defaultBrandId)
   const [loading, setLoading] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const handleSearch = async () => {
-    if (!query && !sellerId && !categoryId) {
+    // ZOZOTOWNの場合はsellerIdを強制的に"zozo"に設定
+    const effectiveSellerId = isZozotown ? "zozo" : (sellerId || undefined)
+
+    if (!query && !effectiveSellerId && !categoryId && !brandId) {
       toast.error("検索条件を入力してください", {
-        description: "クエリ、ストアID、カテゴリIDのいずれかを入力してください"
+        description: "クエリ、ストアID、カテゴリID、ブランドIDのいずれかを入力してください"
       })
       return
     }
@@ -43,8 +51,9 @@ export function useYahooPage({
         },
         body: JSON.stringify({
           query: query || undefined,
-          sellerId: sellerId || undefined,
+          sellerId: effectiveSellerId,
           categoryId: categoryId || undefined,
+          brandId: brandId || undefined,
           shopName,
           hits: 30,
           offset: 1
@@ -79,6 +88,7 @@ export function useYahooPage({
     query,
     sellerId,
     categoryId,
+    brandId,
     loading,
     refreshKey,
 
@@ -86,6 +96,7 @@ export function useYahooPage({
     setQuery,
     setSellerId,
     setCategoryId,
+    setBrandId,
     handleSearch
   }
 }
