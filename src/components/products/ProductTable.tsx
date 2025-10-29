@@ -16,6 +16,7 @@ import { DisplaySettingsPanel } from "./DisplaySettingsPanel"
 import { ProductTableHeader } from "./ProductTableHeader"
 import { ProductRow } from "./ProductRow"
 import { ContextMenu, useContextMenu } from "@/components/ui/ContextMenu"
+import { DeleteConfirmDialog } from "./DeleteConfirmDialog"
 
 interface ProductTableProps {
   className?: string
@@ -25,6 +26,8 @@ interface ProductTableProps {
 
 export function ProductTable({ className, shopFilter, initialFavoriteFilter }: ProductTableProps) {
   const [selectedProductForMenu, setSelectedProductForMenu] = useState<ExtendedProduct | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [productToDelete, setProductToDelete] = useState<ExtendedProduct | null>(null)
   const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu()
 
   // カスタムフックから全てのロジックを取得（ページネーション無しで全件表示）
@@ -45,6 +48,7 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
     getSortIcon,
     scrollContainerRef,
     handleToggleFavorite,
+    handleDeleteProduct,
     getContextMenuItems,
   } = useProductTable({
     shopFilter,
@@ -57,6 +61,21 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
     event.preventDefault()
     setSelectedProductForMenu(product)
     showContextMenu(event)
+  }
+
+  // 削除確認モーダルを開く
+  const handleDeleteClick = (product: ExtendedProduct) => {
+    setProductToDelete(product)
+    setDeleteDialogOpen(true)
+    hideContextMenu()
+  }
+
+  // 削除を実行
+  const handleConfirmDelete = async () => {
+    if (productToDelete) {
+      await handleDeleteProduct(productToDelete.id)
+      setProductToDelete(null)
+    }
   }
 
   if (loading) {
@@ -151,11 +170,20 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
           items={getContextMenuItems(
             selectedProductForMenu,
             <CopyIcon className="w-4 h-4" />,
-            <TrashIcon className="w-4 h-4" />
+            <TrashIcon className="w-4 h-4" />,
+            handleDeleteClick
           )}
           onClose={hideContextMenu}
         />
       )}
+
+      {/* 削除確認モーダル */}
+      <DeleteConfirmDialog
+        product={productToDelete}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleConfirmDelete}
+      />
     </>
   )
 }
