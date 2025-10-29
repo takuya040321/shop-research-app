@@ -95,9 +95,10 @@
 - **優先度**: 高
 - **依存関係**: 基本レイアウト
 - **実装内容**:
-  - shadcn/ui基本コンポーネント導入
+  - ✅ shadcn/ui基本コンポーネント導入
     - Button, Input, Table, Dialog, Select, Checkbox
-  - Loading コンポーネント
+  - ✅ Loading コンポーネント
+  - ✅ Toast通知システム（Sonner）統合
   - ErrorBoundary コンポーネント
   - Toast通知システム
 
@@ -166,10 +167,15 @@
   - ✅ 商品検索・フィルタリング（テキスト、価格、利益率、ROI、ASIN設定状況、お気に入り状態、セール状況）
   - ✅ 商品情報インライン編集
   - ✅ お気に入り機能（StarIconクリックでトグル、フィルタリング対応）
-  - ✅ 商品コピー機能（右クリックメニュー、Toaster通知、original_product_id継承）
-  - ✅ 商品削除機能（右クリックメニュー）
+  - ✅ 商品コピー機能（右クリックメニュー、Toast通知、original_product_id継承）
+  - ✅ 商品削除機能（右クリックメニュー、Toast確認ダイアログ）
   - ✅ 重複商品削除機能（自動・手動実行）
   - ✅ コンテキストメニュー実装
+  - ✅ **useProductTableフックの統合**: UI機能（useProductTableUI）を統合
+    - ✅ Toast通知（ASIN登録成功時の利益率・ROI表示）
+    - ✅ Toast確認ダイアログ（削除時のアクション付きトースト）
+    - ✅ 横スクロール機能
+    - ✅ コンテキストメニュー項目生成
 
 **注**: 商品コピー機能では、コピー商品のoriginal_product_idは常に元の商品IDを継承します（コピーのコピーでも同様）。
 
