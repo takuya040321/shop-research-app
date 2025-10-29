@@ -5,19 +5,17 @@
  * 商品情報とASIN情報を結合して表示し、インライン編集機能を提供
  */
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Table, TableBody } from "@/components/ui/Table"
 import { Card } from "@/components/ui/Card"
 import { CopyIcon, TrashIcon } from "lucide-react"
-
 import type { ExtendedProduct } from "@/lib/products"
+import { useProductTable } from "@/hooks/products/useProductTable"
 import { ProductSearch } from "./ProductSearch"
 import { DisplaySettingsPanel } from "./DisplaySettingsPanel"
-import { ContextMenu, useContextMenu } from "@/components/ui/ContextMenu"
-import { useProductTable } from "@/hooks/products/useProductTable"
-import { useProductTableUI } from "@/hooks/products/useProductTableUI"
 import { ProductTableHeader } from "./ProductTableHeader"
 import { ProductRow } from "./ProductRow"
+import { ContextMenu, useContextMenu } from "@/components/ui/ContextMenu"
 
 interface ProductTableProps {
   className?: string
@@ -44,37 +42,19 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
     startEditing,
     cancelEditing,
     saveEdit,
-    handleCopyProduct,
-    handleDeleteProduct,
     getSortIcon,
-  } = useProductTable({
-    shopFilter,
-    pageSize: 9999 // 全件表示するため大きな値を設定
-  })
-
-  // UI関連のロジックを取得
-  const {
     scrollContainerRef,
     handleToggleFavorite,
-    getContextMenuItems
-  } = useProductTableUI(
-    updateProductInState,
-    handleCopyProduct,
-    handleDeleteProduct
-  )
-
-  // 初期フィルター設定
-  useEffect(() => {
-    if (initialFavoriteFilter) {
-      setFilters(prev => ({
-        ...prev,
-        favoriteStatus: initialFavoriteFilter
-      }))
-    }
-  }, [initialFavoriteFilter, setFilters])
+    getContextMenuItems,
+  } = useProductTable({
+    shopFilter,
+    pageSize: 9999, // 全件表示するため大きな値を設定
+    initialFavoriteFilter: initialFavoriteFilter || undefined,
+  })
 
   // 右クリックハンドラー
-  const handleRowRightClick = (event: React.MouseEvent, product: ExtendedProduct) => {
+  const onRowRightClick = (event: React.MouseEvent, product: ExtendedProduct) => {
+    event.preventDefault()
     setSelectedProductForMenu(product)
     showContextMenu(event)
   }
@@ -101,59 +81,66 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
   }
 
   return (
-    <div className={className}>
-      {/* 表示設定 */}
-      <DisplaySettingsPanel onSettingsChange={() => window.location.reload()} />
+    <>
+      <div className={className}>
+        {/* 表示設定 */}
+        <DisplaySettingsPanel onSettingsChange={() => window.location.reload()} />
 
-      {/* 検索・フィルター */}
-      <ProductSearch
-        filters={filters}
-        onFiltersChange={setFilters}
-        totalCount={allProducts.length}
-        filteredCount={allProducts.length}
-      />
+        {/* 検索・フィルター */}
+        <ProductSearch
+          filters={filters}
+          onFiltersChange={setFilters}
+          totalCount={allProducts.length}
+          filteredCount={allProducts.length}
+        />
 
-      <Card>
-      <div
-        ref={scrollContainerRef}
-        className="overflow-x-auto overflow-y-auto max-h-screen"
-      >
-        <Table>
-          <ProductTableHeader onSort={handleSort} getSortIcon={getSortIcon} />
+        {/* テーブル */}
+        <Card>
+          <div
+            ref={scrollContainerRef}
+            className="overflow-x-auto overflow-y-auto max-h-screen"
+          >
+            <Table>
+              <ProductTableHeader onSort={handleSort} getSortIcon={getSortIcon} />
 
-          <TableBody>
-            {allProducts.map((product) => (
-              <ProductRow
-                key={product.id}
-                product={product}
-                editingCell={editingCell}
-                onContextMenu={handleRowRightClick}
-                onToggleFavorite={handleToggleFavorite}
-                onStartEdit={startEditing}
-                onCancelEdit={cancelEditing}
-                onSaveEdit={saveEdit}
-                onEditingValueChange={(value) => setEditingCell({ ...editingCell!, value })}
-                onUpdateProductInState={updateProductInState}
-              />
-            ))}
-          </TableBody>
-        </Table>
+              <TableBody>
+                {allProducts.map((product) => (
+                  <ProductRow
+                    key={product.id}
+                    product={product}
+                    editingCell={editingCell}
+                    onContextMenu={onRowRightClick}
+                    onToggleFavorite={handleToggleFavorite}
+                    onStartEdit={startEditing}
+                    onCancelEdit={cancelEditing}
+                    onSaveEdit={saveEdit}
+                    onEditingValueChange={(value) => {
+                      if (editingCell) {
+                        setEditingCell({ ...editingCell, value })
+                      }
+                    }}
+                    onUpdateProductInState={updateProductInState}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {allProducts.length === 0 && totalProductsCount > 0 && (
+            <div className="p-8 text-center text-gray-500">
+              <p>条件に一致する商品がありません</p>
+              <p className="text-sm mt-1">検索条件やフィルターを変更してください</p>
+            </div>
+          )}
+
+          {totalProductsCount === 0 && (
+            <div className="p-8 text-center text-gray-500">
+              <p>商品データがありません</p>
+              <p className="text-sm mt-1">スクレイピングを実行して商品を取得してください</p>
+            </div>
+          )}
+        </Card>
       </div>
-
-        {allProducts.length === 0 && totalProductsCount > 0 && (
-          <div className="p-8 text-center text-gray-500">
-            <p>条件に一致する商品がありません</p>
-            <p className="text-sm mt-1">検索条件やフィルターを変更してください</p>
-          </div>
-        )}
-
-        {totalProductsCount === 0 && (
-          <div className="p-8 text-center text-gray-500">
-            <p>商品データがありません</p>
-            <p className="text-sm mt-1">スクレイピングを実行して商品を取得してください</p>
-          </div>
-        )}
-      </Card>
 
       {/* 右クリックコンテキストメニュー */}
       {selectedProductForMenu && (
@@ -169,6 +156,6 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
           onClose={hideContextMenu}
         />
       )}
-    </div>
+    </>
   )
 }
