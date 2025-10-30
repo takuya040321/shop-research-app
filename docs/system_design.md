@@ -245,6 +245,11 @@ App Layout
 - SortableHeader
 - FilterRow
 - **DiscountSettings**: ショップ別割引設定コンポーネント（UI/ロジック分離済み）
+- **AddShopDialog**: Yahoo!ショップ追加ダイアログコンポーネント
+  - **親カテゴリ選択**: LOHACO、ZOZOTOWN、Direct（直販）から選択
+  - **ショップID自動生成**: 表示名から親カテゴリプレフィックス付きで生成
+  - **seller_id自動設定**: ZOZOTOWNの場合は自動的にseller_idを設定
+  - **データベース連携**: yahoo_shopsテーブルへの保存
 - ContextMenu: 右クリックメニュー
 - DashboardLayout
 - AuthLayout
@@ -533,7 +538,7 @@ BaseScraperクラスに実装された`saveOrUpdateProducts`メソッドによ�
 - **レスポンス変換**: 統一Product形式への変換
 
 #### 6.2.2 Yahoo!ショッピングAPI統合
-- **認証**: クライアントID/シークレット
+- **認証**: クライアントID（環境変数: `YAHOO_CLIENT_ID`）
 - **商品検索**: Shopping API v3
 - **パラメータ**:
   - query (検索キーワード)
@@ -542,6 +547,10 @@ BaseScraperクラスに実装された`saveOrUpdateProducts`メソッドによ�
   - brand_id (ブランドID - ZOZOTOWN用)
 - **レスポンス変換**: 統一Product形式への変換
 - **階層構造対応**: LOHACO/ZOZOTOWN配下のブランドショップをサポート
+- **画像ホスト**: `item-shopping.c.yimg.jp`を許可リストに追加
+- **ショップ名フォーマット**: `{parent_category}/{display_name}`形式で保存
+  - 例: `zozotown/ZOZOTOWN-VT`、`lohaco/DHC`
+  - 直販の場合: `display_name`のみ（親カテゴリなし）
 
 ## 7. 状態管理設計
 

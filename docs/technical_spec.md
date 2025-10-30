@@ -537,6 +537,17 @@ export interface ImagePreviewProps {
 // Yahoo!ショップ設定
 // - yahoo_shops.brand_id: ZOZOTOWNブランド検索用
 // - yahoo_shops.parent_category: 階層構造（null, 'lohaco', 'zozotown'）
+// - yahoo_shops.shop_id: URLパス用ID（親カテゴリプレフィックス付き）
+//   - 例: "zozotown-vt", "lohaco-dhc"
+// - ショップ名フォーマット: "{parent_category}/{display_name}"
+//   - 例: "zozotown/ZOZOTOWN-VT", "lohaco/DHC"
+//   - 直販の場合: display_nameのみ
+
+// AddShopDialog コンポーネント
+// - 親カテゴリ選択（LOHACO/ZOZOTOWN/Direct）
+// - 表示名入力から自動的にshop_id生成
+// - ZOZOTOWNの場合はseller_id自動設定
+// - yahoo_shopsテーブルへの自動保存
 ```
 
 ## 6. セキュリティ仕様
@@ -680,7 +691,9 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**'
       }
-    ]
+    ],
+    // Yahoo画像ホスト許可設定
+    domains: ['item-shopping.c.yimg.jp']
   },
   experimental: {
     serverComponentsExternalPackages: ['puppeteer']
