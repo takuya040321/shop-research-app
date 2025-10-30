@@ -214,16 +214,7 @@ function calculateProfitOptimized(
       }
     }
 
-    // 数量補正を適用（商品名からの数量抽出）
-    const quantity = extractQuantityFromProductName(
-      product.name,
-      asin?.amazon_name
-    )
-    if (quantity > 1) {
-      effectivePrice = effectivePrice / quantity
-    }
-
-    // ASIN情報がない場合は利益計算不可
+    // ASIN情報がない場合は利益計算不可（数量補正もスキップ）
     if (!asin || !asin.amazon_price) {
       return {
         amount: 0,
@@ -231,6 +222,16 @@ function calculateProfitOptimized(
         roi: 0,
         effectivePrice: Math.round(effectivePrice)
       }
+    }
+
+    // 数量補正を適用（商品名からの数量抽出）
+    // ※ASINが設定されている場合のみ適用
+    const quantity = extractQuantityFromProductName(
+      product.name,
+      asin.amazon_name
+    )
+    if (quantity > 1) {
+      effectivePrice = effectivePrice / quantity
     }
 
     // Amazon関連費用を計算
