@@ -364,14 +364,22 @@
 - **実装内容**:
   - ✅ yahoo_shopsテーブル作成（shop_id, display_name, parent_category, store_id, category_id, brand_id）
   - ✅ Yahooショップ設定画面実装（/settings/yahoo）
+  - ✅ AddShopDialogコンポーネント実装
+    - ✅ 親カテゴリ選択（LOHACO/ZOZOTOWN/Direct）
+    - ✅ ショップID自動生成（親カテゴリプレフィックス付き）
+    - ✅ seller_id自動設定（ZOZOTOWNの場合）
+    - ✅ データベース自動保存（yahoo_shopsテーブル）
   - ✅ 階層構造対応（直販、LOHACO、ZOZOTOWN）
   - ✅ ZOZOTOWNブランドID対応（brand_idカラム）
   - ✅ 条件付きフォーム表示（ZOZOTOWNの場合のみbrand_id入力欄表示）
   - ✅ サイドバーでの階層表示
+  - ✅ ショップ名フォーマット統一（`{parent_category}/{display_name}`）
+  - ✅ Yahoo API統合基盤（環境変数: YAHOO_CLIENT_ID）
+  - ✅ 画像ホスト設定（item-shopping.c.yimg.jp）
   - ⏳ 各ショップページ実装（未実装）
-  - ⏳ Yahoo API統合（未実装）
+  - ⏳ Yahoo API商品取得機能（未実装）
 
-**注**: yahoo_shopsテーブルのbrand_idはZOZOTOWN配下のブランド検索に使用されます。parent_categoryがnullの場合は直販、'lohaco'の場合はLOHACO、'zozotown'の場合はZOZOTOWNとして扱われます。
+**注**: yahoo_shopsテーブルのbrand_idはZOZOTOWN配下のブランド検索に使用されます。parent_categoryがnullの場合は直販、'lohaco'の場合はLOHACO、'zozotown'の場合はZOZOTOWNとして扱われます。ショップ名は`generateShopName()`関数で`{parent_category}/{display_name}`形式に統一されています。
 
 #### 4.2.6 カテゴリ一覧ページ実装
 - **優先度**: 中

@@ -5,10 +5,15 @@
  * カテゴリ・ブランド一覧を表示
  */
 
+import { useState } from "react"
 import Link from "next/link"
 import { MainLayout } from "@/components/layout/MainLayout"
 import { Card } from "@/components/ui/Card"
-import { ShoppingCart, ChevronRight } from "lucide-react"
+import { Button } from "@/components/ui/Button"
+import { ShoppingCart, ChevronRight, Plus } from "lucide-react"
+import { AddShopDialog, type ShopData } from "@/components/yahoo/AddShopDialog"
+import { toast } from "sonner"
+import { supabase } from "@/lib/supabase"
 
 // Yahoo階層設定
 const YAHOO_CATEGORIES = [
@@ -50,18 +55,80 @@ const YAHOO_CATEGORIES = [
 ]
 
 export default function YahooPage() {
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const handleAddShop = async (shopData: ShopData) => {
+    console.log("=== Yahoo Page handleAddShop ===")
+    console.log("受け取ったshopData:", shopData)
+
+    try {
+      // Supabaseにショップ設定を保存
+      const insertData = {
+        shop_id: shopData.shopId,
+        display_name: shopData.displayName,
+        parent_category: shopData.parentCategory,
+        store_id: shopData.sellerId || null,
+        category_id: shopData.categoryId || null,
+        default_keyword: shopData.defaultQuery,
+        is_active: true
+      }
+
+      console.log("データベースに保存するデータ:", insertData)
+
+      const { data, error } = await supabase
+        .from("yahoo_shops")
+        .insert(insertData)
+        .select()
+
+      if (error) {
+        console.error("Supabaseエラー:", error)
+        toast.error("ショップ設定の追加に失敗しました", {
+          description: error.message
+        })
+        return
+      }
+
+      console.log("保存成功:", data)
+
+      toast.success("ショップ設定を追加しました", {
+        description: `${shopData.displayName}の設定を追加しました`
+      })
+
+      // サイドバー更新イベントを発行
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("yahoo:shop:updated"))
+      }
+
+      console.log("トースト表示完了")
+    } catch (error) {
+      console.error("ショップ追加でエラーが発生:", error)
+      toast.error("ショップ設定の追加に失敗しました", {
+        description: error instanceof Error ? error.message : "不明なエラー"
+      })
+    }
+    console.log("================================")
+  }
+
   return (
     <MainLayout>
       <div className="container mx-auto p-6">
         {/* ヘッダー */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <ShoppingCart className="w-8 h-8 text-red-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Yahoo!ショッピング</h1>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <ShoppingCart className="w-8 h-8 text-red-600" />
+                <h1 className="text-3xl font-bold text-gray-900">Yahoo!ショッピング</h1>
+              </div>
+              <p className="text-gray-600">
+                Yahoo!ショッピングの各カテゴリ・ブランド商品を検索・管理できます
+              </p>
+            </div>
+            <Button onClick={() => setDialogOpen(true)} className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              新規ショップ追加
+            </Button>
           </div>
-          <p className="text-gray-600">
-            Yahoo!ショッピングの各カテゴリ・ブランド商品を検索・管理できます
-          </p>
         </div>
 
         {/* カテゴリ一覧 */}
@@ -119,6 +186,13 @@ export default function YahooPage() {
           </ul>
         </Card>
       </div>
+
+      {/* 新規ショップ追加ダイアログ */}
+      <AddShopDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleAddShop}
+      />
     </MainLayout>
   )
 }

@@ -226,11 +226,11 @@ export class YahooAPIClient {
  * Yahoo APIクライアントのインスタンスを取得
  */
 export function getYahooClient(): YahooAPIClient {
-  const appId = process.env.YAHOO_APP_ID
+  const appId = process.env.YAHOO_CLIENT_ID
   const affiliateId = process.env.YAHOO_AFFILIATE_ID
 
   if (!appId) {
-    throw new Error("YAHOO_APP_IDが設定されていません")
+    throw new Error("YAHOO_CLIENT_IDが設定されていません")
   }
 
   return new YahooAPIClient({
