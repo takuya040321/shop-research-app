@@ -11,7 +11,7 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Card } from "@/components/ui/Card"
-import { PaginatedProductTable } from "@/components/products/PaginatedProductTable"
+import { ProductTable } from "@/components/products/ProductTable"
 import { useYahooPage } from "@/hooks/yahoo/useYahooPage"
 
 // Yahoo階層設定
@@ -64,11 +64,25 @@ export default function YahooHierarchyPage() {
 
   // shopNameの生成（親カテゴリを考慮）
   const generateShopName = () => {
-    if (!config) return ""
-    if (config.parentCategory) {
-      return `${config.parentCategory}/${config.displayName}`
+    if (!config) {
+      console.log("generateShopName: configが見つかりません")
+      return ""
     }
-    return config.displayName
+
+    let shopName = ""
+    if (config.parentCategory) {
+      shopName = `${config.parentCategory}/${config.displayName}`
+    } else {
+      shopName = config.displayName
+    }
+
+    console.log("=== generateShopName ===")
+    console.log("configKey:", configKey)
+    console.log("config:", config)
+    console.log("生成されたshopName:", shopName)
+    console.log("========================")
+
+    return shopName
   }
 
   // カスタムフックから全てのロジックを取得
@@ -183,9 +197,9 @@ export default function YahooHierarchyPage() {
           {/* 商品一覧 */}
           <div>
             <h2 className="text-xl font-semibold mb-4">商品一覧</h2>
-            <PaginatedProductTable
+            <ProductTable
               key={refreshKey}
-              shopFilter={config.displayName}
+              shopFilter={generateShopName()}
             />
           </div>
         </div>
