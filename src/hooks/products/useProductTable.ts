@@ -78,10 +78,15 @@ export function useProductTable({
 
   // データ読み込み
   const loadProducts = useCallback(async () => {
+    console.log("=== useProductTable loadProducts ===")
+    console.log("shopFilter:", shopFilter)
     try {
       setLoading(true)
       setError(null)
       const data = await getProductsWithAsinAndProfits()
+      console.log(`全商品数: ${data.length}`)
+      console.log("全商品のshop_name一覧:", [...new Set(data.map(p => p.shop_name))])
+
       setProducts(data)
       setCurrentPage(1)
     } catch (err) {
@@ -89,6 +94,7 @@ export function useProductTable({
       setError("商品データの読み込みに失敗しました")
     } finally {
       setLoading(false)
+      console.log("===================================")
     }
   }, [])
 
@@ -98,13 +104,24 @@ export function useProductTable({
 
   // フィルタリング・ソート
   const filteredAndSortedProducts = useMemo(() => {
+    console.log("--- filteredAndSortedProducts 計算 ---")
+    console.log("総商品数:", products.length)
+    console.log("shopFilter:", shopFilter)
+
     let filtered = products
 
     // 非表示商品を除外
     filtered = filtered.filter(product => !product.is_hidden)
+    console.log("非表示除外後:", filtered.length)
 
     if (shopFilter) {
+      const beforeFilter = filtered.length
       filtered = filtered.filter(product => product.shop_name === shopFilter)
+      console.log(`shopFilterでフィルタリング: ${beforeFilter} -> ${filtered.length}`)
+      console.log("フィルタリング後の商品例:", filtered.slice(0, 3).map(p => ({
+        name: p.name,
+        shop_name: p.shop_name
+      })))
     }
 
     if (filters.searchText) {
