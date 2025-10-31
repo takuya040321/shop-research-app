@@ -455,6 +455,296 @@ Supabase Authが自動管理（参照のみ使用）
 #### 5.3.2 カスケード削除
 適切な外部キー制約とカスケード削除設定
 
+## 5.4 データアクセス層設計（シングルトン+プロキシパターン）
+
+### 5.4.1 設計概要
+シングルトン+プロキシパターンによるSupabaseクライアントとスクレイパーの統一管理システム。
+
+**主な特徴:**
+- シングルトンパターンによるインスタンスの一元管理
+- USE_PROXY環境変数による動的な権限制御
+- 統一インターフェースによる一貫性のあるアクセス
+- SERVICE_ROLE_KEYの厳重なセキュリティ管理
+
+### 5.4.2 アーキテクチャ図
+```
+┌────────────────────────────────────────────────┐
+│          Application Layer                     │
+│  (Components / API Routes / Server Actions)    │
+└────────────────┬───────────────────────────────┘
+                 │ すべてのアクセス
+                 ▼
+┌────────────────────────────────────────────────┐
+│         Proxy（統一インターフェース）            │
+│  - getSupabase(): SupabaseClient               │
+│  - getScraper(): BaseScraper                   │
+│  - isProxyEnabled(): boolean                   │
+└────────────────┬───────────────────────────────┘
+                 │
+                 ▼
+┌────────────────────────────────────────────────┐
+│          ProxyController                       │
+│  USE_PROXY環境変数による振り分け制御            │
+└────────┬───────────────────────────┬───────────┘
+         │                           │
+         │ USE_PROXY=true            │ USE_PROXY=false
+         ▼                           ▼
+┌─────────────────┐         ┌─────────────────────┐
+│ SERVICE_ROLE_KEY│         │SupabaseClientSingleton│
+│  全権限アクセス  │         │   ANON_KEY使用      │
+│ (RLSバイパス)   │         │   (RLS制限付き)     │
+└─────────────────┘         └─────────────────────┘
+         │                           │
+         └───────────┬───────────────┘
+                     ▼
+            ┌─────────────────┐
+            │  Supabase DB    │
+            │  (PostgreSQL)   │
+            └─────────────────┘
+```
+
+### 5.4.3 クラス設計
+
+#### SupabaseClientSingleton
+```typescript
+class SupabaseClientSingleton {
+  private static instance: SupabaseClientSingleton | null = null
+  private client: SupabaseClient<Database>
+
+  private constructor(config: SupabaseClientConfig)
+  public static getInstance(): SupabaseClientSingleton
+  public getClient(): SupabaseClient<Database>
+  public static resetInstance(): void
+}
+```
+
+**責務:**
+- 匿名キー（ANON_KEY）を使用したSupabaseクライアントのシングルトン管理
+- RLSポリシーによって制限されたクライアントサイドアクセス
+- ブラウザに公開されても安全な設計
+
+#### ScraperSingleton
+```typescript
+class ScraperSingleton {
+  private static instance: ScraperSingleton | null = null
+  private scraper: BaseScraper
+
+  private constructor()
+  public static getInstance(): ScraperSingleton
+  public getScraper(): BaseScraper
+  public static async resetInstance(): Promise<void>
+}
+```
+
+**責務:**
+- BaseScraperインスタンスのシングルトン管理
+- ブラウザインスタンスの再利用によるパフォーマンス向上
+- プロキシ設定の一元管理
+
+#### ProxyController
+```typescript
+class ProxyController {
+  private config: ProxyControllerConfig
+  private serviceRoleClient: SupabaseClient<Database> | null
+
+  constructor()
+  private initializeServiceRoleClient(): void
+  public getSupabaseClient(): SupabaseClient<Database>
+  public getScraperInstance(): BaseScraper
+  public isProxyEnabled(): boolean
+}
+```
+
+**責務:**
+- USE_PROXY環境変数による動的な権限制御
+- SERVICE_ROLE_KEY使用時の厳重なセキュリティ管理
+- クライアント・スクレイパーの適切な振り分け
+
+#### Proxy（統一インターフェース）
+```typescript
+class Proxy {
+  private static controller: ProxyController | null
+
+  private static initializeController(): ProxyController
+  public static getSupabase(): SupabaseClient<Database>
+  public static getScraper(): BaseScraper
+  public static isProxyEnabled(): boolean
+  public static resetController(): void
+}
+```
+
+**責務:**
+- すべてのデータアクセスの統一インターフェース
+- 環境に応じた適切なクライアント選択の自動化
+- 一貫性のあるAPIの提供
+
+### 5.4.4 使用方法
+
+#### 基本的な使用
+```typescript
+import { Proxy } from "@/lib/singletons"
+
+// Supabaseクライアントの取得
+const supabase = Proxy.getSupabase()
+const { data, error } = await supabase.from("products").select()
+
+// スクレイパーの取得
+const scraper = Proxy.getScraper()
+await scraper.launch()
+await scraper.scrape("https://example.com", async (page) => {
+  return await page.title()
+})
+await scraper.close()
+```
+
+#### API Routesでの使用（サーバーサイド）
+```typescript
+// src/app/api/products/route.ts
+import { Proxy } from "@/lib/singletons"
+
+export async function GET() {
+  // USE_PROXY=trueの場合、SERVICE_ROLE_KEY使用（全権限）
+  const supabase = Proxy.getSupabase()
+  const { data, error } = await supabase.from("products").select()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ data })
+}
+```
+
+#### Server Componentsでの使用
+```typescript
+// src/app/products/page.tsx
+import { Proxy } from "@/lib/singletons"
+
+export default async function ProductsPage() {
+  // サーバーサイドなので USE_PROXY=true でも安全
+  const supabase = Proxy.getSupabase()
+  const { data: products } = await supabase.from("products").select()
+
+  return <ProductList products={products} />
+}
+```
+
+### 5.4.5 環境変数による制御
+
+#### USE_PROXY=false（デフォルト）
+```bash
+USE_PROXY=false
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+**動作:**
+- 匿名キー（ANON_KEY）を使用
+- RLSポリシーによって制限
+- クライアントサイドでも安全に使用可能
+
+#### USE_PROXY=true（高権限モード）
+```bash
+USE_PROXY=true
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+**動作:**
+- サービスロールキー（SERVICE_ROLE_KEY）を使用
+- RLSポリシーをバイパス（全権限）
+- **必ずサーバーサイドでのみ使用**
+
+### 5.4.6 セキュリティ考慮事項
+
+#### SERVICE_ROLE_KEYの管理
+- ✅ サーバーサイド（API Routes / Server Components）でのみ使用
+- ✅ `.env.local`に保存（`.gitignore`に含める）
+- ✅ 環境変数として管理し、コードに直接記述しない
+- ❌ クライアントコンポーネントでは絶対に使用しない
+- ❌ ブラウザに露出させない
+- ❌ 公開リポジトリにコミットしない
+
+#### 推奨される使用方法
+```typescript
+// ✅ OK: API Routes（サーバーサイド）
+export async function POST() {
+  const supabase = Proxy.getSupabase()
+  // USE_PROXY=trueの場合、SERVICE_ROLE_KEY使用
+}
+
+// ✅ OK: Server Components（サーバーサイド）
+export default async function Page() {
+  const supabase = Proxy.getSupabase()
+  // サーバーサイドで実行
+}
+
+// ❌ NG: Client Components
+"use client"
+export default function ClientPage() {
+  const supabase = Proxy.getSupabase()
+  // USE_PROXY=trueの場合、SERVICE_ROLE_KEYが露出する危険性
+}
+```
+
+### 5.4.7 既存コードとの統合
+
+#### BaseScraper
+```typescript
+// src/lib/scraper.ts
+import { Proxy } from "./singletons"
+
+export class BaseScraper {
+  async saveOrUpdateProducts(...) {
+    // 旧: const db = supabaseServer
+    // 新: Proxyクラスを使用
+    const db = Proxy.getSupabase()
+
+    const { data, error } = await db
+      .from("products")
+      .select("*")
+    // ...
+  }
+}
+```
+
+#### レガシーコードとの互換性
+既存の`supabase.ts`と`supabase-server.ts`はそのまま動作しますが、新しいコードでは`Proxy`クラスの使用を推奨します。
+
+```typescript
+// レガシー（引き続き動作）
+import { supabase } from "@/lib/supabase"
+const { data } = await supabase.from("products").select()
+
+// 推奨（新規コード）
+import { Proxy } from "@/lib/singletons"
+const supabase = Proxy.getSupabase()
+const { data } = await supabase.from("products").select()
+```
+
+### 5.4.8 利点とメリット
+
+#### パフォーマンス
+- インスタンスの再利用によるオーバーヘッド削減
+- ブラウザインスタンスの効率的な管理
+- メモリ使用量の最適化
+
+#### セキュリティ
+- SERVICE_ROLE_KEYの一元管理
+- 環境変数による動的な権限制御
+- 外部露出の防止
+
+#### 保守性
+- 統一されたインターフェース
+- 一貫性のあるコード
+- 変更の影響範囲の最小化
+
+#### 拡張性
+- 新しいクライアント追加が容易
+- プロキシパターンによる柔軟な制御
+- テスト容易性の向上
+
 ## 6. 外部システム連携設計
 
 ### 6.1 スクレイピング設計
@@ -1579,8 +1869,12 @@ shop-research-app/
 │   │           ├── useBeauty.ts
 │   │           └── useSkincare.ts
 │   ├── lib/                  # Utilities
-│   │   ├── supabase.ts          # Supabaseクライアント（Anonキー、プロキシ対応）
-│   │   ├── supabase-server.ts   # サーバー専用Supabaseクライアント（サービスロールキー、プロキシ対応）
+│   │   ├── singletons/          # シングルトン+プロキシパターン管理
+│   │   │   ├── index.ts         # Proxyクラス（統一インターフェース）
+│   │   │   ├── README.md        # 使用方法・セキュリティガイドライン
+│   │   │   └── examples.ts      # 実用例
+│   │   ├── supabase.ts          # Supabaseクライアント（レガシー）
+│   │   ├── supabase-server.ts   # サーバー専用Supabaseクライアント（レガシー）
 │   │   ├── proxy.ts             # プロキシ設定管理
 │   │   ├── auth.ts
 │   │   ├── scraper/

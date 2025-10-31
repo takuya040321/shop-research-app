@@ -421,6 +421,228 @@ function createServerSupabaseClient() {
 export const supabaseServer = createServerSupabaseClient()
 ```
 
+#### 5.2.3 シングルトン+プロキシパターン（推奨）
+```typescript
+// lib/singletons/index.ts
+import { createClient, SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "@/types/database"
+import { BaseScraper } from "@/lib/scraper"
+
+// ===== 型定義 =====
+
+interface SupabaseClientConfig {
+  url: string
+  anonKey: string
+  serviceRoleKey?: string
+}
+
+interface ProxyControllerConfig {
+  useProxy: boolean
+}
+
+type ISupabaseClient = SupabaseClient<Database>
+
+// ===== SupabaseClientSingleton =====
+
+class SupabaseClientSingleton {
+  private static instance: SupabaseClientSingleton | null = null
+  private client: ISupabaseClient
+
+  private constructor(config: SupabaseClientConfig) {
+    this.client = createClient<Database>(config.url, config.anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    })
+  }
+
+  public static getInstance(): SupabaseClientSingleton {
+    if (SupabaseClientSingleton.instance) {
+      return SupabaseClientSingleton.instance
+    }
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!url || !anonKey) {
+      throw new Error("Supabase環境変数が設定されていません")
+    }
+
+    SupabaseClientSingleton.instance = new SupabaseClientSingleton({
+      url,
+      anonKey,
+    })
+
+    return SupabaseClientSingleton.instance
+  }
+
+  public getClient(): ISupabaseClient {
+    return this.client
+  }
+
+  public static resetInstance(): void {
+    SupabaseClientSingleton.instance = null
+  }
+}
+
+// ===== ScraperSingleton =====
+
+class ScraperSingleton {
+  private static instance: ScraperSingleton | null = null
+  private scraper: BaseScraper
+
+  private constructor() {
+    this.scraper = new BaseScraper(true)
+  }
+
+  public static getInstance(): ScraperSingleton {
+    if (ScraperSingleton.instance) {
+      return ScraperSingleton.instance
+    }
+
+    ScraperSingleton.instance = new ScraperSingleton()
+    return ScraperSingleton.instance
+  }
+
+  public getScraper(): BaseScraper {
+    return this.scraper
+  }
+
+  public static async resetInstance(): Promise<void> {
+    if (ScraperSingleton.instance) {
+      await ScraperSingleton.instance.scraper.close()
+      ScraperSingleton.instance = null
+    }
+  }
+}
+
+// ===== ProxyController =====
+
+class ProxyController {
+  private config: ProxyControllerConfig
+  private serviceRoleClient: ISupabaseClient | null = null
+
+  constructor() {
+    const useProxyEnv = process.env.USE_PROXY
+    this.config = {
+      useProxy: useProxyEnv === "true",
+    }
+
+    if (this.config.useProxy) {
+      this.initializeServiceRoleClient()
+    }
+  }
+
+  private initializeServiceRoleClient(): void {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!url || !serviceRoleKey) {
+      throw new Error("Supabase環境変数が設定されていません")
+    }
+
+    this.serviceRoleClient = createClient<Database>(url, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    })
+  }
+
+  public getSupabaseClient(): ISupabaseClient {
+    if (this.config.useProxy && this.serviceRoleClient) {
+      return this.serviceRoleClient
+    }
+
+    return SupabaseClientSingleton.getInstance().getClient()
+  }
+
+  public getScraperInstance(): BaseScraper {
+    return ScraperSingleton.getInstance().getScraper()
+  }
+
+  public isProxyEnabled(): boolean {
+    return this.config.useProxy
+  }
+}
+
+// ===== Proxy（統一インターフェース） =====
+
+class Proxy {
+  private static controller: ProxyController | null = null
+
+  private static initializeController(): ProxyController {
+    if (!Proxy.controller) {
+      Proxy.controller = new ProxyController()
+    }
+    return Proxy.controller
+  }
+
+  public static getSupabase(): ISupabaseClient {
+    const controller = Proxy.initializeController()
+    return controller.getSupabaseClient()
+  }
+
+  public static getScraper(): BaseScraper {
+    const controller = Proxy.initializeController()
+    return controller.getScraperInstance()
+  }
+
+  public static isProxyEnabled(): boolean {
+    const controller = Proxy.initializeController()
+    return controller.isProxyEnabled()
+  }
+
+  public static resetController(): void {
+    Proxy.controller = null
+  }
+}
+
+export { Proxy }
+export type { ISupabaseClient, SupabaseClientConfig, ProxyControllerConfig }
+```
+
+**使用例:**
+```typescript
+// 基本的な使用
+import { Proxy } from "@/lib/singletons"
+
+const supabase = Proxy.getSupabase()
+const { data, error } = await supabase.from("products").select()
+
+// スクレイパー
+const scraper = Proxy.getScraper()
+await scraper.launch()
+await scraper.close()
+
+// プロキシ判定
+if (Proxy.isProxyEnabled()) {
+  console.log("USE_PROXY=true: SERVICE_ROLE_KEY使用")
+} else {
+  console.log("USE_PROXY=false: ANON_KEY使用")
+}
+```
+
+**環境変数:**
+```bash
+# USE_PROXY=false（デフォルト）
+USE_PROXY=false
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# USE_PROXY=true（高権限モード、サーバーサイドのみ）
+USE_PROXY=true
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+**セキュリティ:**
+- `USE_PROXY=true`の場合、必ずサーバーサイド（API Routes / Server Components）でのみ使用
+- `SERVICE_ROLE_KEY`はクライアントコンポーネントで絶対に使用しない
+- レガシーコード（`supabase.ts`, `supabase-server.ts`）も引き続き動作するが、新規コードでは`Proxy`クラスの使用を推奨
+
 ### 5.3 型定義
 ```typescript
 // types/database.ts
