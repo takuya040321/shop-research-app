@@ -5,7 +5,7 @@
 
 import puppeteer, { Browser, Page, LaunchOptions } from "puppeteer"
 import { determineProxySettings, logProxyStatus, type ProxySettings } from "./proxy"
-import { supabaseServer } from "./supabase-server"
+import { Proxy } from "./singletons"
 import type { ProductInsert, ProductUpdate, Product } from "@/types/database"
 import { randomUUID } from "crypto"
 
@@ -230,8 +230,8 @@ export class BaseScraper {
 
     try {
       // 1. 既存商品を全取得
-      // スクレイピング処理ではプロキシ対応のサーバークライアントを使用
-      const db = supabaseServer
+      // スクレイピング処理ではプロキシ対応のSupabaseクライアントを使用
+      const db = Proxy.getSupabase()
       const { data: existingProducts, error: fetchError } = await db
         .from("products")
         .select("id, name, price, sale_price, image_url, source_url, original_product_id")
