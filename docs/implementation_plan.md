@@ -514,4 +514,75 @@
 
 ---
 
+## 7. 追加実装項目（2025-10-31）
+
+### 7.1 シングルトン+プロキシパターン実装
+- **実装日**: 2025-10-31
+- **優先度**: 高
+- **状態**: ✅ 完了
+
+#### 実装内容
+Supabaseクライアントとスクレイパーの統一管理システムを実装
+
+**成果物:**
+1. `src/lib/singletons/index.ts`
+   - SupabaseClientSingleton クラス
+   - ScraperSingleton クラス
+   - ProxyController クラス（USE_PROXY判定）
+   - Proxy クラス（統一インターフェース）
+
+2. `src/lib/singletons/README.md`
+   - 完全なドキュメント
+   - アーキテクチャ図
+   - 使用方法とセキュリティガイド
+   - FAQ
+
+3. `src/lib/singletons/examples.ts`
+   - 14種類の実用例
+   - エラーハンドリング例
+   - API Routes / Server Components での使用例
+
+**既存コード統合:**
+- `src/lib/scraper.ts`: `supabaseServer` → `Proxy.getSupabase()` に置き換え
+- `src/lib/deduplication.ts`: 未使用変数を削除
+
+**主な機能:**
+- ✅ シングルトンパターンによるインスタンス一元管理
+- ✅ USE_PROXY環境変数による動的な権限制御
+  - `USE_PROXY=false`: ANON_KEY（RLS制限付き）
+  - `USE_PROXY=true`: SERVICE_ROLE_KEY（全権限、サーバーサイドのみ）
+- ✅ 統一インターフェースによる一貫性のあるアクセス
+- ✅ SERVICE_ROLE_KEYの厳重なセキュリティ管理
+
+**使用方法:**
+```typescript
+import { Proxy } from "@/lib/singletons"
+
+// Supabaseクライアント取得
+const supabase = Proxy.getSupabase()
+const { data } = await supabase.from("products").select()
+
+// スクレイパー取得
+const scraper = Proxy.getScraper()
+await scraper.launch()
+await scraper.close()
+```
+
+**セキュリティ考慮事項:**
+- SERVICE_ROLE_KEYはサーバーサイド（API Routes / Server Components）でのみ使用
+- クライアントコンポーネントでは絶対に使用しない
+- 環境変数として管理し、コードに直接記述しない
+
+**ドキュメント更新:**
+- ✅ `docs/system_design.md`: 5.4節「データアクセス層設計」を追加
+- ✅ `docs/technical_spec.md`: 5.2.3節「シングルトン+プロキシパターン」を追加
+- ✅ `docs/implementation_plan.md`: 本セクションを追加
+
+**テスト結果:**
+- TypeScriptコンパイル: エラーなし
+- ビルド: 成功
+- 既存機能: 正常動作
+
+---
+
 **この実装計画に従って、段階的に確実な開発を進めましょう！**

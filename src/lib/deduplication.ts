@@ -48,12 +48,10 @@ export async function removeDuplicateProducts(): Promise<{
     // 重複を検出（コピー商品は除外）
     const productMap = new Map<string, string>() // key -> 最新商品ID
     const duplicateIds: string[] = []
-    let copiedProductsSkipped = 0
 
     for (const product of allProducts) {
       // コピー商品はスキップ
       if (product.original_product_id) {
-        copiedProductsSkipped++
         continue
       }
 
