@@ -5,7 +5,6 @@
 import { Page } from "puppeteer"
 import * as cheerio from "cheerio"
 import { BaseScraper, ScraperResult, ScraperOptions } from "../scraper"
-import { deduplicateAfterScraping } from "../deduplication"
 
 // VT Cosmetics商品データ型
 export interface VTProduct {
@@ -385,9 +384,6 @@ export class VTCosmeticsScraper extends BaseScraper {
       if (saveResult.errors.length > 0) {
         console.warn("保存エラー:", saveResult.errors)
       }
-
-      // 重複削除を実行
-      await deduplicateAfterScraping()
 
       return {
         success: true,

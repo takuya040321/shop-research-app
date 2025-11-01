@@ -250,6 +250,11 @@ App Layout
   - **ショップID自動生成**: 表示名から親カテゴリプレフィックス付きで生成
   - **seller_id自動設定**: ZOZOTOWNの場合は自動的にseller_idを設定
   - **データベース連携**: yahoo_shopsテーブルへの保存
+- **useYahooShopPage**: Yahooショップページ用カスタムフック
+  - データベース（yahoo_shops）からショップ設定を自動読み込み
+  - `/api/yahoo/search`を呼び出して商品取得
+  - 取得完了後にページをリロード
+  - トースト通知で結果表示
 - ContextMenu: 右クリックメニュー
 - DashboardLayout
 - AuthLayout
@@ -279,21 +284,38 @@ App Layout
 **注**: ASIN紐付けはproductsテーブルのasinカラムで管理されます。
 
 #### 4.1.3 ショップ別スクレイピングAPI
-- **POST /api/scraping/official/vt**: VTスクレイピング
-- **POST /api/scraping/official/dhc**: DHCスクレイピング
-- **POST /api/scraping/official/innisfree**: innisfreeスクレイピング
-- **POST /api/scraping/rakuten/muji**: 楽天-無印良品API取得
-- **POST /api/scraping/rakuten/vt**: 楽天-VTAPI取得
-- **POST /api/scraping/yahoo/lohaco/dhc**: Yahoo-LOHACO-DHCAPI取得
-- **POST /api/scraping/yahoo/zozotown/vt**: Yahoo-ZOZOTOWN-VTAPI取得
+- **POST /api/scrape/vt**: VTスクレイピング
+- **POST /api/scrape/dhc**: DHCスクレイピング
+- **POST /api/scrape/innisfree**: innisfreeスクレイピング
 - **POST /api/scrape/favorites**: お気に入り商品の価格更新スクレイピング
 
-#### 4.1.4 統計API
+#### 4.1.4 楽天API
+- **POST /api/rakuten/search**: 楽天商品検索
+  - キーワード、ショップコード、ジャンルIDで商品を検索
+  - 全ページ取得に対応（レート制限対策で1秒待機）
+  - 価格変動検出・更新機能
+
+#### 4.1.5 Yahoo!ショッピングAPI
+- **POST /api/yahoo/search**: Yahoo商品検索
+  - データベース（yahoo_shops）に登録された設定を使用
+  - パラメータ:
+    - query: 検索キーワード
+    - sellerId: ストアID
+    - categoryId: カテゴリID
+    - brandId: ブランドID（ZOZOTOWN用）
+    - shopName: ショップ表示名
+    - hits: 取得件数（デフォルト30件）
+    - offset: オフセット
+  - **ページネーション対応**: Yahoo APIの20件制限に対応し、複数リクエストで指定件数を取得
+  - 重複チェック・スキップ機能
+  - データベースへの自動保存
+
+#### 4.1.6 統計API
 - **GET /api/shops/[shopType]/stats**: カテゴリ別統計
 - **GET /api/shops/[shopType]/[shopName]/stats**: ショップ別統計
 - **GET /api/shops/[shopType]/[shopName]/products**: ショップ別商品一覧
 
-#### 4.1.5 設定API
+#### 4.1.7 設定API
 - **GET /api/settings/discount**: 割引設定取得
 - **PUT /api/settings/discount**: 割引設定更新
 - **GET /api/settings/rakuten**: 楽天設定取得
@@ -777,9 +799,16 @@ BaseScraperクラスに実装された`saveOrUpdateProducts`メソッドによ�
 3. **販売終了商品の物理削除**: スクレイピング結果に含まれない商品を削除
    - **コピー商品の保護**: `original_product_id`が設定されているコピー商品は削除対象外
    - **カスケード削除**: オリジナル商品削除時、それを参照するコピー商品も自動削除
-4. **重複商品の削除**: カテゴリ横断で同じ商品（source_url + name）が重複登録されている場合、最新のもの以外を削除
-   - **コピー商品の除外**: コピー商品は重複チェックの対象外
+4. **ショップ内重複商品の削除**: 同一ショップ内で同じ商品（source_url + name）が重複登録されている場合、最新のもの以外を削除
+   - **コピー商品の除外**: コピー商品（`original_product_id`がnullでない）は重複チェックの対象外
+   - **カテゴリ横断の重複は許容**: 異なるショップで同じ商品があっても削除しない（各ショップで独立管理）
 5. **バッチ処理**: 全カテゴリのスクレイピング完了後、一括でINSERT/UPDATE/DELETE操作を実行
+6. **結果ログ表示**: 詳細な処理結果を出力
+   - 新規挿入件数
+   - 重複削除件数
+   - 実際の新規追加件数（挿入 - 重複削除）
+   - 更新件数、削除件数、スキップ件数
+   - 最終的な保存件数
 
 **コピー商品の特別処理**:
 - `original_product_id`フィールドで元商品を追跡
@@ -790,7 +819,8 @@ BaseScraperクラスに実装された`saveOrUpdateProducts`メソッドによ�
 - 価格変動の自動追跡
 - 販売終了商品の適切な削除
 - コピー商品の保護による誤削除防止
-- カテゴリ横断での重複排除
+- ショップごとの独立性維持
+- 正確な処理結果の可視化
 - パフォーマンス向上（バッチ処理）
 
 #### 6.1.3 個別スクレイパー設計

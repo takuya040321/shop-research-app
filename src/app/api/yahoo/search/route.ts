@@ -20,19 +20,58 @@ export async function POST(request: NextRequest) {
     // Yahoo APIクライアント取得
     const client = getYahooClient()
 
-    // 商品検索
-    console.log("Yahoo APIに商品検索リクエストを送信...")
-    const result = await client.searchItems({
-      query,
-      seller_id: sellerId,
-      category_id: categoryId,
-      brand_id: brandId,
-      hits: hits || 30,
-      offset: offset || 1
-    })
+    const requestedHits = hits || 30
+    const maxHitsPerRequest = 20 // Yahoo APIの1回あたりの最大取得件数
+    let allProducts: YahooProduct[] = []
+    let currentOffset = offset || 1
+    let totalCount = 0
 
-    console.log(`Yahoo APIから${result.products.length}件の商品を取得しました`)
-    console.log("取得した商品の最初の3件:", result.products.slice(0, 3).map(p => ({
+    // 必要な回数だけAPIリクエストを繰り返す
+    while (allProducts.length < requestedHits) {
+      const remainingHits = requestedHits - allProducts.length
+      const currentHits = Math.min(remainingHits, maxHitsPerRequest)
+
+      console.log(`Yahoo APIリクエスト送信 (offset: ${currentOffset}, hits: ${currentHits})...`)
+      const result = await client.searchItems({
+        query,
+        seller_id: sellerId,
+        category_id: categoryId,
+        brand_id: brandId,
+        hits: currentHits,
+        offset: currentOffset
+      })
+
+      console.log(`Yahoo APIから${result.products.length}件の商品を取得しました`)
+
+      // 商品を追加（必要な分だけ）
+      const productsToAdd = result.products.slice(0, remainingHits)
+      allProducts = allProducts.concat(productsToAdd)
+      totalCount = result.totalCount
+
+      // 取得できた件数が要求より少ない場合は終了
+      if (result.products.length < currentHits) {
+        console.log("これ以上商品がないため検索を終了します")
+        break
+      }
+
+      // 必要な件数を取得した場合は終了
+      if (allProducts.length >= requestedHits) {
+        console.log(`要求された${requestedHits}件を取得しました`)
+        break
+      }
+
+      // 次のオフセット
+      currentOffset += result.products.length
+
+      // すべての商品を取得した場合は終了
+      if (allProducts.length >= totalCount) {
+        console.log("すべての商品を取得しました")
+        break
+      }
+    }
+
+    console.log(`合計${allProducts.length}件の商品を取得しました`)
+    console.log("取得した商品の最初の3件:", allProducts.slice(0, 3).map(p => ({
       name: p.name,
       price: p.price,
       storeName: p.storeName
@@ -41,7 +80,7 @@ export async function POST(request: NextRequest) {
     // データベースに保存
     console.log(`データベースに保存を開始 (shopName: ${shopName})`)
     const saveResult = await saveProductsToDatabase(
-      result.products,
+      allProducts,
       shopName || "Yahoo!ショッピング"
     )
 
@@ -52,12 +91,12 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Yahoo商品検索が完了しました",
       data: {
-        totalCount: result.totalCount,
-        offset: result.offset,
-        productsCount: result.products.length,
+        totalCount,
+        offset: offset || 1,
+        productsCount: allProducts.length,
         savedCount: saveResult.savedCount,
         skippedCount: saveResult.skippedCount,
-        products: result.products
+        products: allProducts
       }
     })
 

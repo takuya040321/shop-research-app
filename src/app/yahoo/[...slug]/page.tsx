@@ -4,206 +4,207 @@
  * Yahoo階層ページ
  * 動的ルート: /yahoo/[...slug]
  * 例: /yahoo/lohaco/dhc, /yahoo/zozotown/vt, /yahoo/vt
+ *
+ * データベース（yahoo_shops）から動的に設定を読み込みます
  */
 
+import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
-import { Sidebar } from "@/components/layout/Sidebar"
-import { Button } from "@/components/ui/Button"
-import { Input } from "@/components/ui/Input"
-import { Card } from "@/components/ui/Card"
+import { toast } from "sonner"
+import { MainLayout } from "@/components/layout/MainLayout"
 import { ProductTable } from "@/components/products/ProductTable"
-import { useYahooPage } from "@/hooks/yahoo/useYahooPage"
+import { Button } from "@/components/ui/Button"
+import { Badge } from "@/components/ui/Badge"
+import { RefreshCwIcon, ShoppingBagIcon } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { useYahooShopPage } from "@/hooks/yahoo/useYahooShopPage"
+import { DiscountSettings } from "@/components/official/DiscountSettings"
+import type { Database } from "@/types/database"
 
-// Yahoo階層設定
-const YAHOO_CONFIG: Record<string, {
-  displayName: string
-  parentCategory?: "lohaco" | "zozotown" | null
-  sellerId?: string
-  categoryId?: string
-  defaultQuery?: string
-}> = {
-  // LOHACO
-  "lohaco-dhc": {
-    displayName: "LOHACO-DHC",
-    parentCategory: "lohaco",
-    defaultQuery: "DHC"
-  },
-  "lohaco-vt": {
-    displayName: "LOHACO-VT",
-    parentCategory: "lohaco",
-    defaultQuery: "VT Cosmetics"
-  },
-  // ZOZOTOWN
-  "zozotown-dhc": {
-    displayName: "ZOZOTOWN-DHC",
-    parentCategory: "zozotown",
-    sellerId: "zozo",
-    defaultQuery: "DHC"
-  },
-  "zozotown-vt": {
-    displayName: "ZOZOTOWN-VT",
-    parentCategory: "zozotown",
-    sellerId: "zozo",
-    defaultQuery: "VT Cosmetics"
-  },
-  // Yahoo直販
-  "vt": {
-    displayName: "Yahoo-VT",
-    parentCategory: null,
-    defaultQuery: "VT Cosmetics"
-  }
-}
+type YahooShop = Database["public"]["Tables"]["yahoo_shops"]["Row"]
 
 export default function YahooHierarchyPage() {
   const params = useParams()
   const slug = params.slug as string[]
 
-  // slugから設定キーを生成
-  const configKey = slug.join("-")
-  const config = YAHOO_CONFIG[configKey]
+  const [shopConfig, setShopConfig] = useState<YahooShop | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+
+  // データベースからショップ設定を読み込み
+  useEffect(() => {
+    const loadShopConfig = async () => {
+      setLoading(true)
+      setNotFound(false)
+
+      try {
+        // slugからshop_idとparent_categoryを抽出
+        let parentCategory: string | null = null
+        let shopId: string | undefined
+
+        if (slug.length === 2) {
+          // /yahoo/[parent]/[shop_id] の形式
+          parentCategory = slug[0] || null
+          shopId = slug[1]
+        } else if (slug.length === 1) {
+          // /yahoo/[shop_id] の形式（直販）
+          shopId = slug[0]
+        } else {
+          setNotFound(true)
+          setLoading(false)
+          return
+        }
+
+        // shop_idが取得できなかった場合
+        if (!shopId) {
+          setNotFound(true)
+          setLoading(false)
+          return
+        }
+
+        // データベースから該当するショップを検索
+        const { data, error } = await supabase
+          .from("yahoo_shops")
+          .select("*")
+          .eq("shop_id", shopId)
+          .eq("is_active", true)
+          .maybeSingle()
+
+        if (error) {
+          console.error("ショップ設定の読み込みエラー:", error)
+          setNotFound(true)
+        } else if (!data) {
+          console.error("ショップが見つかりません:", shopId)
+          setNotFound(true)
+        } else {
+          // parent_categoryが一致するか確認
+          if (data.parent_category !== parentCategory) {
+            console.error("parent_categoryが一致しません:", {
+              expected: parentCategory,
+              actual: data.parent_category
+            })
+            setNotFound(true)
+          } else {
+            setShopConfig(data)
+          }
+        }
+      } catch (error) {
+        console.error("予期しないエラー:", error)
+        setNotFound(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadShopConfig()
+  }, [slug])
 
   // shopNameの生成（親カテゴリを考慮）
   const generateShopName = () => {
-    if (!config) {
-      console.log("generateShopName: configが見つかりません")
+    if (!shopConfig) {
       return ""
     }
 
     let shopName = ""
-    if (config.parentCategory) {
-      shopName = `${config.parentCategory}/${config.displayName}`
+    if (shopConfig.parent_category) {
+      shopName = `${shopConfig.parent_category}/${shopConfig.display_name}`
     } else {
-      shopName = config.displayName
+      shopName = shopConfig.display_name
     }
-
-    console.log("=== generateShopName ===")
-    console.log("configKey:", configKey)
-    console.log("config:", config)
-    console.log("生成されたshopName:", shopName)
-    console.log("========================")
 
     return shopName
   }
 
   // カスタムフックから全てのロジックを取得
   const {
-    query,
-    sellerId,
-    categoryId,
-    brandId,
-    loading,
-    refreshKey,
-    setQuery,
-    setSellerId,
-    setCategoryId,
-    setBrandId,
-    handleSearch
-  } = useYahooPage({
-    defaultQuery: config?.defaultQuery || "",
-    defaultSellerId: config?.sellerId || "",
-    defaultCategoryId: config?.categoryId || "",
-    shopName: generateShopName(),
-    isZozotown: config?.parentCategory === "zozotown"
+    isRefreshing,
+    handleRefresh
+  } = useYahooShopPage({
+    shopConfig: shopConfig || ({} as YahooShop),
+    shopName: generateShopName()
   })
 
-  if (!config) {
+  const onRefresh = async () => {
+    const result = await handleRefresh()
+
+    if (result.success) {
+      toast.success(`商品取得完了! 取得: ${result.data?.productsCount || 0}件 / 保存: ${result.data?.savedCount || 0}件 / スキップ: ${result.data?.skippedCount || 0}件`)
+    } else {
+      toast.error(`エラー: ${result.message || "商品取得に失敗しました"}`)
+    }
+  }
+
+  // ローディング中
+  if (loading) {
     return (
-      <div className="flex h-screen">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold text-red-600">ページが見つかりません</h1>
-            <p className="mt-2 text-muted-foreground">
-              URL: /yahoo/{slug.join("/")}
-            </p>
-          </div>
-        </main>
-      </div>
+      <MainLayout>
+        <div className="container mx-auto p-6">
+          <p className="text-muted-foreground">読み込み中...</p>
+        </div>
+      </MainLayout>
+    )
+  }
+
+  // ページが見つからない
+  if (notFound || !shopConfig) {
+    return (
+      <MainLayout>
+        <div className="container mx-auto p-6">
+          <h1 className="text-3xl font-bold text-red-600">ページが見つかりません</h1>
+          <p className="mt-2 text-muted-foreground">
+            URL: /yahoo/{slug.join("/")}
+          </p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Yahooショップ設定でこのショップが登録されているか確認してください。
+          </p>
+        </div>
+      </MainLayout>
     )
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold">{config.displayName}</h1>
-            <p className="text-muted-foreground mt-2">
-              Yahoo!ショッピングから{config.displayName}の商品を検索・管理
-            </p>
-          </div>
-
-          {/* 検索フォーム */}
-          <Card className="p-6">
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">商品検索</h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">検索クエリ</label>
-                  <Input
-                    placeholder="検索クエリ"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">ブランドID</label>
-                  <Input
-                    placeholder="ブランドID"
-                    value={brandId}
-                    onChange={(e) => setBrandId(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    ストアID
-                    {config?.parentCategory === "zozotown" && (
-                      <span className="ml-2 text-xs text-gray-500">(ZOZOTOWN固定)</span>
-                    )}
-                  </label>
-                  <Input
-                    placeholder="ストアID"
-                    value={config?.parentCategory === "zozotown" ? "zozo" : sellerId}
-                    onChange={(e) => setSellerId(e.target.value)}
-                    disabled={config?.parentCategory === "zozotown"}
-                    className={config?.parentCategory === "zozotown" ? "bg-gray-100" : ""}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">カテゴリID</label>
-                  <Input
-                    placeholder="カテゴリID"
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                  />
-                </div>
+    <MainLayout>
+      <div className="container mx-auto p-6">
+        {/* ヘッダー */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <ShoppingBagIcon className="w-6 h-6 text-purple-600" />
+                <h1 className="text-2xl font-bold text-gray-900">{shopConfig.display_name}</h1>
+                <Badge variant="outline" className="text-purple-600 border-purple-600">
+                  Yahoo!ショッピング
+                </Badge>
               </div>
-
-              <Button
-                onClick={handleSearch}
-                disabled={loading}
-                className="w-full"
-              >
-                {loading ? "検索中..." : "商品を検索"}
-              </Button>
+              <p className="text-gray-600">
+                Yahoo!ショッピングから{shopConfig.display_name}の商品を取得・管理
+              </p>
             </div>
-          </Card>
-
-          {/* 商品一覧 */}
-          <div>
-            <h2 className="text-xl font-semibold mb-4">商品一覧</h2>
-            <ProductTable
-              key={refreshKey}
-              shopFilter={generateShopName()}
-            />
           </div>
+
+          {/* アクションボタン */}
+          <div className="flex items-center gap-3 mb-6">
+            <Button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RefreshCwIcon className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              {isRefreshing ? "実行中..." : "商品取得（API）"}
+            </Button>
+          </div>
+
+          {/* 割引設定 */}
+          <DiscountSettings shopName={generateShopName()} />
         </div>
-      </main>
-    </div>
+
+        {/* 商品テーブル */}
+        <ProductTable
+          className="w-full"
+          shopFilter={generateShopName()}
+        />
+      </div>
+    </MainLayout>
   )
 }
