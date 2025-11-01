@@ -5,7 +5,6 @@
 import { Page } from "puppeteer"
 import * as cheerio from "cheerio"
 import { BaseScraper, ScraperResult, ScraperOptions } from "../scraper"
-import { deduplicateAfterScraping } from "../deduplication"
 
 // DHC商品データ型
 export interface DHCProduct {
@@ -459,9 +458,6 @@ export class DHCScraper extends BaseScraper {
       if (saveResult.errors.length > 0) {
         console.warn("保存エラー:", saveResult.errors)
       }
-
-      // 重複削除を実行
-      await deduplicateAfterScraping()
 
       return {
         success: true,

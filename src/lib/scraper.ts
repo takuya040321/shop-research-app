@@ -432,14 +432,19 @@ export class BaseScraper {
       }
 
       // 8. 結果サマリーをログ出力
+      const actualSavedCount = insertedCount - duplicatesRemovedCount
+      const totalProcessed = insertedCount + updatedCount + deletedCount + skippedCount
+
       console.log("===== スクレイピング結果サマリー =====")
       console.log(`ショップ: ${shopType} - ${shopName}`)
-      console.log(`新規追加: ${insertedCount}件`)
+      console.log(`新規挿入: ${insertedCount}件`)
+      console.log(`重複削除: ${duplicatesRemovedCount}件`)
+      console.log(`実際の新規追加: ${actualSavedCount}件`)
       console.log(`更新: ${updatedCount}件`)
       console.log(`削除（販売終了）: ${deletedCount}件`)
       console.log(`スキップ（変更なし）: ${skippedCount}件`)
-      console.log(`重複削除: ${duplicatesRemovedCount}件`)
-      console.log(`合計処理数: ${insertedCount + updatedCount + deletedCount + skippedCount}件`)
+      console.log(`合計処理数: ${totalProcessed}件`)
+      console.log(`最終的な保存数: ${actualSavedCount + updatedCount}件`)
       console.log("=====================================")
 
       return { insertedCount, updatedCount, deletedCount, skippedCount, duplicatesRemovedCount, errors }
