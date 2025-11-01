@@ -106,6 +106,34 @@
 - **対応形式**: .xlsx, .xls, .csv
 - **機能**: 読み込み、パース、型変換
 
+### 3.6 カスタムフック
+#### 3.6.1 Yahooショップページフック
+```typescript
+// src/hooks/yahoo/useYahooShopPage.ts
+interface UseYahooShopPageOptions {
+  shopConfig: YahooShop          // データベースのyahoo_shops設定
+  shopName: string               // 表示用ショップ名
+}
+
+export function useYahooShopPage({
+  shopConfig,
+  shopName
+}: UseYahooShopPageOptions) {
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    // /api/yahoo/searchを呼び出し
+    // データベース設定を使用して商品取得
+    // 成功時はページをリロード
+  }
+
+  return {
+    isRefreshing,      // ローディング状態
+    handleRefresh      // 商品取得実行関数
+  }
+}
+```
+
 ## 4. バックエンド技術仕様
 
 ### 4.1 API設計
@@ -804,6 +832,44 @@ RAKUTEN_SECRET=your_rakuten_secret
 # Yahoo API設定
 YAHOO_CLIENT_ID=your_yahoo_client_id
 YAHOO_CLIENT_SECRET=your_yahoo_client_secret
+
+#### Yahoo!ショッピングAPI仕様
+- **エンドポイント**: `/api/yahoo/search` (POST)
+- **リクエストパラメータ**:
+  ```typescript
+  {
+    query?: string           // 検索キーワード
+    sellerId?: string        // ストアID
+    categoryId?: string      // カテゴリID
+    brandId?: string         // ブランドID（ZOZOTOWN用）
+    shopName: string         // ショップ表示名（DB保存用）
+    hits?: number            // 取得件数（デフォルト: 30）
+    offset?: number          // オフセット（デフォルト: 1）
+  }
+  ```
+- **ページネーション対応**:
+  - Yahoo APIの1回あたりの最大取得件数: 20件
+  - 指定件数（hits）を取得するため、自動的に複数リクエストを実行
+  - 例: hits=30の場合、20件+10件の2回リクエスト
+- **レスポンス**:
+  ```typescript
+  {
+    success: boolean
+    message: string
+    data: {
+      totalCount: number      // 総件数
+      offset: number          // オフセット
+      productsCount: number   // 取得した商品数
+      savedCount: number      // 保存した商品数
+      skippedCount: number    // スキップした商品数
+      products: YahooProduct[]
+    }
+  }
+  ```
+- **データベース連動**:
+  - `yahoo_shops`テーブルからショップ設定を自動読み込み
+  - 取得した商品を`products`テーブルに自動保存
+  - 重複チェック・スキップ機能
 
 # アプリケーション設定
 NEXTAUTH_URL=http://localhost:3000

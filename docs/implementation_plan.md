@@ -189,7 +189,10 @@
   - ✅ プロキシ制御実装（USE_PROXY環境変数制御、プロキシログ抑制機能）
   - ✅ エラーハンドリング・リトライ機能
   - ✅ 商品重複チェック（新規登録前）
-  - ✅ 重複削除機能（スクレイピング後自動実行）
+  - ✅ ショップ内重複削除機能（同一ショップ内の重複を自動削除）
+    - ショップごとに独立した重複管理
+    - カテゴリ横断の重複は許容（各ショップで独立管理）
+    - 詳細なログ表示（新規挿入、重複削除、実際の新規追加を分けて表示）
   - ✅ スクレイピングAPI実装（`/api/scrape/vt`）
   - ✅ UI：スクレイピング実行ボタン（Toast通知対応）
   - ✅ 全カテゴリ一括スクレイピング（9カテゴリ対応）
@@ -360,7 +363,7 @@
 #### 4.2.5 Yahooショップ階層実装 ✅
 - **優先度**: 高
 - **依存関係**: Yahoo API基盤
-- **ステータス**: 部分完了
+- **ステータス**: 完了
 - **実装内容**:
   - ✅ yahoo_shopsテーブル作成（shop_id, display_name, parent_category, store_id, category_id, brand_id）
   - ✅ Yahooショップ設定画面実装（/settings/yahoo）
@@ -376,10 +379,19 @@
   - ✅ ショップ名フォーマット統一（`{parent_category}/{display_name}`）
   - ✅ Yahoo API統合基盤（環境変数: YAHOO_CLIENT_ID）
   - ✅ 画像ホスト設定（item-shopping.c.yimg.jp）
-  - ⏳ 各ショップページ実装（未実装）
-  - ⏳ Yahoo API商品取得機能（未実装）
+  - ✅ 各ショップページ実装（動的ルーティング対応）
+  - ✅ Yahoo API商品取得機能（ページネーション対応）
+  - ✅ useYahooShopPageカスタムフック実装
+  - ✅ データベース設定の自動利用
+  - ✅ 公式サイトと同じUI構成に統一
 
 **注**: yahoo_shopsテーブルのbrand_idはZOZOTOWN配下のブランド検索に使用されます。parent_categoryがnullの場合は直販、'lohaco'の場合はLOHACO、'zozotown'の場合はZOZOTOWNとして扱われます。ショップ名は`generateShopName()`関数で`{parent_category}/{display_name}`形式に統一されています。
+
+**最新の実装（2025-11-02）**:
+- `/yahoo/[...slug]/page.tsx`: 動的ルーティングで全Yahooショップに対応
+- `/api/yahoo/search`: Yahoo APIのページネーション対応（20件制限を自動処理）
+- `useYahooShopPage`: データベース設定を自動読み込み、1クリックで商品取得
+- 検索フォーム削除、公式サイトと同じ「商品取得（API）」ボタンに統一
 
 #### 4.2.6 カテゴリ一覧ページ実装
 - **優先度**: 中
