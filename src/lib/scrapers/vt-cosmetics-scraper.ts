@@ -13,7 +13,6 @@ export interface VTProduct {
   salePrice: number | null
   imageUrl: string | null
   productUrl: string
-  description?: string
 }
 
 // スクレイピング設定
