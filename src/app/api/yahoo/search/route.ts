@@ -189,8 +189,7 @@ async function saveProductsToDatabase(
     sale_price: null,
     image_url: product.imageUrl,
     source_url: product.url,
-    is_hidden: false,
-    memo: product.description || "Yahoo!ショッピングから取得"
+    is_hidden: false
   }))
 
   console.log("データベースに挿入中...")
