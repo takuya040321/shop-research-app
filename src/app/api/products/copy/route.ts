@@ -62,7 +62,6 @@ export async function POST(request: NextRequest) {
       image_url: originalProduct.image_url,
       source_url: originalProduct.source_url, // source_urlは保持
       asin: null, // asinをクリアしてASIN紐付けを解除
-      memo: originalProduct.memo ? `${originalProduct.memo} (コピー)` : "コピー商品",
       original_product_id: originalProductId, // 常に元の商品を参照
       is_favorite: false,
       is_hidden: false,

@@ -13,7 +13,6 @@ export interface DHCProduct {
   salePrice: number | null
   imageUrl: string | null
   productUrl: string
-  description?: string | undefined
 }
 
 // スクレイピング設定
@@ -57,7 +56,6 @@ export class DHCScraper extends BaseScraper {
   ): Promise<{
     price: number | null
     salePrice: number | null
-    description: string | null
   }> {
     try {
       await page.goto(productUrl, {
@@ -70,7 +68,6 @@ export class DHCScraper extends BaseScraper {
 
       let price: number | null = null
       let salePrice: number | null = null
-      let description: string | null = null
 
       // DHC特有の構造：「通常購入」セクションの価格を取得
       // <div class="cart_set_box"> 内の <div class="cart_set_title active">通常購入</div> の下の価格
@@ -121,26 +118,10 @@ export class DHCScraper extends BaseScraper {
         }
       }
 
-      // 商品説明を取得
-      const descriptionSelectors = [
-        ".description",
-        ".product-description",
-        ".detail",
-        '[class*="description"]',
-      ]
-      for (const selector of descriptionSelectors) {
-        if (!description) {
-          const descEl = $(selector).first()
-          if (descEl.length > 0) {
-            description = descEl.text().trim().substring(0, 500)
-          }
-        }
-      }
-
-      return { price, salePrice, description }
+      return { price, salePrice }
     } catch (error) {
       console.warn(`商品詳細ページの取得でエラー (${productUrl}):`, error)
-      return { price: null, salePrice: null, description: null }
+      return { price: null, salePrice: null }
     }
   }
 
@@ -209,7 +190,6 @@ export class DHCScraper extends BaseScraper {
           // 一覧ページから価格を抽出
           let price: number | null = null
           let salePrice: number | null = null
-          let description: string | null = null
 
           // 価格抽出（.price_box .price2 strongから）
           const $priceEl = $goodsSet.find(DHC_CONFIG.selectors.productPrice)
@@ -235,7 +215,6 @@ export class DHCScraper extends BaseScraper {
             const details = await this.scrapeProductDetails(productUrl, page)
             price = details.price
             salePrice = details.salePrice
-            description = details.description
 
             // 詳細ページアクセス後の短い待機（負荷軽減）
             await new Promise(resolve => setTimeout(resolve, 300))
@@ -256,7 +235,6 @@ export class DHCScraper extends BaseScraper {
             salePrice,
             imageUrl: imageUrl || null,
             productUrl,
-            description: description || undefined,
           }
 
           products.push(product)

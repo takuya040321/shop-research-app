@@ -13,7 +13,6 @@ export interface InnisfreeProduct {
   salePrice: number | null
   imageUrl: string | null
   productUrl: string
-  description?: string | undefined
 }
 
 // スクレイピング設定
@@ -46,7 +45,7 @@ export class InnisfreeScraper extends BaseScraper {
   /**
    * 商品詳細ページから価格情報を取得
    */
-  async scrapeProductDetails(productUrl: string, page: Page): Promise<{price: number | null, salePrice: number | null, description: string | null}> {
+  async scrapeProductDetails(productUrl: string, page: Page): Promise<{price: number | null, salePrice: number | null}> {
     try {
       await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 })
 
@@ -55,7 +54,6 @@ export class InnisfreeScraper extends BaseScraper {
 
       let price: number | null = null
       let salePrice: number | null = null
-      let description: string | null = null
 
       // 価格取得（複数のセレクタを試行）
       const priceSelectors = [
@@ -89,25 +87,10 @@ export class InnisfreeScraper extends BaseScraper {
         }
       }
 
-      // 商品説明取得
-      const descriptionSelectors = [
-        '.description', '.product-description', '.detail',
-        '[class*="description"]', '.prd-desc'
-      ]
-
-      for (const selector of descriptionSelectors) {
-        if (!description) {
-          const descEl = $(selector).first()
-          if (descEl.length > 0) {
-            description = descEl.text().trim().substring(0, 500) // 最大500文字
-          }
-        }
-      }
-
-      return { price, salePrice, description }
+      return { price, salePrice }
     } catch (error) {
       console.warn(`商品詳細ページの取得でエラー (${productUrl}):`, error)
-      return { price: null, salePrice: null, description: null }
+      return { price: null, salePrice: null }
     }
   }
 
@@ -166,7 +149,6 @@ export class InnisfreeScraper extends BaseScraper {
           // 一覧ページから価格を抽出を試行
           let price: number | null = null
           let salePrice: number | null = null
-          let description: string | null = null
 
           // 価格抽出
           $product.find('.price, .cost, [class*="price"]').each((_, priceEl) => {
@@ -183,7 +165,6 @@ export class InnisfreeScraper extends BaseScraper {
             const details = await this.scrapeProductDetails(productUrl, page)
             price = details.price
             salePrice = details.salePrice
-            description = details.description
 
             // 詳細ページアクセス後の短い待機（負荷軽減）
             await new Promise(resolve => setTimeout(resolve, 300))
@@ -203,7 +184,6 @@ export class InnisfreeScraper extends BaseScraper {
             salePrice,
             imageUrl: imageUrl || null,
             productUrl,
-            description: description || undefined
           }
 
           products.push(product)

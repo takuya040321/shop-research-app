@@ -381,7 +381,6 @@ Supabase Authが自動管理（参照のみ使用）
 - **ASIN**: asin (商品に紐づくASIN、TEXT型で直接保持)
 - **非表示フラグ**: is_hidden
 - **お気に入りフラグ**: is_favorite (デフォルト: false)
-- **メモ**: memo
 - **元商品ID**: original_product_id (コピー元商品のID、コピー商品の場合は常に最初の元商品を参照)
 - **作成日時**: created_at
 - **更新日時**: updated_at
@@ -786,6 +785,9 @@ const { data } = await supabase.from("products").select()
 - **エラーハンドリング**: 統一エラー処理
 - **レート制限**: アクセス間隔制御
 - **タイムアウト設定**: ブランド別に最適化（DHC: 30秒、他: 15秒）
+- **パフォーマンス最適化**: 不要なデータ取得を削除
+  - 商品説明（description）の取得処理を削除し、スクレイピング速度を改善
+  - データベースに保存しない情報は取得しない方針
 
 #### 6.1.2 商品データ管理ロジック
 BaseScraperクラスに実装された`saveOrUpdateProducts`メソッドにより、商品のライフサイクル全体を自動管理：

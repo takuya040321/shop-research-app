@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
     const { data: productsWithAsins } = await supabase
       .from("products")
       .select("id, name, shop_type, shop_name, source_url, created_at, asin")
-      .neq("memo", "コピー商品")
       .order("created_at")
 
     let filteredProducts = productsWithAsins || []

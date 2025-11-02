@@ -204,8 +204,7 @@ async function saveProductsToDatabase(
       sale_price: null,
       image_url: product.imageUrl,
       source_url: product.itemUrl,
-      is_hidden: false,
-      memo: product.catchcopy || product.itemCaption || "楽天市場から取得"
+      is_hidden: false
     }))
 
     try {

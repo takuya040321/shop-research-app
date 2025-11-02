@@ -75,7 +75,6 @@ export const DEFAULT_SETTINGS: GlobalSettings = {
       complaint_count: 96,
       is_dangerous: 80,
       is_per_carry_ng: 96,
-      memo: 160,
       profit_amount: 112,
       profit_rate: 96,
       roi: 96
@@ -103,8 +102,7 @@ export const DEFAULT_SETTINGS: GlobalSettings = {
       has_official: true,
       complaint_count: true,
       is_dangerous: true,
-      is_per_carry_ng: true,
-      memo: true
+      is_per_carry_ng: true
     }
   },
   sort: {
