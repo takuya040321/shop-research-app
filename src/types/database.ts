@@ -117,7 +117,6 @@ export type Database = {
           image_url: string | null
           is_favorite: boolean
           is_hidden: boolean | null
-          memo: string | null
           name: string
           original_product_id: string | null
           price: number | null
@@ -134,7 +133,6 @@ export type Database = {
           image_url?: string | null
           is_favorite?: boolean
           is_hidden?: boolean | null
-          memo?: string | null
           name: string
           original_product_id?: string | null
           price?: number | null
@@ -151,7 +149,6 @@ export type Database = {
           image_url?: string | null
           is_favorite?: boolean
           is_hidden?: boolean | null
-          memo?: string | null
           name?: string
           original_product_id?: string | null
           price?: number | null

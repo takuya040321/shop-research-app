@@ -39,8 +39,7 @@ const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   { id: "has_official", label: "公式有" },
   { id: "complaint_count", label: "クレーム数" },
   { id: "is_dangerous", label: "危険品" },
-  { id: "is_per_carry_ng", label: "パーキャリNG" },
-  { id: "memo", label: "メモ" }
+  { id: "is_per_carry_ng", label: "パーキャリNG" }
 ]
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200]

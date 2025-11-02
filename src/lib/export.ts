@@ -32,7 +32,6 @@ export function exportProductsToCSV(products: ExtendedProduct[], filename = "pro
     非表示: product.is_hidden ? "はい" : "いいえ",
     画像URL: product.image_url,
     商品URL: product.source_url,
-    メモ: product.memo,
     作成日時: product.created_at,
     更新日時: product.updated_at,
   }))
