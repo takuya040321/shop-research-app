@@ -717,7 +717,6 @@ export type Product = Database["public"]["Tables"]["products"]["Row"]
 // - asin: string | null (ASIN参照用)
 // - is_hidden: boolean | null
 // - is_favorite: boolean (お気に入りフラグ)
-// - memo: string | null
 // - original_product_id: string | null
 // など
 

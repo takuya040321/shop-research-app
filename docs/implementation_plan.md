@@ -597,4 +597,94 @@ await scraper.close()
 
 ---
 
+## 8. データベース最適化・スクレイパー最適化（2025-11-02）
+
+### 8.1 productsテーブルからmemoカラムの削除
+- **実装日**: 2025-11-02
+- **優先度**: 高
+- **状態**: ✅ 完了
+
+#### 実装内容
+不要なmemoカラムをproductsテーブルから削除し、関連コードを整理
+
+**データベースマイグレーション:**
+- `supabase/migrations/20251102170140_remove_memo_column_from_products.sql`
+  - `ALTER TABLE products DROP COLUMN IF EXISTS memo;`
+
+**API Routes修正:**
+1. `src/app/api/rakuten/search/route.ts`: 楽天商品挿入時のmemoフィールド削除
+2. `src/app/api/yahoo/search/route.ts`: Yahoo商品挿入時のmemoフィールド削除
+3. `src/app/api/products/copy/route.ts`: コピー商品のmemoフィールド削除
+4. `src/app/api/products/cleanup-duplicates/route.ts`: memo-based filteringを削除
+
+**コンポーネント修正:**
+5. `src/components/products/DisplaySettingsPanel.tsx`: メモカラムの表示設定を削除
+
+**エクスポート修正:**
+6. `src/lib/export.ts`: CSV出力からメモカラムを削除
+
+**型定義修正:**
+7. `src/types/database.ts`: Row/Insert/Update型からmemoを削除
+8. `src/types/settings.ts`: columnWidths/visibleColumnsからmemoを削除
+
+**影響範囲:**
+- 11ファイル修正
+- データベーススキーマ変更（マイグレーション実行必要）
+- 型安全性維持
+- 既存機能への影響なし
+
+### 8.2 スクレイパーのパフォーマンス最適化
+- **実装日**: 2025-11-02
+- **優先度**: 高
+- **状態**: ✅ 完了
+
+#### 実装内容
+不要なdescription取得処理を削除し、スクレイピング速度を改善
+
+**DHC Scraper (`src/lib/scrapers/dhc-scraper.ts`):**
+- DHCProduct interfaceからdescription削除
+- scrapeProductDetailsメソッドの戻り値からdescription削除
+- description抽出ロジック全削除（30-40行削減）
+- 商品オブジェクト作成時のdescription除外
+
+**Innisfree Scraper (`src/lib/scrapers/innisfree-scraper.ts`):**
+- InnisfreeProduct interfaceからdescription削除
+- scrapeProductDetailsメソッドの戻り値からdescription削除
+- description抽出ロジック全削除（15行削減）
+- 商品オブジェクト作成時のdescription除外
+
+**VT Scraper (`src/lib/scrapers/vt-cosmetics-scraper.ts`):**
+- VTProduct interfaceからdescription削除
+- VTスクレイパーはもともとdescription取得ロジックなし
+
+**最適化効果:**
+- 詳細ページアクセス時のDOM解析処理削減
+- 不要なデータ取得の排除
+- スクレイピング速度の向上
+- メモリ使用量の削減
+
+**ドキュメント更新:**
+- `docs/system_design.md`: スクレイピング設計にパフォーマンス最適化の記載追加
+- `docs/technical_spec.md`: Product型コメントからmemo削除
+- `docs/implementation_plan.md`: 本セクション追加
+
+**テスト結果:**
+- TypeScriptコンパイル: エラーなし
+- ビルド: 成功
+- 全スクレイパー: 正常動作
+
+**主な効果:**
+- ✅ 不要なフィールドの完全削除
+- ✅ データベーススキーマの簡素化
+- ✅ スクレイピング処理の高速化
+- ✅ コードの保守性向上
+- ✅ 型安全性の維持
+
+**セキュリティ考慮事項:**
+- asinsテーブルのmemoカラムは意図的に保持（別用途）
+- productsテーブルのみの変更
+- データ整合性の維持
+
+---
+
 **この実装計画に従って、段階的に確実な開発を進めましょう！**
