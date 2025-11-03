@@ -88,62 +88,9 @@ export default function SettingsPage() {
           {/* ソート設定 */}
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">ソート設定</h2>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>デフォルトソート列</Label>
-                <Select
-                  value={settings.sort.defaultSortColumn}
-                  onValueChange={(value) => {
-                    setSettings({
-                      ...settings,
-                      sort: {
-                        ...settings.sort,
-                        defaultSortColumn: value
-                      }
-                    })
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="name">商品名</SelectItem>
-                    <SelectItem value="price">価格</SelectItem>
-                    <SelectItem value="purchase_price">仕入価格</SelectItem>
-                    <SelectItem value="amazon_price">Amazon価格</SelectItem>
-                    <SelectItem value="monthly_sales">月販数</SelectItem>
-                    <SelectItem value="profit_amount">利益額</SelectItem>
-                    <SelectItem value="profit_rate">利益率</SelectItem>
-                    <SelectItem value="roi">ROI</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>デフォルトソート方向</Label>
-                <Select
-                  value={settings.sort.defaultSortDirection}
-                  onValueChange={(value: "asc" | "desc") => {
-                    setSettings({
-                      ...settings,
-                      sort: {
-                        ...settings.sort,
-                        defaultSortDirection: value
-                      }
-                    })
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="asc">昇順</SelectItem>
-                    <SelectItem value="desc">降順</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <p className="text-sm text-gray-600">
+              ソート順は各ページの「表示設定」パネルから設定できます。
+            </p>
           </Card>
 
           {/* システム設定 */}
