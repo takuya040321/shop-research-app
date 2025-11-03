@@ -41,11 +41,9 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
     setFilters,
     setEditingCell,
     updateProductInState,
-    handleSort,
     startEditing,
     cancelEditing,
     saveEdit,
-    getSortIcon,
     scrollContainerRef,
     handleToggleFavorite,
     handleDeleteProduct,
@@ -120,7 +118,7 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
             className="overflow-x-auto overflow-y-auto max-h-screen"
           >
             <Table>
-              <ProductTableHeader onSort={handleSort} getSortIcon={getSortIcon} />
+              <ProductTableHeader />
 
               <TableBody>
                 {allProducts.map((product) => (

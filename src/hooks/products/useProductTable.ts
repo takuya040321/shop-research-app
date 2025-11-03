@@ -17,8 +17,6 @@ import { supabase } from "@/lib/supabase"
 import type { Asin } from "@/types/database"
 import { loadSettings } from "@/lib/settings"
 
-type SortDirection = "asc" | "desc" | null
-
 interface EditingCell {
   productId: string
   field: string
@@ -48,8 +46,6 @@ export function useProductTable({
   const [products, setProducts] = useState<ExtendedProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<string | null>(settings.sort.defaultSortColumn)
-  const [sortDirection, setSortDirection] = useState<SortDirection>(settings.sort.defaultSortDirection)
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null)
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
@@ -101,6 +97,13 @@ export function useProductTable({
   useEffect(() => {
     loadProducts()
   }, [loadProducts])
+
+  // ASIN関連のフィールドを定義
+  const ASIN_FIELDS = [
+    "asin", "amazon_name", "amazon_price", "monthly_sales",
+    "fee_rate", "fba_fee", "has_amazon", "has_official",
+    "complaint_count", "is_dangerous", "is_per_carry_ng"
+  ]
 
   // フィルタリング・ソート
   const filteredAndSortedProducts = useMemo(() => {
@@ -190,35 +193,59 @@ export function useProductTable({
       filtered = filtered.filter(product => !product.sale_price || product.sale_price === 0)
     }
 
-    if (!sortField || !sortDirection) return filtered
+    // 3段階のソート順を適用
+    const sortOrder = settings.sort.sortOrder
+    if (!sortOrder || sortOrder.length === 0) return filtered
 
     return [...filtered].sort((a, b) => {
-      let aValue: unknown = a[sortField as keyof ExtendedProduct]
-      let bValue: unknown = b[sortField as keyof ExtendedProduct]
+      // 各優先度のソート条件を順番に適用
+      for (const { column, direction } of sortOrder) {
+        let aValue: unknown
+        let bValue: unknown
 
-      if (sortField.startsWith("asin_")) {
-        const asinField = sortField.replace("asin_", "")
-        aValue = a.asin?.[asinField as keyof typeof a.asin]
-        bValue = b.asin?.[asinField as keyof typeof b.asin]
+        // ASIN関連のフィールドかどうかで処理を分岐
+        if (ASIN_FIELDS.includes(column)) {
+          if (column === "asin") {
+            aValue = a.asin?.asin
+            bValue = b.asin?.asin
+          } else {
+            aValue = a.asin?.[column as keyof typeof a.asin]
+            bValue = b.asin?.[column as keyof typeof b.asin]
+          }
+        } else {
+          aValue = a[column as keyof ExtendedProduct]
+          bValue = b[column as keyof ExtendedProduct]
+        }
+
+        // null/undefinedを空文字として扱う
+        if (aValue == null) aValue = ""
+        if (bValue == null) bValue = ""
+
+        let comparison = 0
+
+        // 数値比較
+        if (typeof aValue === "number" && typeof bValue === "number") {
+          comparison = direction === "asc" ? aValue - bValue : bValue - aValue
+        } else {
+          // 文字列比較
+          const aStr = String(aValue).toLowerCase()
+          const bStr = String(bValue).toLowerCase()
+          comparison = direction === "asc"
+            ? aStr.localeCompare(bStr, "ja")
+            : bStr.localeCompare(aStr, "ja")
+        }
+
+        // この優先度で差があれば結果を返す
+        if (comparison !== 0) {
+          return comparison
+        }
+        // 差がなければ次の優先度へ
       }
 
-      if (aValue == null) aValue = ""
-      if (bValue == null) bValue = ""
-
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortDirection === "asc" ? aValue - bValue : bValue - aValue
-      }
-
-      const aStr = String(aValue).toLowerCase()
-      const bStr = String(bValue).toLowerCase()
-
-      if (sortDirection === "asc") {
-        return aStr.localeCompare(bStr, "ja")
-      } else {
-        return bStr.localeCompare(aStr, "ja")
-      }
+      // すべての優先度で同じ場合は順序を保持
+      return 0
     })
-  }, [products, filters, shopFilter, sortField, sortDirection])
+  }, [products, filters, shopFilter, settings.sort.sortOrder, ASIN_FIELDS])
 
   // ページネーション
   const totalPages = Math.ceil(filteredAndSortedProducts.length / pageSize)
@@ -250,23 +277,6 @@ export function useProductTable({
     }
     setSelectedProducts(newSelection)
   }, [selectedProducts])
-
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc")
-      } else if (sortDirection === "desc") {
-        setSortField(null)
-        setSortDirection(null)
-      } else {
-        setSortDirection("asc")
-      }
-    } else {
-      setSortField(field)
-      setSortDirection("asc")
-    }
-    setCurrentPage(1)
-  }, [sortField, sortDirection])
 
   const goToFirstPage = () => setCurrentPage(1)
   const goToPreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1))
@@ -583,11 +593,6 @@ export function useProductTable({
     }
   }, [selectedProducts])
 
-  const getSortIcon = useCallback((field: string) => {
-    if (sortField !== field) return null
-    return sortDirection
-  }, [sortField, sortDirection])
-
   // お気に入りトグルハンドラー
   const handleToggleFavorite = useCallback(async (product: ExtendedProduct) => {
     const newFavoriteStatus = !product.is_favorite
@@ -658,8 +663,6 @@ export function useProductTable({
     totalProductsCount: products.length,
     loading,
     error,
-    sortField,
-    sortDirection,
     editingCell,
     selectedProducts,
     currentPage,
@@ -675,7 +678,6 @@ export function useProductTable({
     loadProducts,
     updateProductInState,
     handleSelectProduct,
-    handleSort,
     goToFirstPage,
     goToPreviousPage,
     goToNextPage,
@@ -686,7 +688,6 @@ export function useProductTable({
     saveEdit,
     handleCopyProduct,
     handleDeleteProduct,
-    getSortIcon,
     handleToggleFavorite,
     getContextMenuItems,
   }

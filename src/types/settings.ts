@@ -18,10 +18,11 @@ export interface DisplaySettings {
 
 // ソート設定
 export interface SortSettings {
-  // 初期ソート列
-  defaultSortColumn: string
-  // ソート方向
-  defaultSortDirection: "asc" | "desc"
+  // ソート条件（最大3段階）
+  sortOrder: Array<{
+    column: string
+    direction: "asc" | "desc"
+  }>
 }
 
 // システム設定
@@ -102,12 +103,14 @@ export const DEFAULT_SETTINGS: GlobalSettings = {
       has_official: true,
       complaint_count: true,
       is_dangerous: true,
-      is_per_carry_ng: true
+      is_per_carry_ng: true,
+      memo: true
     }
   },
   sort: {
-    defaultSortColumn: "name",
-    defaultSortDirection: "asc"
+    sortOrder: [
+      { column: "name", direction: "asc" }
+    ]
   },
   system: {
     enableNotifications: true,
@@ -132,8 +135,15 @@ export function validateSettings(settings: unknown): settings is GlobalSettings 
     typeof s.display?.columnWidths === "object" &&
     typeof s.display?.pageSize === "number" &&
     typeof s.display?.visibleColumns === "object" &&
-    typeof s.sort?.defaultSortColumn === "string" &&
-    (s.sort?.defaultSortDirection === "asc" || s.sort?.defaultSortDirection === "desc") &&
+    Array.isArray(s.sort?.sortOrder) &&
+    s.sort.sortOrder.every(
+      (item: unknown) =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as { column?: unknown }).column === "string" &&
+        ((item as { direction?: unknown }).direction === "asc" ||
+          (item as { direction?: unknown }).direction === "desc")
+    ) &&
     typeof s.system?.enableNotifications === "boolean" &&
     typeof s.system?.autoRefreshInterval === "number"
   )

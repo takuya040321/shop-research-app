@@ -9,40 +9,18 @@ import { useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
-import { SettingsIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
-import { loadSettings, updateDisplaySettings } from "@/lib/settings"
+import { SettingsIcon, ChevronDownIcon, ChevronUpIcon, ArrowUpIcon, ArrowDownIcon } from "lucide-react"
+import { loadSettings, updateDisplaySettings, updateSortSettings } from "@/lib/settings"
 import { toast } from "sonner"
-
-interface ColumnDefinition {
-  id: string
-  label: string
-}
-
-const COLUMN_DEFINITIONS: ColumnDefinition[] = [
-  { id: "favorite", label: "お気に入り" },
-  { id: "image", label: "画像" },
-  { id: "name", label: "商品名" },
-  { id: "price", label: "価格" },
-  { id: "purchase_price", label: "仕入価格" },
-  { id: "asin", label: "ASIN" },
-  { id: "amazon_name", label: "Amazon商品名" },
-  { id: "amazon_price", label: "Amazon価格" },
-  { id: "monthly_sales", label: "月間売上" },
-  { id: "fee_rate", label: "手数料率" },
-  { id: "fba_fee", label: "FBA料" },
-  { id: "jan_code", label: "JANコード" },
-  { id: "profit_amount", label: "利益額" },
-  { id: "profit_rate", label: "利益率" },
-  { id: "roi", label: "ROI" },
-  { id: "is_hidden", label: "非表示" },
-  { id: "has_amazon", label: "Amazon有" },
-  { id: "has_official", label: "公式有" },
-  { id: "complaint_count", label: "クレーム数" },
-  { id: "is_dangerous", label: "危険品" },
-  { id: "is_per_carry_ng", label: "パーキャリNG" }
-]
+import { COLUMN_DEFINITIONS, getSortableColumns } from "@/lib/columnDefinitions"
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200]
+
+// ソート可能な列の定義
+const SORTABLE_COLUMNS = [
+  { id: "none", label: "なし" },
+  ...getSortableColumns()
+]
 
 interface DisplaySettingsPanelProps {
   onSettingsChange?: () => void
@@ -50,9 +28,11 @@ interface DisplaySettingsPanelProps {
 
 export function DisplaySettingsPanel({ onSettingsChange }: DisplaySettingsPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [isSortExpanded, setIsSortExpanded] = useState(false)
   const settings = loadSettings()
   const [pageSize, setPageSize] = useState(settings.display.pageSize)
   const [visibleColumns, setVisibleColumns] = useState(settings.display.visibleColumns)
+  const [sortOrder, setSortOrder] = useState(settings.sort.sortOrder)
 
   const handlePageSizeChange = (value: string) => {
     const newSize = parseInt(value)
@@ -92,6 +72,56 @@ export function DisplaySettingsPanel({ onSettingsChange }: DisplaySettingsPanelP
     const success = updateDisplaySettings({ visibleColumns: allVisible })
     if (success) {
       toast.success("すべての列を表示に設定しました")
+      onSettingsChange?.()
+    } else {
+      toast.error("設定の保存に失敗しました")
+    }
+  }
+
+  const handleSortChange = (priority: number, field: "column" | "direction", value: string) => {
+    const newSortOrder = [...sortOrder]
+
+    // 優先度が範囲外の場合は新しい要素を追加
+    while (newSortOrder.length <= priority) {
+      newSortOrder.push({ column: "none", direction: "asc" as const })
+    }
+
+    if (field === "column") {
+      if (value === "none") {
+        // "なし"が選択された場合、この優先度以降を削除
+        newSortOrder.splice(priority)
+      } else {
+        newSortOrder[priority] = {
+          column: value,
+          direction: newSortOrder[priority]?.direction || "asc"
+        }
+      }
+    } else {
+      newSortOrder[priority] = {
+        column: newSortOrder[priority]?.column || "name",
+        direction: value as "asc" | "desc"
+      }
+    }
+
+    // "none"でない要素のみをフィルタ
+    const filtered = newSortOrder.filter(item => item.column !== "none")
+
+    setSortOrder(filtered)
+    const success = updateSortSettings({ sortOrder: filtered })
+    if (success) {
+      toast.success("並び順を設定しました")
+      onSettingsChange?.()
+    } else {
+      toast.error("設定の保存に失敗しました")
+    }
+  }
+
+  const handleResetSort = () => {
+    const defaultSort = [{ column: "name", direction: "asc" as const }]
+    setSortOrder(defaultSort)
+    const success = updateSortSettings({ sortOrder: defaultSort })
+    if (success) {
+      toast.success("並び順をリセットしました")
       onSettingsChange?.()
     } else {
       toast.error("設定の保存に失敗しました")
@@ -140,6 +170,20 @@ export function DisplaySettingsPanel({ onSettingsChange }: DisplaySettingsPanelP
               <ChevronDownIcon className="w-4 h-4" />
             )}
           </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsSortExpanded(!isSortExpanded)}
+            className="flex items-center gap-2"
+          >
+            並び順設定
+            {isSortExpanded ? (
+              <ChevronUpIcon className="w-4 h-4" />
+            ) : (
+              <ChevronDownIcon className="w-4 h-4" />
+            )}
+          </Button>
         </div>
       </div>
 
@@ -167,6 +211,74 @@ export function DisplaySettingsPanel({ onSettingsChange }: DisplaySettingsPanelP
                 <span className="text-sm">{column.label}</span>
               </label>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 並び順設定パネル */}
+      {isSortExpanded && (
+        <div className="border-t pt-4 mt-4">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-medium text-gray-700">並び順を設定（最大3段階）</span>
+            <Button variant="ghost" size="sm" onClick={handleResetSort}>
+              リセット
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {[0, 1, 2].map((priority) => {
+              const currentSort = sortOrder[priority] || { column: "none", direction: "asc" }
+              const priorityLabels = ["第一優先", "第二優先", "第三優先"]
+
+              return (
+                <div key={priority} className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-600 w-20">
+                    {priorityLabels[priority]}:
+                  </span>
+
+                  <Select
+                    value={currentSort.column}
+                    onValueChange={(value) => handleSortChange(priority, "column", value)}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SORTABLE_COLUMNS.map((col) => (
+                        <SelectItem key={col.id} value={col.id}>
+                          {col.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {currentSort.column !== "none" && (
+                    <Select
+                      value={currentSort.direction}
+                      onValueChange={(value) => handleSortChange(priority, "direction", value)}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asc">
+                          <div className="flex items-center gap-2">
+                            <ArrowUpIcon className="w-4 h-4" />
+                            昇順
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="desc">
+                          <div className="flex items-center gap-2">
+                            <ArrowDownIcon className="w-4 h-4" />
+                            降順
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
