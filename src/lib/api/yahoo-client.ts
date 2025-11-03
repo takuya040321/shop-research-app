@@ -111,6 +111,20 @@ export class YahooAPIClient {
       const response = await this.fetchWithRetry(url, 3)
 
       if (!response.ok) {
+        console.error("=== Yahoo API HTTPエラー ===")
+        console.error("HTTPステータス:", response.status, response.statusText)
+        console.error("リクエストURL:", url)
+        console.error("リクエストパラメータ:", params)
+        
+        let responseBody = ""
+        try {
+          responseBody = await response.text()
+          console.error("レスポンスボディ:", responseBody)
+        } catch (e) {
+          console.error("レスポンスボディの読み取りに失敗:", e)
+        }
+        console.error("================================")
+        
         throw new Error(`Yahoo API呼び出しエラー: ${response.status} ${response.statusText}`)
       }
 
@@ -126,7 +140,18 @@ export class YahooAPIClient {
       }
 
     } catch (error) {
-      console.error("Yahoo API検索エラー:", error)
+      console.error("=== Yahoo API検索エラー ===")
+      console.error("エラー発生時刻:", new Date().toISOString())
+      console.error("リクエストパラメータ:", params)
+      console.error("エラータイプ:", error?.constructor?.name || typeof error)
+      console.error("エラー詳細:", error)
+      
+      if (error instanceof Error) {
+        console.error("エラーメッセージ:", error.message)
+        console.error("スタックトレース:", error.stack)
+      }
+      console.error("================================")
+      
       throw new Error(
         error instanceof Error
           ? `Yahoo API検索失敗: ${error.message}`
@@ -173,7 +198,34 @@ export class YahooAPIClient {
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error))
-        console.warn(`Yahoo API呼び出し失敗 (試行 ${i + 1}/${maxRetries}):`, error)
+        
+        console.error("=== Yahoo API呼び出し失敗（リトライ中） ===")
+        console.error("試行回数:", `${i + 1}/${maxRetries}`)
+        console.error("エラー発生時刻:", new Date().toISOString())
+        console.error("リクエストURL:", url)
+        console.error("エラータイプ:", error?.constructor?.name || typeof error)
+        console.error("エラー詳細:", error)
+        
+        if (error instanceof Error) {
+          console.error("エラーメッセージ:", error.message)
+          
+          // タイムアウトエラーの判定
+          if (error.name === "TimeoutError" || error.message.includes("timeout")) {
+            console.error("⚠️ タイムアウトエラー: APIリクエストが10秒以内に完了しませんでした")
+          }
+          
+          // ネットワークエラーの判定
+          if (error.message.includes("fetch") || error.message.includes("network")) {
+            console.error("⚠️ ネットワークエラー: インターネット接続を確認してください")
+          }
+        }
+        
+        if (i < maxRetries - 1) {
+          console.error(`リトライします... (${i + 2}/${maxRetries})`)
+        } else {
+          console.error("すべてのリトライが失敗しました")
+        }
+        console.error("=============================================")
       }
     }
 

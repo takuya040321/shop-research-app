@@ -687,4 +687,208 @@ await scraper.close()
 
 ---
 
+## 9. ログ出力の統一化・エラーハンドリング強化（2025-11-03）
+
+### 9.1 ログ出力の統一化
+- **実装日**: 2025-11-03
+- **優先度**: 高
+- **状態**: ✅ 完了
+
+#### 実装内容
+全てのAPI（Yahoo検索、楽天検索、公式サイトスクレイピング）でログ出力形式を統一
+
+**統一ログフォーマット:**
+```
+=== [サービス名]API ===
+リクエストパラメータ: { ... }
+[サービス名] 取得: X件 | 保存: Y件 | 更新: Z件 | スキップ: W件 | 削除: 0件
+```
+
+**対象ファイル:**
+1. `src/app/api/yahoo/search/route.ts`
+   - 開始ログ: `=== Yahoo商品検索API ===`
+   - 結果サマリー: `[Yahoo検索] 取得: X件 | 保存: Y件 | 更新: 0件 | スキップ: W件 | 削除: 0件`
+
+2. `src/app/api/rakuten/search/route.ts`
+   - 開始ログ: `=== 楽天商品検索API ===`
+   - 結果サマリー: `[楽天検索] 取得: X件 | 保存: Y件 | 更新: Z件 | スキップ: W件 | 削除: 0件`
+
+3. `src/app/api/scrape/dhc/route.ts`
+   - 開始ログ: `=== DHCスクレイピングAPI ===`
+   - 結果サマリー: `[DHCスクレイピング] 取得: X件 | 保存: Y件 | 更新: 0件 | スキップ: W件 | 削除: 0件`
+
+4. `src/app/api/scrape/innisfree/route.ts`
+   - 開始ログ: `=== innisfreeスクレイピングAPI ===`
+   - 結果サマリー: `[innisfreeスクレイピング] 取得: X件 | 保存: Y件 | 更新: 0件 | スキップ: W件 | 削除: 0件`
+
+5. `src/app/api/scrape/vt/route.ts`
+   - 開始ログ: `=== VTスクレイピングAPI ===`
+   - 結果サマリー: `[VTスクレイピング] 取得: X件 | 保存: Y件 | 更新: 0件 | スキップ: W件 | 削除: 0件`
+
+**主な効果:**
+- ✅ 統一されたログフォーマットでデバッグが容易
+- ✅ 各API呼び出しの結果を一目で把握可能
+- ✅ リクエストパラメータと結果の追跡が容易
+- ✅ 保守性の向上
+
+### 9.2 エラーハンドリングの強化
+- **実装日**: 2025-11-03
+- **優先度**: 高
+- **状態**: ✅ 完了
+
+#### 実装内容
+全てのAPIで詳細なエラーログを追加し、問題の迅速な特定を可能に
+
+**エラーログフォーマット:**
+```
+=== [サービス名]でエラー ===
+エラー発生時刻: 2025-11-03T12:34:56.789Z
+エラータイプ: Error
+エラーメッセージ: [エラーメッセージ]
+スタックトレース: [スタックトレース]
+リクエストパラメータ（再確認）: { ... }
+================================
+```
+
+**追加されたエラー情報:**
+1. **エラー発生時刻**: ISO8601形式のタイムスタンプ
+2. **エラータイプ**: エラークラス名（Error, TypeError, NetworkErrorなど）
+3. **エラーメッセージ**: error.message
+4. **スタックトレース**: error.stack（Error型の場合）
+5. **リクエストパラメータ**: 問題再現のための入力値
+
+**API呼び出しエラーの詳細化:**
+```typescript
+try {
+  const result = await client.searchItems({ ... })
+} catch (apiError) {
+  console.error("=== Yahoo API呼び出しエラー ===")
+  console.error("エラー発生時刻:", new Date().toISOString())
+  console.error("リクエストパラメータ:", { ... })
+  console.error("エラー詳細:", apiError)
+  if (apiError instanceof Error) {
+    console.error("エラーメッセージ:", apiError.message)
+    console.error("スタックトレース:", apiError.stack)
+  }
+  console.error("================================")
+  throw apiError
+}
+```
+
+**データベース保存エラーの警告:**
+```typescript
+if (saveResult.errors.length > 0) {
+  console.warn("=== データベース保存時にエラーが発生 ===")
+  saveResult.errors.forEach((err, index) => {
+    console.warn(`エラー ${index + 1}:`, err)
+  })
+  console.warn("=========================================")
+}
+```
+
+**スクレイピング失敗時の詳細ログ:**
+```typescript
+if (!result.success) {
+  console.error("=== DHCスクレイピング失敗 ===")
+  console.error("エラー発生時刻:", new Date().toISOString())
+  console.error("エラー一覧:", result.errors)
+  console.error("プロキシ使用:", result.proxyUsed)
+  console.error("================================")
+}
+```
+
+**対象ファイル:**
+1. `src/app/api/yahoo/search/route.ts`
+   - トップレベルエラーハンドリング強化
+   - API呼び出しエラーの詳細化
+   - データベース保存エラーの警告
+
+2. `src/app/api/rakuten/search/route.ts`
+   - トップレベルエラーハンドリング強化
+   - API呼び出しエラーの詳細化
+   - データベース保存エラーの警告
+
+3. `src/app/api/scrape/dhc/route.ts`
+   - スクレイピング失敗時のエラーログ追加
+
+4. `src/app/api/scrape/innisfree/route.ts`
+   - スクレイピング失敗時のエラーログ追加
+
+5. `src/app/api/scrape/vt/route.ts`
+   - スクレイピング失敗時のエラーログ追加
+
+6. `src/lib/api/yahoo-client.ts`
+   - Yahoo APIエラーハンドリング強化
+
+7. `src/lib/api/rakuten-client.ts`
+   - 楽天APIエラーハンドリング強化
+
+**主な効果:**
+- ✅ エラー発生箇所の迅速な特定
+- ✅ エラーパターンの分析が容易
+- ✅ リクエスト内容の追跡可能
+- ✅ デバッグ効率の大幅向上
+- ✅ タイムアウト/ネットワークエラーの判定と警告
+- ✅ HTTPステータスコードの表示
+- ✅ Supabaseエラー詳細の表示
+
+### 9.3 Supabaseクライアント初期化ログの削除
+- **実装日**: 2025-11-03
+- **優先度**: 中
+- **状態**: ✅ 完了
+
+#### 実装内容
+冗長なSupabaseクライアント初期化ログを削除し、ログ出力をクリーンに
+
+**対象ファイル:**
+- `src/lib/supabase-server.ts`
+
+**削除されたログ:**
+```typescript
+// 削除前
+console.log("Supabase server client initializing...")
+console.log("URL:", supabaseUrl)
+console.log("Has service role key:", !!supabaseServiceRoleKey)
+
+// 削除後
+// エラー時のみ出力
+```
+
+**主な効果:**
+- ✅ ログ出力のクリーンアップ
+- ✅ 必要な情報のみを出力（エラー時のみ）
+- ✅ ログノイズの削減
+
+### 9.4 ドキュメント更新
+- **状態**: ✅ 完了
+
+**更新されたドキュメント:**
+1. `docs/system_design.md`
+   - セクション11.2「統一ログ設計」を拡張
+   - 11.2.1 API統一ログフォーマット追加
+   - 11.2.2 エラーハンドリング強化追加
+
+2. `docs/technical_spec.md`
+   - セクション11.2「統一ログフォーマット」を拡張
+   - 11.2.1 API統一ログフォーマット追加
+   - 11.2.2 エラーハンドリング強化追加
+   - 11.3 エラー種別と対応追加
+   - 11.4 ログ出力の利点追加
+
+3. `docs/implementation_plan.md`
+   - 本セクション（セクション9）を追加
+
+**テスト結果:**
+- TypeScriptコンパイル: エラーなし
+- ビルド: 成功
+- 全API: 正常動作確認
+- ログ出力: 統一形式で出力
+
+**セキュリティ考慮事項:**
+- 環境変数やAPIキーなどの機密情報はログに出力しない
+- エラー情報は開発時のデバッグ用途に限定
+- 本番環境ではログレベルを適切に設定
+
+---
+
 **この実装計画に従って、段階的に確実な開発を進めましょう！**

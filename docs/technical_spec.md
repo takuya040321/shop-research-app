@@ -1004,29 +1004,195 @@ module.exports = nextConfig
 - **ログ形式**: JSON形式
 - **用途**: 開発時のデバッグ・問題調査用
 
-### 11.2 エラーハンドリング
+### 11.2 統一ログフォーマット（2025-11-03実装）
+
+#### 11.2.1 API統一ログフォーマット
+全てのAPI（Yahoo検索、楽天検索、公式サイトスクレイピング）で以下の統一形式を採用：
+
+**開始ログ:**
 ```typescript
-// lib/logger.ts
-export const logger = {
-  info: (message: string, data?: any) => {
-    console.log(JSON.stringify({
-      level: 'INFO',
-      message,
-      data,
-      timestamp: new Date().toISOString()
-    }))
-  },
-  error: (message: string, error?: Error) => {
-    console.error(JSON.stringify({
-      level: 'ERROR',
-      message,
-      error: error?.message,
-      stack: error?.stack,
-      timestamp: new Date().toISOString()
-    }))
+console.log("=== [サービス名]API ===")
+console.log("リクエストパラメータ:", { ...requestParams })
+```
+
+**結果サマリーログ:**
+```typescript
+console.log(`[サービス名] 取得: X件 | 保存: Y件 | 更新: Z件 | スキップ: W件 | 削除: 0件`)
+```
+
+**実装例（Yahoo商品検索API）:**
+```typescript
+// POST /api/yahoo/search
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { query, sellerId, categoryId, brandId, shopName, hits, offset } = body
+
+    console.log("=== Yahoo商品検索API ===")
+    console.log("リクエストパラメータ:", { query, sellerId, categoryId, brandId, shopName, hits, offset })
+
+    // ... API呼び出し・データベース保存処理 ...
+
+    console.log(`[Yahoo検索] 取得: ${allProducts.length}件 | 保存: ${saveResult.savedCount}件 | 更新: 0件 | スキップ: ${saveResult.skippedCount}件 | 削除: 0件`)
+
+    return NextResponse.json({ success: true, data: { ... } })
+  } catch (error) {
+    // エラーハンドリング（下記参照）
   }
 }
 ```
+
+**実装例（楽天商品検索API）:**
+```typescript
+// POST /api/rakuten/search
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { keyword, shopCode, genreId, shopName, hits, page } = body
+
+    console.log("=== 楽天商品検索API ===")
+    console.log("リクエストパラメータ:", { keyword, shopCode, genreId, shopName, hits, page })
+
+    // ... API呼び出し・データベース保存処理 ...
+
+    console.log(`[楽天検索] 取得: ${allProducts.length}件 | 保存: ${saveResult.savedCount}件 | 更新: ${saveResult.updatedCount}件 | スキップ: ${saveResult.skippedCount}件 | 削除: 0件`)
+
+    return NextResponse.json({ success: true, data: { ... } })
+  } catch (error) {
+    // エラーハンドリング（下記参照）
+  }
+}
+```
+
+**実装例（DHCスクレイピングAPI）:**
+```typescript
+// POST /api/scrape/dhc
+export async function POST() {
+  try {
+    console.log("=== DHCスクレイピングAPI ===")
+
+    const scraper = new DHCScraper()
+    const result = await scraper.executeFullScraping()
+
+    console.log(`[DHCスクレイピング] 取得: ${result.totalProducts}件 | 保存: ${result.savedProducts}件 | 更新: 0件 | スキップ: ${result.skippedProducts}件 | 削除: 0件`)
+
+    return NextResponse.json({ success: true, data: { ... } })
+  } catch (error) {
+    // エラーハンドリング（下記参照）
+  }
+}
+```
+
+#### 11.2.2 エラーハンドリング強化
+全てのAPIで詳細なエラーログを出力：
+
+**トップレベルエラーハンドリング:**
+```typescript
+catch (error) {
+  console.error("=== [サービス名]でエラー ===")
+  console.error("エラー発生時刻:", new Date().toISOString())
+  console.error("エラータイプ:", error?.constructor?.name || typeof error)
+  console.error("エラー詳細:", error)
+
+  if (error instanceof Error) {
+    console.error("エラーメッセージ:", error.message)
+    console.error("スタックトレース:", error.stack)
+  }
+
+  // リクエストボディの再表示（デバッグ用）
+  try {
+    const body = await request.json()
+    console.error("リクエストパラメータ（再確認）:", body)
+  } catch {
+    console.error("リクエストボディの解析に失敗")
+  }
+
+  console.error("================================")
+  return NextResponse.json(
+    {
+      success: false,
+      message: error instanceof Error ? error.message : "[サービス名]に失敗しました"
+    },
+    { status: 500 }
+  )
+}
+```
+
+**API呼び出しエラーハンドリング:**
+```typescript
+try {
+  const result = await client.searchItems({ ... })
+  // 処理続行
+} catch (apiError) {
+  console.error("=== [サービス名]API呼び出しエラー ===")
+  console.error("エラー発生時刻:", new Date().toISOString())
+  console.error("リクエストパラメータ:", { ... })
+  console.error("エラー詳細:", apiError)
+  if (apiError instanceof Error) {
+    console.error("エラーメッセージ:", apiError.message)
+    console.error("スタックトレース:", apiError.stack)
+  }
+  console.error("================================")
+  throw apiError
+}
+```
+
+**データベース保存時のエラー警告:**
+```typescript
+if (saveResult.errors.length > 0) {
+  console.warn("=== データベース保存時にエラーが発生 ===")
+  saveResult.errors.forEach((err, index) => {
+    console.warn(`エラー ${index + 1}:`, err)
+  })
+  console.warn("=========================================")
+}
+```
+
+**スクレイピング失敗時のエラーログ:**
+```typescript
+if (!result.success) {
+  console.error("=== [ブランド名]スクレイピング失敗 ===")
+  console.error("エラー発生時刻:", new Date().toISOString())
+  console.error("エラー一覧:", result.errors)
+  console.error("プロキシ使用:", result.proxyUsed)
+  console.error("================================")
+
+  return NextResponse.json(
+    {
+      success: false,
+      message: "スクレイピングに失敗しました",
+      errors: result.errors,
+      proxyUsed: result.proxyUsed
+    },
+    { status: 500 }
+  )
+}
+```
+
+### 11.3 エラー種別と対応
+
+#### タイムアウトエラー
+- 検出: `error.message.includes('timeout')`
+- 対応: タイムアウト設定の見直し、リトライ処理
+
+#### ネットワークエラー
+- 検出: `error.message.includes('network')` または `error.message.includes('ECONNREFUSED')`
+- 対応: プロキシ設定確認、ネットワーク接続確認
+
+#### Supabaseエラー
+- 検出: エラーオブジェクトに`code`プロパティ存在
+- 対応: データベース接続確認、RLSポリシー確認、権限確認
+
+#### HTTPステータスエラー
+- 検出: レスポンスの`status`コード
+- 対応: APIキー確認、リクエストパラメータ確認、レート制限確認
+
+### 11.4 ログ出力の利点
+- **デバッグの効率化**: エラー発生箇所を迅速に特定
+- **エラーパターンの分析**: 繰り返し発生するエラーを検出
+- **リクエスト追跡**: 問題のあるリクエストを再現可能
+- **統一性**: 全APIで一貫したログフォーマット
+- **保守性**: ログ形式の統一により保守が容易
 
 ## 12. 品質保証
 
