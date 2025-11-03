@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { keyword, shopCode, genreId, shopName, hits, page } = body
 
-    console.log("楽天商品検索を開始します...", { keyword, shopCode, genreId })
+    console.log("=== 楽天商品検索API ===")
+    console.log("リクエストパラメータ:", { keyword, shopCode, genreId, shopName, hits, page })
 
     // 楽天APIクライアント取得
     const client = getRakutenClient()
@@ -28,46 +29,73 @@ export async function POST(request: NextRequest) {
     const hitsPerPage = hits || 30
 
     while (true) {
-      // 商品検索
-      const result = await client.searchItems({
-        keyword,
-        shopCode,
-        genreId,
-        hits: hitsPerPage,
-        page: currentPage
-      })
+      try {
+        // 商品検索
+        const result = await client.searchItems({
+          keyword,
+          shopCode,
+          genreId,
+          hits: hitsPerPage,
+          page: currentPage
+        })
 
-      if (currentPage === 1) {
-        totalCount = result.totalCount
-        pageCount = result.pageCount
-        console.log(`総件数: ${totalCount}件、総ページ数: ${pageCount}`)
+        if (currentPage === 1) {
+          totalCount = result.totalCount
+          pageCount = result.pageCount
+        }
+
+        if (result.products.length === 0) {
+          break
+        }
+
+        allProducts.push(...result.products)
+
+        // 最終ページに達したら終了
+        if (currentPage >= pageCount) {
+          break
+        }
+
+        currentPage++
+
+        // レート制限対策: 1秒待機
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      } catch (apiError) {
+        console.error("=== 楽天API呼び出しエラー ===")
+        console.error("エラー発生時刻:", new Date().toISOString())
+        console.error("リクエストパラメータ:", {
+          keyword,
+          shopCode,
+          genreId,
+          hits: hitsPerPage,
+          page: currentPage
+        })
+        console.error("エラー詳細:", apiError)
+        if (apiError instanceof Error) {
+          console.error("エラーメッセージ:", apiError.message)
+          console.error("スタックトレース:", apiError.stack)
+        }
+        console.error("================================")
+        throw apiError
       }
-
-      if (result.products.length === 0) {
-        break
-      }
-
-      allProducts.push(...result.products)
-      console.log(`ページ ${currentPage}: ${result.products.length}件取得（累計: ${allProducts.length}件）`)
-
-      // 最終ページに達したら終了
-      if (currentPage >= pageCount) {
-        break
-      }
-
-      currentPage++
-
-      // レート制限対策: 1秒待機
-      await new Promise(resolve => setTimeout(resolve, 1000))
     }
-
-    console.log(`合計 ${allProducts.length}件の商品を取得しました`)
 
     // データベースに保存
     const saveResult = await saveProductsToDatabase(
       allProducts,
       shopName || "楽天市場"
     )
+
+    // エラーがあれば警告表示
+    if (saveResult.errors.length > 0) {
+      console.warn("=== データベース保存時にエラーが発生 ===")
+      saveResult.errors.forEach((err, index) => {
+        console.warn(`エラー ${index + 1}:`, err)
+      })
+      console.warn("=========================================")
+    }
+
+    // 結果サマリーを表示
+    console.log(`[楽天検索] 取得: ${allProducts.length}件 | 保存: ${saveResult.savedCount}件 | 更新: ${saveResult.updatedCount}件 | スキップ: ${saveResult.skippedCount}件 | 削除: 0件`)
 
     return NextResponse.json({
       success: true,
@@ -78,13 +106,32 @@ export async function POST(request: NextRequest) {
         fetchedPages: currentPage,
         productsCount: allProducts.length,
         savedCount: saveResult.savedCount,
+        updatedCount: saveResult.updatedCount,
         skippedCount: saveResult.skippedCount,
         products: allProducts
       }
     })
 
   } catch (error) {
-    console.error("楽天商品検索APIでエラーが発生しました:", error)
+    console.error("=== 楽天商品検索APIでエラー ===")
+    console.error("エラー発生時刻:", new Date().toISOString())
+    console.error("エラータイプ:", error?.constructor?.name || typeof error)
+    console.error("エラー詳細:", error)
+    
+    if (error instanceof Error) {
+      console.error("エラーメッセージ:", error.message)
+      console.error("スタックトレース:", error.stack)
+    }
+    
+    // リクエストボディの再表示（デバッグ用）
+    try {
+      const body = await request.json()
+      console.error("リクエストパラメータ（再確認）:", body)
+    } catch {
+      console.error("リクエストボディの解析に失敗")
+    }
+    
+    console.error("================================")
     return NextResponse.json(
       {
         success: false,
@@ -103,19 +150,17 @@ async function saveProductsToDatabase(
   shopName: string
 ): Promise<{
   savedCount: number
+  updatedCount: number
   skippedCount: number
   errors: string[]
 }> {
   let savedCount = 0
+  let updatedCount = 0
   let skippedCount = 0
   const errors: string[] = []
 
-  console.log("=== 重複チェック開始 ===")
-  console.log("取得した商品数:", products.length)
-
   // デバッグ: 取得した商品のURL重複チェック
   const fetchedUrlSet = new Set(products.map(p => p.itemUrl))
-  console.log("ユニークなURL数:", fetchedUrlSet.size)
   if (fetchedUrlSet.size !== products.length) {
     console.warn(`⚠️ 楽天APIから取得した商品に重複URLが ${products.length - fetchedUrlSet.size} 件含まれています`)
   }
@@ -135,15 +180,20 @@ async function saveProductsToDatabase(
       .returns<Pick<Product, "id" | "price" | "source_url">[]>()
 
     if (fetchError) {
-      console.error(`バッチ ${Math.floor(i / BATCH_SIZE) + 1} の取得でエラー:`, fetchError)
-      errors.push(`既存商品の取得でエラー: ${fetchError.message}`)
+      console.error("=== 既存商品の取得でエラー ===")
+      console.error("エラー発生時刻:", new Date().toISOString())
+      console.error("バッチ番号:", Math.floor(i / BATCH_SIZE) + 1)
+      console.error("バッチサイズ:", batch.length)
+      console.error("Supabaseエラーコード:", fetchError.code)
+      console.error("Supabaseエラーメッセージ:", fetchError.message)
+      console.error("Supabaseエラー詳細:", fetchError.details)
+      console.error("Supabaseエラーヒント:", fetchError.hint)
+      console.error("================================")
+      errors.push(`既存商品の取得でエラー (バッチ ${Math.floor(i / BATCH_SIZE) + 1}): ${fetchError.message}`)
     } else if (batchExisting) {
-      console.log(`バッチ ${Math.floor(i / BATCH_SIZE) + 1}: ${batchExisting.length}件の既存商品を取得`)
       existingProductsAll.push(...batchExisting)
     }
   }
-
-  console.log("バッチクエリで取得した既存商品数:", existingProductsAll.length)
 
   // 既存商品をMapで管理（URLをキーに）
   const existingProductMap = new Map<string, Pick<Product, "id" | "price" | "source_url">>()
@@ -157,7 +207,6 @@ async function saveProductsToDatabase(
     }
   })
 
-  console.log("Mapに登録された既存商品数:", existingProductMap.size)
   if (nullUrlCount > 0) {
     console.warn(`⚠️ source_urlがnullの既存商品: ${nullUrlCount}件`)
   }
@@ -177,7 +226,6 @@ async function saveProductsToDatabase(
           id: existing.id,
           price: product.itemPrice
         })
-        console.log(`価格変動検出: ${product.itemName} (${existing.price} → ${product.itemPrice})`)
       } else {
         // 価格が同じ場合はスキップ
         skippedCount++
@@ -187,11 +235,6 @@ async function saveProductsToDatabase(
       newProducts.push(product)
     }
   })
-
-  console.log("新規商品数:", newProducts.length)
-  console.log("価格更新対象数:", productsToUpdate.length)
-  console.log("スキップ数:", skippedCount)
-  console.log("検証: 新規 + 価格更新 + スキップ = ", newProducts.length + productsToUpdate.length + skippedCount, "/ 取得数:", products.length)
 
   // 新規商品を挿入
   if (newProducts.length > 0) {
@@ -213,15 +256,42 @@ async function saveProductsToDatabase(
         .insert(productsToInsert as never)
 
       if (error) {
+        console.error("=== データベース保存エラー ===")
+        console.error("エラー発生時刻:", new Date().toISOString())
+        console.error("保存試行件数:", productsToInsert.length)
+        console.error("shopName:", shopName)
+        console.error("Supabaseエラーコード:", error.code)
+        console.error("Supabaseエラーメッセージ:", error.message)
+        console.error("Supabaseエラー詳細:", error.details)
+        console.error("Supabaseエラーヒント:", error.hint)
+        console.error("保存試行商品の例（最初の2件）:", productsToInsert.slice(0, 2).map(p => ({
+          name: p.name,
+          price: p.price,
+          shop_name: p.shop_name
+        })))
+        console.error("================================")
         errors.push(`バッチ保存でエラー: ${error.message}`)
-        console.error("バッチ保存でエラー:", error)
       } else {
         savedCount = productsToInsert.length
-        console.log(`${savedCount}件の新規商品を保存しました`)
       }
     } catch (error) {
+      console.error("=== データベース保存処理でエラー ===")
+      console.error("エラー発生時刻:", new Date().toISOString())
+      console.error("保存試行件数:", productsToInsert.length)
+      console.error("shopName:", shopName)
+      console.error("エラータイプ:", error?.constructor?.name || typeof error)
+      console.error("エラー詳細:", error)
+      if (error instanceof Error) {
+        console.error("エラーメッセージ:", error.message)
+        console.error("スタックトレース:", error.stack)
+      }
+      console.error("保存試行商品の例（最初の2件）:", productsToInsert.slice(0, 2).map(p => ({
+        name: p.name,
+        price: p.price,
+        shop_name: p.shop_name
+      })))
+      console.error("================================")
       errors.push(`バッチ保存処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
-      console.error("バッチ保存処理でエラー:", error)
     }
   }
 
@@ -235,18 +305,35 @@ async function saveProductsToDatabase(
           .eq("id", id)
 
         if (error) {
+          console.error("=== 価格更新エラー ===")
+          console.error("エラー発生時刻:", new Date().toISOString())
+          console.error("商品ID:", id)
+          console.error("新価格:", price)
+          console.error("Supabaseエラーコード:", error.code)
+          console.error("Supabaseエラーメッセージ:", error.message)
+          console.error("Supabaseエラー詳細:", error.details)
+          console.error("================================")
           errors.push(`価格更新でエラー (ID: ${id}): ${error.message}`)
+        } else {
+          updatedCount++
         }
       }
-      console.log(`${productsToUpdate.length}件の商品価格を更新しました`)
     } catch (error) {
+      console.error("=== 価格更新処理でエラー ===")
+      console.error("エラー発生時刻:", new Date().toISOString())
+      console.error("更新試行件数:", productsToUpdate.length)
+      console.error("エラータイプ:", error?.constructor?.name || typeof error)
+      console.error("エラー詳細:", error)
+      if (error instanceof Error) {
+        console.error("エラーメッセージ:", error.message)
+        console.error("スタックトレース:", error.stack)
+      }
+      console.error("================================")
       errors.push(`価格更新処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
-  console.log("=== 重複チェック完了 ===")
-
-  return { savedCount, skippedCount, errors }
+  return { savedCount, updatedCount, skippedCount, errors }
 }
 
 // GET /api/rakuten/search - API説明

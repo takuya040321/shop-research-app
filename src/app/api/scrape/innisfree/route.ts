@@ -8,7 +8,7 @@ import { InnisfreeScraper } from "@/lib/scrapers/innisfree-scraper"
 // POST /api/scrape/innisfree
 export async function POST() {
   try {
-    console.log("innisfreeスクレイピングを開始します...")
+    console.log("=== innisfreeスクレイピングAPI ===")
 
     // スクレイパーインスタンスを作成
     const scraper = new InnisfreeScraper()
@@ -17,6 +17,12 @@ export async function POST() {
     const result = await scraper.executeFullScraping()
 
     if (!result.success) {
+      console.error("=== innisfreeスクレイピング失敗 ===")
+      console.error("エラー発生時刻:", new Date().toISOString())
+      console.error("エラー一覧:", result.errors)
+      console.error("プロキシ使用:", result.proxyUsed)
+      console.error("================================")
+      
       return NextResponse.json(
         {
           success: false,
@@ -27,6 +33,9 @@ export async function POST() {
         { status: 500 }
       )
     }
+
+    // 結果サマリーを表示
+    console.log(`[innisfreeスクレイピング] 取得: ${result.totalProducts}件 | 保存: ${result.savedProducts}件 | 更新: 0件 | スキップ: ${result.skippedProducts}件 | 削除: 0件`)
 
     return NextResponse.json({
       success: true,
@@ -40,7 +49,17 @@ export async function POST() {
     })
 
   } catch (error) {
-    console.error("innisfreeスクレイピングAPIでエラーが発生しました:", error)
+    console.error("=== innisfreeスクレイピングAPIでエラー ===")
+    console.error("エラー発生時刻:", new Date().toISOString())
+    console.error("エラータイプ:", error?.constructor?.name || typeof error)
+    console.error("エラー詳細:", error)
+    
+    if (error instanceof Error) {
+      console.error("エラーメッセージ:", error.message)
+      console.error("スタックトレース:", error.stack)
+    }
+    console.error("================================")
+    
     return NextResponse.json(
       {
         success: false,

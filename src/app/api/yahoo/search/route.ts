@@ -31,61 +31,76 @@ export async function POST(request: NextRequest) {
       const remainingHits = requestedHits - allProducts.length
       const currentHits = Math.min(remainingHits, maxHitsPerRequest)
 
-      console.log(`Yahoo APIリクエスト送信 (offset: ${currentOffset}, hits: ${currentHits})...`)
-      const result = await client.searchItems({
-        query,
-        seller_id: sellerId,
-        category_id: categoryId,
-        brand_id: brandId,
-        hits: currentHits,
-        offset: currentOffset
-      })
+      try {
+        const result = await client.searchItems({
+          query,
+          seller_id: sellerId,
+          category_id: categoryId,
+          brand_id: brandId,
+          hits: currentHits,
+          offset: currentOffset
+        })
 
-      console.log(`Yahoo APIから${result.products.length}件の商品を取得しました`)
+        // 商品を追加（必要な分だけ）
+        const productsToAdd = result.products.slice(0, remainingHits)
+        allProducts = allProducts.concat(productsToAdd)
+        totalCount = result.totalCount
 
-      // 商品を追加（必要な分だけ）
-      const productsToAdd = result.products.slice(0, remainingHits)
-      allProducts = allProducts.concat(productsToAdd)
-      totalCount = result.totalCount
+        // 取得できた件数が要求より少ない場合は終了
+        if (result.products.length < currentHits) {
+          break
+        }
 
-      // 取得できた件数が要求より少ない場合は終了
-      if (result.products.length < currentHits) {
-        console.log("これ以上商品がないため検索を終了します")
-        break
-      }
+        // 必要な件数を取得した場合は終了
+        if (allProducts.length >= requestedHits) {
+          break
+        }
 
-      // 必要な件数を取得した場合は終了
-      if (allProducts.length >= requestedHits) {
-        console.log(`要求された${requestedHits}件を取得しました`)
-        break
-      }
+        // 次のオフセット
+        currentOffset += result.products.length
 
-      // 次のオフセット
-      currentOffset += result.products.length
-
-      // すべての商品を取得した場合は終了
-      if (allProducts.length >= totalCount) {
-        console.log("すべての商品を取得しました")
-        break
+        // すべての商品を取得した場合は終了
+        if (allProducts.length >= totalCount) {
+          break
+        }
+      } catch (apiError) {
+        console.error("=== Yahoo API呼び出しエラー ===")
+        console.error("エラー発生時刻:", new Date().toISOString())
+        console.error("リクエストパラメータ:", {
+          query,
+          seller_id: sellerId,
+          category_id: categoryId,
+          brand_id: brandId,
+          hits: currentHits,
+          offset: currentOffset
+        })
+        console.error("エラー詳細:", apiError)
+        if (apiError instanceof Error) {
+          console.error("エラーメッセージ:", apiError.message)
+          console.error("スタックトレース:", apiError.stack)
+        }
+        console.error("================================")
+        throw apiError
       }
     }
 
-    console.log(`合計${allProducts.length}件の商品を取得しました`)
-    console.log("取得した商品の最初の3件:", allProducts.slice(0, 3).map(p => ({
-      name: p.name,
-      price: p.price,
-      storeName: p.storeName
-    })))
-
     // データベースに保存
-    console.log(`データベースに保存を開始 (shopName: ${shopName})`)
     const saveResult = await saveProductsToDatabase(
       allProducts,
       shopName || "Yahoo!ショッピング"
     )
 
-    console.log("保存結果:", saveResult)
-    console.log("========================")
+    // エラーがあれば警告表示
+    if (saveResult.errors.length > 0) {
+      console.warn("=== データベース保存時にエラーが発生 ===")
+      saveResult.errors.forEach((err, index) => {
+        console.warn(`エラー ${index + 1}:`, err)
+      })
+      console.warn("=========================================")
+    }
+
+    // 結果サマリーを表示
+    console.log(`[Yahoo検索] 取得: ${allProducts.length}件 | 保存: ${saveResult.savedCount}件 | 更新: 0件 | スキップ: ${saveResult.skippedCount}件 | 削除: 0件`)
 
     return NextResponse.json({
       success: true,
@@ -102,7 +117,23 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error("=== Yahoo商品検索APIでエラー ===")
+    console.error("エラー発生時刻:", new Date().toISOString())
+    console.error("エラータイプ:", error?.constructor?.name || typeof error)
     console.error("エラー詳細:", error)
+    
+    if (error instanceof Error) {
+      console.error("エラーメッセージ:", error.message)
+      console.error("スタックトレース:", error.stack)
+    }
+    
+    // リクエストボディの再表示（デバッグ用）
+    try {
+      const body = await request.json()
+      console.error("リクエストパラメータ（再確認）:", body)
+    } catch {
+      console.error("リクエストボディの解析に失敗")
+    }
+    
     console.error("================================")
     return NextResponse.json(
       {
@@ -125,17 +156,12 @@ async function saveProductsToDatabase(
   skippedCount: number
   errors: string[]
 }> {
-  console.log("--- saveProductsToDatabase 開始 ---")
-  console.log(`保存対象商品数: ${products.length}`)
-  console.log(`shopName: ${shopName}`)
-
   let savedCount = 0
   let skippedCount = 0
   const errors: string[] = []
 
   // 重複チェック
   const productNames = products.map(p => p.name)
-  console.log("重複チェック中...")
 
   const { data: existingProducts, error: fetchError } = await supabase
     .from("products")
@@ -146,12 +172,18 @@ async function saveProductsToDatabase(
     .returns<Pick<Product, "id" | "name" | "shop_type" | "shop_name">[]>()
 
   if (fetchError) {
-    console.error("既存商品の取得でエラー:", fetchError)
+    console.error("=== 既存商品の取得でエラー ===")
+    console.error("エラー発生時刻:", new Date().toISOString())
+    console.error("shopName:", shopName)
+    console.error("商品名の数:", productNames.length)
+    console.error("Supabaseエラーコード:", fetchError.code)
+    console.error("Supabaseエラーメッセージ:", fetchError.message)
+    console.error("Supabaseエラー詳細:", fetchError.details)
+    console.error("Supabaseエラーヒント:", fetchError.hint)
+    console.error("================================")
     errors.push(`既存商品の取得でエラー: ${fetchError.message}`)
     return { savedCount, skippedCount, errors }
   }
-
-  console.log(`既存商品数: ${existingProducts?.length || 0}`)
 
   // 既存商品の重複キーセット
   const existingProductKeys = new Set<string>()
@@ -171,11 +203,7 @@ async function saveProductsToDatabase(
     return true
   })
 
-  console.log(`新規商品数: ${newProducts.length}, スキップ数: ${skippedCount}`)
-
   if (newProducts.length === 0) {
-    console.log("新規商品がないため保存をスキップ")
-    console.log("-----------------------------------")
     return { savedCount, skippedCount, errors }
   }
 
@@ -192,33 +220,51 @@ async function saveProductsToDatabase(
     is_hidden: false
   }))
 
-  console.log("データベースに挿入中...")
-  console.log("挿入する商品の最初の2件:", productsToInsert.slice(0, 2).map(p => ({
-    name: p.name,
-    shop_name: p.shop_name,
-    price: p.price
-  })))
-
   try {
-    const { data: insertedData, error } = await supabase
+    const { error } = await supabase
       .from("products")
       .insert(productsToInsert as never)
       .select()
 
     if (error) {
-      console.error("バッチ保存でエラー:", error)
+      console.error("=== データベース保存エラー ===")
+      console.error("エラー発生時刻:", new Date().toISOString())
+      console.error("保存試行件数:", productsToInsert.length)
+      console.error("shopName:", shopName)
+      console.error("Supabaseエラーコード:", error.code)
+      console.error("Supabaseエラーメッセージ:", error.message)
+      console.error("Supabaseエラー詳細:", error.details)
+      console.error("Supabaseエラーヒント:", error.hint)
+      console.error("保存試行商品の例（最初の2件）:", productsToInsert.slice(0, 2).map(p => ({
+        name: p.name,
+        price: p.price,
+        shop_name: p.shop_name
+      })))
+      console.error("================================")
       errors.push(`バッチ保存でエラー: ${error.message}`)
     } else {
       savedCount = productsToInsert.length
-      console.log(`${savedCount}件の商品をデータベースに保存しました`)
-      console.log("挿入されたデータ:", insertedData?.slice(0, 2))
     }
   } catch (error) {
-    console.error("バッチ保存処理でエラー:", error)
+    console.error("=== データベース保存処理でエラー ===")
+    console.error("エラー発生時刻:", new Date().toISOString())
+    console.error("保存試行件数:", productsToInsert.length)
+    console.error("shopName:", shopName)
+    console.error("エラータイプ:", error?.constructor?.name || typeof error)
+    console.error("エラー詳細:", error)
+    if (error instanceof Error) {
+      console.error("エラーメッセージ:", error.message)
+      console.error("スタックトレース:", error.stack)
+    }
+    console.error("保存試行商品の例（最初の2件）:", productsToInsert.slice(0, 2).map(p => ({
+      name: p.name,
+      price: p.price,
+      shop_name: p.shop_name
+    })))
+    console.error("================================")
     errors.push(`バッチ保存処理でエラー: ${error instanceof Error ? error.message : String(error)}`)
   }
 
-  console.log("-----------------------------------")
   return { savedCount, skippedCount, errors }
 }
 

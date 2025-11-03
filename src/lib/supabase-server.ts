@@ -6,7 +6,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import { Database } from "@/types/database"
-import { determineProxySettings, generateProxyUrl, logProxyStatus } from "@/lib/proxy"
+import { determineProxySettings, generateProxyUrl } from "@/lib/proxy"
 
 // グローバルなクライアントインスタンス（遅延初期化）
 let supabaseServerInstance: SupabaseClient<Database> | null = null
@@ -34,12 +34,8 @@ function createServerSupabaseClient(): SupabaseClient<Database> {
     throw new Error("SUPABASE_SERVICE_ROLE_KEYが設定されていません")
   }
 
-  console.log("=== サーバーサイドSupabaseクライアント初期化 ===")
-  console.log(`Supabase URL: ${supabaseUrl}`)
-
   // 2. プロキシ設定の判定
   const proxySettings = determineProxySettings()
-  logProxyStatus(proxySettings)
 
   // 3. fetch関数の準備
   let customFetch: typeof fetch
@@ -48,8 +44,6 @@ function createServerSupabaseClient(): SupabaseClient<Database> {
     // プロキシ有効: https-proxy-agentでfetchをラップ
     const proxyUrl = generateProxyUrl(proxySettings.config)
     const agent = new HttpsProxyAgent(proxyUrl)
-
-    console.log(`プロキシエージェント作成: ${proxySettings.config.host}:${proxySettings.config.port}`)
 
     customFetch = (url: RequestInfo | URL, init?: RequestInit) => {
       return fetch(url, {
@@ -60,7 +54,6 @@ function createServerSupabaseClient(): SupabaseClient<Database> {
     }
   } else {
     // プロキシ無効: 通常のfetch
-    console.log("通常のfetchを使用します")
     customFetch = fetch
   }
 
@@ -75,9 +68,6 @@ function createServerSupabaseClient(): SupabaseClient<Database> {
       fetch: customFetch // カスタムfetchを設定
     }
   })
-
-  console.log("サーバーサイドSupabaseクライアント初期化完了")
-  console.log("==============================================")
 
   return client
 }
