@@ -742,10 +742,8 @@ export interface ProductTableProps {
 }
 
 // ProductTableHeaderコンポーネントProps
-export interface ProductTableHeaderProps {
-  onSort: (field: string) => void
-  getSortIcon: (field: string) => "asc" | "desc" | null
-}
+export interface ProductTableHeaderProps {}
+// ヘッダーは設定から自動的にソート状態を読み込むため、propsは不要
 
 // ProductRowコンポーネントProps
 export interface ProductRowProps {
@@ -797,6 +795,45 @@ export interface ImagePreviewProps {
 // - 表示名入力から自動的にshop_id生成
 // - ZOZOTOWNの場合はseller_id自動設定
 // - yahoo_shopsテーブルへの自動保存
+
+// グローバル設定型定義（types/settings.ts）
+export interface GlobalSettings {
+  display: DisplaySettings
+  sort: SortSettings
+  system: SystemSettings
+  lastUpdated: string
+}
+
+// 表示設定
+export interface DisplaySettings {
+  defaultColumns: string[]              // デフォルト表示列
+  columnWidths: Record<string, number>  // 列幅設定
+  theme: "light" | "dark" | "system"    // テーマ設定
+  pageSize: number                      // ページサイズ
+  visibleColumns: Record<string, boolean> // 列の表示/非表示設定
+}
+
+// ソート設定（3段階優先順位）
+export interface SortSettings {
+  sortOrder: Array<{
+    column: string      // ソート対象列
+    direction: "asc" | "desc"  // ソート方向
+  }>
+}
+
+// システム設定
+export interface SystemSettings {
+  enableNotifications: boolean  // 通知設定
+  autoRefreshInterval: number   // 自動更新間隔（分、0=無効）
+}
+
+// 列定義（lib/columnDefinitions.ts）
+export interface ColumnDefinition {
+  id: string          // 列ID
+  label: string       // 表示ラベル
+  sortable: boolean   // ソート可能フラグ
+  width?: string      // 幅（Tailwindクラス）
+}
 ```
 
 ## 6. セキュリティ仕様
