@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { getYahooClient, YahooProduct } from "@/lib/api/yahoo-client"
-import { supabaseServer as supabase } from "@/lib/supabase-server"
+import { Proxy } from "@/lib/singletons"
 import type { ProductInsert, Product } from "@/types/database"
 import { randomUUID } from "crypto"
 
@@ -161,9 +161,10 @@ async function saveProductsToDatabase(
   const errors: string[] = []
 
   // 重複チェック
+  const supabase = Proxy.getSupabase()
   const productNames = products.map(p => p.name)
 
-  const { data: existingProducts, error: fetchError } = await supabase
+  const { data: existingProducts, error: fetchError} = await supabase
     .from("products")
     .select("id, name, shop_type, shop_name")
     .eq("shop_type", "yahoo")

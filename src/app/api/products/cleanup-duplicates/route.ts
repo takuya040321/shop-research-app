@@ -3,7 +3,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { supabaseServer as supabase } from "@/lib/supabase-server"
+import { Proxy } from "@/lib/singletons"
 
 type ProductWithAsins = {
   id: string
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     console.log(`重複商品のクリーンアップを開始: ${shopName || "全ショップ"}`)
 
     // 商品データを取得
+    const supabase = Proxy.getSupabase()
     const { data: productsWithAsins } = await supabase
       .from("products")
       .select("id, name, shop_type, shop_name, source_url, created_at, asin")

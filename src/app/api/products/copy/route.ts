@@ -3,7 +3,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { supabaseServer as supabase } from "@/lib/supabase-server"
+import { Proxy } from "@/lib/singletons"
 import { randomUUID } from "crypto"
 import type { Product } from "@/types/database"
 
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 元商品の取得
+    const supabase = Proxy.getSupabase()
     const { data: originalProduct, error: fetchError } = await supabase
       .from("products")
       .select("*")

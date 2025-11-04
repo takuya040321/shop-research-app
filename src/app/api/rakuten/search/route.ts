@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { getRakutenClient, RakutenProduct } from "@/lib/api/rakuten-client"
-import { supabaseServer as supabase } from "@/lib/supabase-server"
+import { Proxy } from "@/lib/singletons"
 import type { ProductInsert, Product } from "@/types/database"
 import { randomUUID } from "crypto"
 
@@ -166,6 +166,7 @@ async function saveProductsToDatabase(
   }
 
   // 414エラー回避: URLを50件ずつに分割してクエリ
+  const supabase = Proxy.getSupabase()
   const BATCH_SIZE = 50
   const existingProductsAll: Pick<Product, "id" | "price" | "source_url">[] = []
 

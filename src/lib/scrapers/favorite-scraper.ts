@@ -4,7 +4,7 @@
  */
 
 import puppeteer, { type Browser, type Page } from "puppeteer"
-import { supabaseServer as supabase } from "@/lib/supabase-server"
+import { Proxy } from "@/lib/singletons"
 import type { Product } from "@/types/database"
 import { VTCosmeticsScraper } from "./vt-cosmetics-scraper"
 import { InnisfreeScraper } from "./innisfree-scraper"
@@ -65,6 +65,7 @@ export class FavoriteScraper {
 
     try {
       // お気に入り商品を取得（source_urlが存在するもののみ）
+      const supabase = Proxy.getSupabase()
       const { data: favoriteProducts, error } = await supabase
         .from("products")
         .select("*")
@@ -229,6 +230,7 @@ export class FavoriteScraper {
         }
       }
 
+      const supabase = Proxy.getSupabase()
       const { error: updateError } = await supabase
         .from("products")
         .update(updates as never)
