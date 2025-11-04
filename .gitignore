@@ -49,3 +49,6 @@ next-env.d.ts
 
 # mcp configuration
 .mcp.json
+
+# backups
+/backups
