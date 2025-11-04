@@ -745,19 +745,38 @@ export class BaseScraper {
 }
 ```
 
-#### レガシーコードとの互換性
-既存の`supabase.ts`と`supabase-server.ts`はそのまま動作しますが、新しいコードでは`Proxy`クラスの使用を推奨します。
+#### 既存コードへの適用状況
 
+**✅ 完全移行済みのファイル:**
+
+APIルート:
+- `src/app/api/products/cleanup-duplicates/route.ts`
+- `src/app/api/products/copy/route.ts`
+- `src/app/api/asins/bulk-upload/route.ts`
+- `src/app/api/rakuten/search/route.ts`
+- `src/app/api/yahoo/search/route.ts`
+
+スクレイパー:
+- `src/lib/scrapers/favorite-scraper.ts`
+- `src/lib/scraper.ts` (BaseScraper)
+
+**移行前後の比較:**
 ```typescript
-// レガシー（引き続き動作）
-import { supabase } from "@/lib/supabase"
+// 移行前
+import { supabaseServer as supabase } from "@/lib/supabase-server"
 const { data } = await supabase.from("products").select()
 
-// 推奨（新規コード）
+// 移行後
 import { Proxy } from "@/lib/singletons"
 const supabase = Proxy.getSupabase()
 const { data } = await supabase.from("products").select()
 ```
+
+**クライアント側ライブラリ（変更不要）:**
+- `src/lib/dashboard.ts` - クライアント側supabase使用
+- `src/lib/products.ts` - クライアント側supabase使用
+- `src/lib/discounts.ts` - クライアント側supabase使用
+- `src/lib/deduplication.ts` - クライアント側supabase使用
 
 ### 5.4.8 利点とメリット
 

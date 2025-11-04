@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { supabaseServer as supabase } from "@/lib/supabase-server"
+import { Proxy } from "@/lib/singletons"
 import * as XLSX from "xlsx"
 import Papa from "papaparse"
 import { z } from "zod"
@@ -233,6 +233,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 既存ASINチェック
+    const supabase = Proxy.getSupabase()
     const asins = validData.map(d => d.asin)
     const { data: existingAsins, error: selectError } = await supabase
       .from("asins")

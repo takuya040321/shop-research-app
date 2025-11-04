@@ -560,8 +560,41 @@ Supabaseクライアントとスクレイパーの統一管理システムを実
    - API Routes / Server Components での使用例
 
 **既存コード統合:**
-- `src/lib/scraper.ts`: `supabaseServer` → `Proxy.getSupabase()` に置き換え
-- `src/lib/deduplication.ts`: 未使用変数を削除
+- ✅ `src/lib/scraper.ts`: `supabaseServer` → `Proxy.getSupabase()` に置き換え
+- ✅ `src/lib/deduplication.ts`: 未使用変数を削除
+
+**既存コードへの適用状況（2025-11-05更新）:**
+
+✅ **完全移行済みのファイル:**
+
+APIルート:
+- `src/app/api/products/cleanup-duplicates/route.ts`
+- `src/app/api/products/copy/route.ts`
+- `src/app/api/asins/bulk-upload/route.ts`
+- `src/app/api/rakuten/search/route.ts`
+- `src/app/api/yahoo/search/route.ts`
+
+スクレイパー:
+- `src/lib/scrapers/favorite-scraper.ts`
+- `src/lib/scraper.ts` (BaseScraper)
+
+⚠️ **未移行のファイル:**
+
+クライアントサイドライブラリ（移行不要）:
+- `src/lib/supabase/dashboard.ts` - クライアント専用、ANON_KEY使用
+- `src/lib/supabase/products.ts` - クライアント専用、ANON_KEY使用
+
+**移行パターン:**
+```typescript
+// Before
+import { supabaseServer as supabase } from "@/lib/supabase-server"
+const { data } = await supabase.from("products").select()
+
+// After
+import { Proxy } from "@/lib/singletons"
+const supabase = Proxy.getSupabase()
+const { data } = await supabase.from("products").select()
+```
 
 **主な機能:**
 - ✅ シングルトンパターンによるインスタンス一元管理

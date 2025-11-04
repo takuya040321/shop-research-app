@@ -671,6 +671,39 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 - `SERVICE_ROLE_KEY`はクライアントコンポーネントで絶対に使用しない
 - レガシーコード（`supabase.ts`, `supabase-server.ts`）も引き続き動作するが、新規コードでは`Proxy`クラスの使用を推奨
 
+**既存コードへの適用状況:**
+
+✅ **完全移行済みのファイル:**
+
+APIルート:
+- `src/app/api/products/cleanup-duplicates/route.ts`
+- `src/app/api/products/copy/route.ts`
+- `src/app/api/asins/bulk-upload/route.ts`
+- `src/app/api/rakuten/search/route.ts`
+- `src/app/api/yahoo/search/route.ts`
+
+スクレイパー:
+- `src/lib/scrapers/favorite-scraper.ts`
+- `src/lib/scraper.ts` (BaseScraper)
+
+⚠️ **未移行のファイル:**
+
+クライアントサイドライブラリ（移行不要）:
+- `src/lib/supabase/dashboard.ts` - クライアント専用、ANON_KEY使用
+- `src/lib/supabase/products.ts` - クライアント専用、ANON_KEY使用
+
+**移行済みファイルの変更パターン:**
+```typescript
+// Before
+import { supabaseServer as supabase } from "@/lib/supabase-server"
+const { data } = await supabase.from("products").select()
+
+// After
+import { Proxy } from "@/lib/singletons"
+const supabase = Proxy.getSupabase()
+const { data } = await supabase.from("products").select()
+```
+
 ### 5.3 型定義
 ```typescript
 // types/database.ts
