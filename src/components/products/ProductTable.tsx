@@ -5,7 +5,7 @@
  * 商品情報とASIN情報を結合して表示し、インライン編集機能を提供
  */
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody } from "@/components/ui/Table"
 import { Card } from "@/components/ui/Card"
 import { CopyIcon, TrashIcon } from "lucide-react"
@@ -17,6 +17,22 @@ import { ProductTableHeader } from "./ProductTableHeader"
 import { ProductRow } from "./ProductRow"
 import { ContextMenu, useContextMenu } from "@/components/ui/ContextMenu"
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog"
+import { loadSettings, updateDisplaySettings } from "@/lib/settings"
+import { COLUMN_DEFINITIONS, type ColumnDefinition } from "@/lib/columnDefinitions"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable"
 
 interface ProductTableProps {
   className?: string
@@ -29,6 +45,69 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [productToDelete, setProductToDelete] = useState<ExtendedProduct | null>(null)
   const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu()
+  const [orderedColumns, setOrderedColumns] = useState<ColumnDefinition[]>([])
+
+  // 列の順序を読み込む
+  useEffect(() => {
+    const settings = loadSettings()
+    const columnOrder = settings.display.columnOrder || []
+
+    // 保存された順序で列を並べ替え
+    const ordered = columnOrder
+      .map((colId) => COLUMN_DEFINITIONS.find((col) => col.id === colId))
+      .filter((col): col is ColumnDefinition => col !== undefined)
+
+    // 新しく追加された列があれば末尾に追加
+    const existingIds = new Set(columnOrder)
+    const newColumns = COLUMN_DEFINITIONS.filter((col) => !existingIds.has(col.id))
+
+    setOrderedColumns([...ordered, ...newColumns])
+  }, [])
+
+  // DnDセンサーの設定
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // ドラッグ終了時の処理
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    const oldIndex = orderedColumns.findIndex((col) => col.id === active.id)
+    const newIndex = orderedColumns.findIndex((col) => col.id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return
+    }
+
+    // 配列を並べ替え
+    const newOrder = [...orderedColumns]
+    const [movedColumn] = newOrder.splice(oldIndex, 1)
+    if (!movedColumn) {
+      return
+    }
+    newOrder.splice(newIndex, 0, movedColumn)
+
+    setOrderedColumns(newOrder)
+
+    // ローカルストレージに保存
+    const newColumnOrder = newOrder.map((col) => col.id)
+    updateDisplaySettings({ columnOrder: newColumnOrder })
+  }
+
+  // 表示する列のIDリストを取得
+  const settings = loadSettings()
+  const visibleColumns = settings.display.visibleColumns
+  const visibleColumnIds = orderedColumns
+    .filter((col) => visibleColumns[col.id] !== false)
+    .map((col) => col.id)
 
   // カスタムフックから全てのロジックを取得（ページネーション無しで全件表示）
   const {
@@ -117,30 +196,42 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
             ref={scrollContainerRef}
             className="overflow-x-auto overflow-y-auto max-h-screen"
           >
-            <Table>
-              <ProductTableHeader />
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <Table>
+                <SortableContext
+                  items={visibleColumnIds}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  <ProductTableHeader orderedColumns={orderedColumns} />
+                </SortableContext>
 
-              <TableBody>
-                {allProducts.map((product) => (
-                  <ProductRow
-                    key={product.id}
-                    product={product}
-                    editingCell={editingCell}
-                    onContextMenu={onRowRightClick}
-                    onToggleFavorite={handleToggleFavorite}
-                    onStartEdit={startEditing}
-                    onCancelEdit={cancelEditing}
-                    onSaveEdit={saveEdit}
-                    onEditingValueChange={(value) => {
-                      if (editingCell) {
-                        setEditingCell({ ...editingCell, value })
-                      }
-                    }}
-                    onUpdateProductInState={updateProductInState}
-                  />
-                ))}
-              </TableBody>
-            </Table>
+                <TableBody>
+                  {allProducts.map((product) => (
+                    <ProductRow
+                      key={product.id}
+                      product={product}
+                      editingCell={editingCell}
+                      onContextMenu={onRowRightClick}
+                      onToggleFavorite={handleToggleFavorite}
+                      onStartEdit={startEditing}
+                      onCancelEdit={cancelEditing}
+                      onSaveEdit={saveEdit}
+                      onEditingValueChange={(value) => {
+                        if (editingCell) {
+                          setEditingCell({ ...editingCell, value })
+                        }
+                      }}
+                      onUpdateProductInState={updateProductInState}
+                      orderedColumns={orderedColumns}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </DndContext>
           </div>
 
           {allProducts.length === 0 && totalProductsCount > 0 && (
