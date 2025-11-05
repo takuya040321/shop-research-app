@@ -14,6 +14,8 @@ export interface DisplaySettings {
   pageSize: number
   // 列の表示/非表示設定
   visibleColumns: Record<string, boolean>
+  // 列の表示順序（列IDの配列）
+  columnOrder: string[]
 }
 
 // ソート設定
@@ -105,7 +107,31 @@ export const DEFAULT_SETTINGS: GlobalSettings = {
       is_dangerous: true,
       is_per_carry_ng: true,
       memo: true
-    }
+    },
+    columnOrder: [
+      "favorite",
+      "image",
+      "name",
+      "price",
+      "purchase_price",
+      "asin",
+      "amazon_name",
+      "amazon_price",
+      "monthly_sales",
+      "fee_rate",
+      "fba_fee",
+      "jan_code",
+      "profit_amount",
+      "profit_rate",
+      "roi",
+      "is_hidden",
+      "has_amazon",
+      "has_official",
+      "complaint_count",
+      "is_dangerous",
+      "is_per_carry_ng",
+      "memo"
+    ]
   },
   sort: {
     sortOrder: [
@@ -135,6 +161,7 @@ export function validateSettings(settings: unknown): settings is GlobalSettings 
     typeof s.display?.columnWidths === "object" &&
     typeof s.display?.pageSize === "number" &&
     typeof s.display?.visibleColumns === "object" &&
+    Array.isArray(s.display?.columnOrder) &&
     Array.isArray(s.sort?.sortOrder) &&
     s.sort.sortOrder.every(
       (item: unknown) =>

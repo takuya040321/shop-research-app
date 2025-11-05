@@ -14,6 +14,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database"
 import { BaseScraper } from "@/lib/scraper"
+import { ProxyAgent, fetch as undiciFetch } from "undici"
 
 // ========================================
 // 型定義
@@ -46,6 +47,57 @@ interface ProxyControllerConfig {
 type ISupabaseClient = SupabaseClient<Database>
 
 // ========================================
+// プロキシ対応のfetch関数
+// ========================================
+
+/**
+ * プロキシ設定を考慮したfetch関数を作成
+ *
+ * USE_PROXY=true かつ PROXY_HOST/PROXY_PORT 環境変数が設定されている場合、
+ * ProxyAgent を使用して fetch リクエストをプロキシ経由で送信します。
+ * PROXY_USERNAME/PROXY_PASSWORD が設定されている場合は認証付きプロキシを使用します。
+ *
+ * @returns プロキシ対応のfetch関数
+ */
+function createProxyAwareFetch(): typeof fetch {
+  // USE_PROXYがtrueかつプロキシ設定がある場合のみプロキシを使用
+  const useProxy = process.env.USE_PROXY === "true"
+
+  if (!useProxy) {
+    console.log("[Supabase] USE_PROXY=false - 標準fetchを使用")
+    return fetch
+  }
+
+  const proxyHost = process.env.PROXY_HOST
+  const proxyPort = process.env.PROXY_PORT
+  const proxyUsername = process.env.PROXY_USERNAME
+  const proxyPassword = process.env.PROXY_PASSWORD
+
+  if (!proxyHost || !proxyPort) {
+    console.log("[Supabase] USE_PROXY=trueですが、PROXY_HOSTまたはPROXY_PORTが設定されていません - 標準fetchを使用")
+    return fetch
+  }
+
+  // プロキシURLを構築（認証情報がある場合は含める）
+  let proxyUrl: string
+  if (proxyUsername && proxyPassword) {
+    proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`
+    console.log(`[Supabase] 認証付きプロキシを使用: ${proxyHost}:${proxyPort} (ユーザー: ${proxyUsername})`)
+  } else {
+    proxyUrl = `http://${proxyHost}:${proxyPort}`
+    console.log(`[Supabase] プロキシを使用: ${proxyHost}:${proxyPort}`)
+  }
+
+  const dispatcher = new ProxyAgent(proxyUrl)
+
+  // ProxyAgentを使用したカスタムfetch関数を返す
+  return (async (url: RequestInfo | URL, init?: RequestInit) => {
+    const response = await undiciFetch(url as any, { ...init, dispatcher } as any)
+    return response as unknown as Response
+  }) as typeof fetch
+}
+
+// ========================================
 // 1. SupabaseClientSingleton クラス
 // 匿名キー（ANON_KEY）を使用したクライアントサイドSupabaseクライアント
 // ========================================
@@ -73,11 +125,14 @@ class SupabaseClientSingleton {
    * @param config - Supabaseクライアント設定
    */
   private constructor(config: SupabaseClientConfig) {
-    // 匿名キーでSupabaseクライアントを作成
+    // 匿名キーでSupabaseクライアントを作成（プロキシ対応fetch使用）
     this.client = createClient<Database>(config.url, config.anonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+      },
+      global: {
+        fetch: createProxyAwareFetch(),
       },
     })
   }
@@ -266,12 +321,15 @@ class ProxyController {
       )
     }
 
-    // SERVICE_ROLE_KEYでSupabaseクライアントを作成
+    // SERVICE_ROLE_KEYでSupabaseクライアントを作成（プロキシ対応fetch使用）
     // 注意: このクライアントはRLSポリシーをバイパスし、全権限を持つ
     this.serviceRoleClient = createClient<Database>(url, serviceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
+      },
+      global: {
+        fetch: createProxyAwareFetch(),
       },
     })
   }

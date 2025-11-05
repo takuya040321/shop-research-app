@@ -14,7 +14,6 @@ import { formatPrice, formatPercentage, updateAsin, updateProduct } from "@/lib/
 import { ImagePreview } from "./ImagePreview"
 import { EditableCell } from "./EditableCell"
 import { loadSettings } from "@/lib/settings"
-import { COLUMN_DEFINITIONS } from "@/lib/columnDefinitions"
 
 interface EditingCell {
   productId: string
@@ -32,6 +31,7 @@ interface ProductRowProps {
   onSaveEdit: () => void
   onEditingValueChange: (value: string) => void
   onUpdateProductInState: (productId: string, updates: Partial<ExtendedProduct>) => void
+  orderedColumns: import("@/lib/columnDefinitions").ColumnDefinition[]
 }
 
 export function ProductRow({
@@ -43,7 +43,8 @@ export function ProductRow({
   onCancelEdit,
   onSaveEdit,
   onEditingValueChange,
-  onUpdateProductInState
+  onUpdateProductInState,
+  orderedColumns
 }: ProductRowProps) {
   const settings = loadSettings()
   const visibleColumns = settings.display.visibleColumns
@@ -540,7 +541,7 @@ export function ProductRow({
       className={rowClassName}
       onContextMenu={(e) => onContextMenu(e, product)}
     >
-      {COLUMN_DEFINITIONS.map((column) => {
+      {orderedColumns.map((column) => {
         // 非表示設定の列はスキップ
         if (visibleColumns[column.id] === false) {
           return null

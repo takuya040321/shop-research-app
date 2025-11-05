@@ -1,18 +1,62 @@
 /**
  * 商品テーブルヘッダーコンポーネント
- * ソート機能付き・列の表示/非表示対応
+ * ソート機能付き・列の表示/非表示対応・ドラッグ&ドロップによる列順序変更
  */
 
 "use client"
 
+import React from "react"
 import { TableHead, TableHeader, TableRow } from "@/components/ui/Table"
-import { ChevronUpIcon, ChevronDownIcon, StarIcon } from "lucide-react"
+import { ChevronUpIcon, ChevronDownIcon, StarIcon, GripVerticalIcon } from "lucide-react"
 import { loadSettings } from "@/lib/settings"
-import { COLUMN_DEFINITIONS } from "@/lib/columnDefinitions"
+import { type ColumnDefinition } from "@/lib/columnDefinitions"
+import { useSortable } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
-interface ProductTableHeaderProps {}
+interface ProductTableHeaderProps {
+  orderedColumns: ColumnDefinition[]
+}
 
-export function ProductTableHeader({}: ProductTableHeaderProps) {
+// ドラッグ可能な列ヘッダー
+interface SortableHeaderProps {
+  column: ColumnDefinition
+  renderContent: () => React.ReactElement
+}
+
+function SortableHeader({ column, renderContent }: SortableHeaderProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: column.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    cursor: "grab",
+  }
+
+  return (
+    <TableHead
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`${column.width || ""} text-xs text-center bg-gray-50 relative`}
+    >
+      <div className="flex items-center justify-center gap-1">
+        <GripVerticalIcon className="w-4 h-4 text-gray-400" />
+        {renderContent()}
+      </div>
+    </TableHead>
+  )
+}
+
+export function ProductTableHeader({ orderedColumns }: ProductTableHeaderProps) {
   const settings = loadSettings()
   const visibleColumns = settings.display.visibleColumns
   const sortOrder = settings.sort.sortOrder
@@ -62,61 +106,48 @@ export function ProductTableHeader({}: ProductTableHeaderProps) {
     )
   }
 
-  // 列ごとのカスタムレンダリング
-  const renderColumnHeader = (columnId: string, label: string, width: string) => {
+  // 列ごとのカスタムレンダリング（内容のみ）
+  const renderColumnContent = (column: ColumnDefinition) => {
     // お気に入り列は特別なアイコン表示
-    if (columnId === "favorite") {
+    if (column.id === "favorite") {
       return (
-        <TableHead
-          key={columnId}
-          className={`${width} text-xs text-center bg-gray-50`}
-        >
-          <div className="flex items-center justify-center gap-1">
-            <StarIcon className="w-4 h-4" />
-            {renderSortIcon(columnId)}
-          </div>
-        </TableHead>
+        <>
+          <StarIcon className="w-4 h-4" />
+          {renderSortIcon(column.id)}
+        </>
       )
     }
 
     // 画像列
-    if (columnId === "image") {
-      return (
-        <TableHead
-          key={columnId}
-          className={`${width} text-xs text-center bg-gray-50`}
-        >
-          <div className="flex items-center justify-center">
-            {label}
-          </div>
-        </TableHead>
-      )
+    if (column.id === "image") {
+      return <>{column.label}</>
     }
 
     // 通常の列
     return (
-      <TableHead
-        key={columnId}
-        className={`${width} text-xs text-center bg-gray-50`}
-      >
-        <div className="flex items-center justify-center gap-1">
-          {label}
-          {renderSortIcon(columnId)}
-        </div>
-      </TableHead>
+      <>
+        {column.label}
+        {renderSortIcon(column.id)}
+      </>
     )
   }
 
   return (
     <TableHeader>
       <TableRow>
-        {COLUMN_DEFINITIONS.map((column) => {
+        {orderedColumns.map((column) => {
           // 非表示設定の列はスキップ
           if (visibleColumns[column.id] === false) {
             return null
           }
 
-          return renderColumnHeader(column.id, column.label, column.width || "")
+          return (
+            <SortableHeader
+              key={column.id}
+              column={column}
+              renderContent={() => renderColumnContent(column)}
+            />
+          )
         })}
       </TableRow>
     </TableHeader>
