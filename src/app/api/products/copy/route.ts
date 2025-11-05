@@ -10,7 +10,9 @@ import type { Product } from "@/types/database"
 // POST /api/products/copy
 export async function POST(request: NextRequest) {
   try {
+    console.log("========== 商品コピー開始 ==========")
     const { productId } = await request.json()
+    console.log("コピー対象商品ID:", productId)
 
     if (!productId) {
       return NextResponse.json(
@@ -19,13 +21,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // プロキシ設定の確認
+    console.log("環境変数 USE_PROXY:", process.env.USE_PROXY)
+    console.log("プロキシ有効化:", Proxy.isProxyEnabled())
+    console.log("HTTP_PROXY:", process.env.HTTP_PROXY || "未設定")
+    console.log("HTTPS_PROXY:", process.env.HTTPS_PROXY || "未設定")
+
     // 元商品の取得
+    console.log("Supabaseクライアント取得...")
     const supabase = Proxy.getSupabase()
+    console.log("Supabaseクライアント取得完了")
+
+    console.log("商品データ取得開始...")
     const { data: originalProduct, error: fetchError } = await supabase
       .from("products")
       .select("*")
       .eq("id", productId)
       .maybeSingle<Product>()
+    console.log("商品データ取得完了")
 
     if (fetchError) {
       console.error("商品コピーエラー:", fetchError.message)
