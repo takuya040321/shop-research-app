@@ -127,6 +127,7 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
     handleToggleFavorite,
     handleDeleteProduct,
     getContextMenuItems,
+    clearEditedProductsTracking,
   } = useProductTable({
     shopFilter,
     pageSize: 9999, // 全件表示するため大きな値を設定
@@ -188,6 +189,7 @@ export function ProductTable({ className, shopFilter, initialFavoriteFilter }: P
           onFiltersChange={setFilters}
           totalCount={allProducts.length}
           filteredCount={allProducts.length}
+          onClearEditedProducts={clearEditedProductsTracking}
         />
 
         {/* テーブル */}
