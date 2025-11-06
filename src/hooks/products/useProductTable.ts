@@ -49,6 +49,7 @@ export function useProductTable({
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null)
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
+  const [recentlyEditedProductIds, setRecentlyEditedProductIds] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState<ProductFilters>({
     searchText: "",
     minPrice: null,
@@ -57,9 +58,18 @@ export function useProductTable({
     maxProfitRate: null,
     minROI: null,
     maxROI: null,
+    minMonthlySales: null,
+    maxMonthlySales: null,
+    monthlySalesStatus: "all",
     asinStatus: "all",
     favoriteStatus: "all",
-    saleStatus: "all"
+    saleStatus: "all",
+    hiddenStatus: "visible_only",
+    amazonStatus: "all",
+    officialStatus: "all",
+    complaintStatus: "all",
+    dangerousStatus: "all",
+    perCarryStatus: "all"
   })
 
   // UI関連のref
@@ -111,11 +121,20 @@ export function useProductTable({
     console.log("総商品数:", products.length)
     console.log("shopFilter:", shopFilter)
 
-    let filtered = products
+    // 最近編集した商品と、それ以外の商品を分ける
+    const editedProducts = products.filter(p => recentlyEditedProductIds.has(p.id))
+    const nonEditedProducts = products.filter(p => !recentlyEditedProductIds.has(p.id))
 
-    // 非表示商品を除外
-    filtered = filtered.filter(product => !product.is_hidden)
-    console.log("非表示除外後:", filtered.length)
+    // 編集していない商品のみフィルタリング
+    let filtered = nonEditedProducts
+
+    // 表示状態フィルター
+    if (filters.hiddenStatus === "hidden_only") {
+      filtered = filtered.filter(product => product.is_hidden)
+    } else if (filters.hiddenStatus === "visible_only") {
+      filtered = filtered.filter(product => !product.is_hidden)
+    }
+    console.log("表示状態フィルター適用後:", filtered.length)
 
     if (shopFilter) {
       const beforeFilter = filtered.length
@@ -193,11 +212,74 @@ export function useProductTable({
       filtered = filtered.filter(product => !product.sale_price || product.sale_price === 0)
     }
 
+    // 月間売上ステータスフィルター
+    if (filters.monthlySalesStatus === "with_data") {
+      filtered = filtered.filter(product =>
+        product.asin?.monthly_sales != null && product.asin.monthly_sales > 0
+      )
+    } else if (filters.monthlySalesStatus === "without_data") {
+      filtered = filtered.filter(product =>
+        !product.asin?.monthly_sales || product.asin.monthly_sales === 0
+      )
+    }
+
+    // 月間売上範囲フィルター
+    if (filters.minMonthlySales !== null) {
+      const minMonthlySales = filters.minMonthlySales
+      filtered = filtered.filter(product =>
+        (product.asin?.monthly_sales || 0) >= minMonthlySales
+      )
+    }
+    if (filters.maxMonthlySales !== null) {
+      const maxMonthlySales = filters.maxMonthlySales
+      filtered = filtered.filter(product =>
+        (product.asin?.monthly_sales || 0) <= maxMonthlySales
+      )
+    }
+
+    // Amazon販売フィルター
+    if (filters.amazonStatus === "available") {
+      filtered = filtered.filter(product => product.asin?.has_amazon === true)
+    } else if (filters.amazonStatus === "unavailable") {
+      filtered = filtered.filter(product => !product.asin?.has_amazon)
+    }
+
+    // 公式販売フィルター
+    if (filters.officialStatus === "available") {
+      filtered = filtered.filter(product => product.asin?.has_official === true)
+    } else if (filters.officialStatus === "unavailable") {
+      filtered = filtered.filter(product => !product.asin?.has_official)
+    }
+
+    // 品質評価（クレーム）フィルター
+    if (filters.complaintStatus === "with_complaints") {
+      filtered = filtered.filter(product => product.asin?.complaint_count != null && product.asin.complaint_count > 0)
+    } else if (filters.complaintStatus === "without_complaints") {
+      filtered = filtered.filter(product => !product.asin?.complaint_count || product.asin.complaint_count === 0)
+    }
+
+    // 危険物フィルター
+    if (filters.dangerousStatus === "dangerous") {
+      filtered = filtered.filter(product => product.asin?.is_dangerous === true)
+    } else if (filters.dangerousStatus === "safe") {
+      filtered = filtered.filter(product => !product.asin?.is_dangerous)
+    }
+
+    // パーキャリNGフィルター
+    if (filters.perCarryStatus === "ng") {
+      filtered = filtered.filter(product => product.asin?.is_per_carry_ng === true)
+    } else if (filters.perCarryStatus === "ok") {
+      filtered = filtered.filter(product => !product.asin?.is_per_carry_ng)
+    }
+
+    // 編集済み商品を結合（編集済み商品はフィルター対象外として常に表示）
+    const allProducts = [...editedProducts, ...filtered]
+
     // 3段階のソート順を適用
     const sortOrder = settings.sort.sortOrder
-    if (!sortOrder || sortOrder.length === 0) return filtered
+    if (!sortOrder || sortOrder.length === 0) return allProducts
 
-    return [...filtered].sort((a, b) => {
+    return allProducts.sort((a, b) => {
       // 各優先度のソート条件を順番に適用
       for (const { column, direction } of sortOrder) {
         let aValue: unknown
@@ -245,7 +327,7 @@ export function useProductTable({
       // すべての優先度で同じ場合は順序を保持
       return 0
     })
-  }, [products, filters, shopFilter, settings.sort.sortOrder, ASIN_FIELDS])
+  }, [products, filters, shopFilter, settings.sort.sortOrder, ASIN_FIELDS, recentlyEditedProductIds])
 
   // ページネーション
   const totalPages = Math.ceil(filteredAndSortedProducts.length / pageSize)
@@ -514,6 +596,8 @@ export function useProductTable({
       }
 
       if (success) {
+        // 編集した商品IDを記録（フィルター対象外にする）
+        setRecentlyEditedProductIds(prev => new Set(prev).add(productId))
         setEditingCell(null)
       } else {
         setError("更新に失敗しました")
@@ -656,6 +740,11 @@ export function useProductTable({
     ]
   }, [handleCopyProduct])
 
+  // 編集済み商品の追跡をクリア（フィルター適用時に使用）
+  const clearEditedProductsTracking = useCallback(() => {
+    setRecentlyEditedProductIds(new Set())
+  }, [])
+
   return {
     // State
     products: currentPageProducts,
@@ -690,5 +779,6 @@ export function useProductTable({
     handleDeleteProduct,
     handleToggleFavorite,
     getContextMenuItems,
+    clearEditedProductsTracking,
   }
 }
