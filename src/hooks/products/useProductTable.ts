@@ -390,6 +390,21 @@ export function useProductTable({
     setEditingCell(null)
   }, [])
 
+  // ASINバリデーション関数
+  const validateAsin = useCallback((asin: string): { valid: boolean; error?: string } => {
+    // ASINは10文字の英数字
+    if (asin.length !== 10) {
+      return { valid: false, error: "ASINは10文字である必要があります" }
+    }
+
+    // 英数字のみ許可
+    if (!/^[A-Z0-9]+$/i.test(asin)) {
+      return { valid: false, error: "ASINは英数字のみ使用できます" }
+    }
+
+    return { valid: true }
+  }, [])
+
   // 利益計算ヘルパー関数
   const calculateProfit = useCallback((
     product: ExtendedProduct,
@@ -477,6 +492,14 @@ export function useProductTable({
         }
         // ASIN新規登録・変更の処理
         else if (asinField === "asin" && value) {
+          // ASINバリデーション
+          const validation = validateAsin(value)
+          if (!validation.valid) {
+            setError(validation.error || "ASINの形式が不正です")
+            toast.error(validation.error || "ASINの形式が不正です")
+            return
+          }
+
           // 既存ASINをチェック
           const { data: existingAsin } = await supabase
             .from("asins")
@@ -492,6 +515,7 @@ export function useProductTable({
               .from("asins")
               .insert({
                 asin: value,
+                amazon_name: null,  // 未登録を明示
                 fee_rate: 15,
                 fba_fee: 0,
                 has_amazon: false,
@@ -506,6 +530,9 @@ export function useProductTable({
               throw new Error("ASIN作成に失敗しました")
             }
             asinData = newAsin
+
+            // 新規ASIN作成の通知
+            toast.info("新規ASINを登録しました。Amazon商品名などの詳細情報を設定してください。")
           }
 
           // products.asinを更新
@@ -606,7 +633,7 @@ export function useProductTable({
       console.error("編集保存エラー:", err)
       setError("更新中にエラーが発生しました")
     }
-  }, [editingCell, products, updateProductInState, calculateProfit])
+  }, [editingCell, products, updateProductInState, calculateProfit, validateAsin])
 
   const handleCopyProduct = useCallback(async (product: ExtendedProduct) => {
     try {
