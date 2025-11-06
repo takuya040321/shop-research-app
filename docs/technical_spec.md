@@ -176,6 +176,9 @@ export function useYahooShopPage({
 - **環境変数**: `USE_PROXY=true/false`
 - **制御フロー**: 事前判定必須
 - **プロキシ設定**: 一元管理
+- **認証情報のURLエンコード**: パスワードに特殊文字（@, :, /, ?, # など）が含まれる場合に対応
+  - `encodeURIComponent()`を使用して認証情報を適切にエンコード
+  - 例: `http://user:P@ssw0rd@host:port` → `http://user:P%40ssw0rd@host:port`
 - **フェイルオーバー**: プロキシ失敗時のダイレクト接続
 - **ログ制御**: BaseScraperの`suppressProxyLog`パラメータでログ重複を防止
   - 親スクレイパー（FavoriteScraper）でのみログ出力
@@ -310,6 +313,13 @@ const updateProductInState = useCallback((productId: string, updates: Partial<Ex
 
 **対応操作**:
 1. **ASIN登録・変更・削除**
+   - **バリデーション**: 10文字の英数字であることを確認
+     - 不正な形式の場合はエラートーストを表示
+     - 正規表現: `/^[A-Z0-9]{10}$/i`
+   - **新規ASIN作成時**: `amazon_name: null`を明示的に設定
+     - 未登録状態を明確化
+     - 情報トースト表示: "新規ASINを登録しました。Amazon商品名などの詳細情報を設定してください。"
+   - **既存ASIN参照時**: 既存データをそのまま使用
    - ASIN削除時: 利益計算をリセット
    - ASIN変更時: 新しいASIN情報で利益を再計算
    - 行のみ更新（`updateProductInState`使用）
@@ -910,6 +920,14 @@ export interface ProductRowProps {
   onEditingValueChange: (value: string) => void
   onUpdateProductInState: (productId: string, updates: Partial<ExtendedProduct>) => void
 }
+
+/**
+ * Amazon商品名の表示ロジック
+ *
+ * - amazon_nameが設定されている場合: 青色リンクで商品名を表示
+ * - amazon_nameが未設定の場合: 灰色リンクで「未登録」と表示
+ * - ASINが未設定の場合: 灰色で「-」を表示
+ */
 
 // EditableCellコンポーネントProps
 export interface EditableCellProps {
