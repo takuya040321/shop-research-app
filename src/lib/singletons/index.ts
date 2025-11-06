@@ -81,7 +81,10 @@ function createProxyAwareFetch(): typeof fetch {
   // プロキシURLを構築（認証情報がある場合は含める）
   let proxyUrl: string
   if (proxyUsername && proxyPassword) {
-    proxyUrl = `http://${proxyUsername}:${proxyPassword}@${proxyHost}:${proxyPort}`
+    // 認証情報をURLエンコード（パスワードに特殊文字が含まれる場合に対応）
+    const encodedUsername = encodeURIComponent(proxyUsername)
+    const encodedPassword = encodeURIComponent(proxyPassword)
+    proxyUrl = `http://${encodedUsername}:${encodedPassword}@${proxyHost}:${proxyPort}`
     console.log(`[Supabase] 認証付きプロキシを使用: ${proxyHost}:${proxyPort} (ユーザー: ${proxyUsername})`)
   } else {
     proxyUrl = `http://${proxyHost}:${proxyPort}`
