@@ -181,14 +181,25 @@ export function ProductRow({
         return (
           <TableCell key={columnId} className={width}>
             {product.asin?.asin ? (
-              <a
-                href={`https://www.amazon.co.jp/dp/${product.asin.asin}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                {product.asin.amazon_name || product.asin.asin}
-              </a>
+              product.asin.amazon_name ? (
+                <a
+                  href={`https://www.amazon.co.jp/dp/${product.asin.asin}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  {product.asin.amazon_name}
+                </a>
+              ) : (
+                <a
+                  href={`https://www.amazon.co.jp/dp/${product.asin.asin}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-gray-400 hover:underline"
+                >
+                  未登録
+                </a>
+              )
             ) : (
               <span className="text-sm text-gray-400">-</span>
             )}
