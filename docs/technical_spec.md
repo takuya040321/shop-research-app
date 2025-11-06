@@ -370,6 +370,117 @@ const calculateProfit = useCallback((
 - データベース負荷削減
 - リアルタイム性の向上
 
+#### 4.5.3 編集後フィルター除外機能
+**目的**: 商品を編集した際、フィルター範囲外になっても編集した商品を表示し続ける
+
+**実装手法**:
+```typescript
+// 編集済み商品IDの追跡
+const [recentlyEditedProductIds, setRecentlyEditedProductIds] = useState<Set<string>>(new Set())
+
+// 編集時に商品IDを記録
+if (success) {
+  setRecentlyEditedProductIds(prev => new Set(prev).add(productId))
+  setEditingCell(null)
+}
+
+// フィルタリング時に編集済み商品を除外
+const editedProducts = products.filter(p => recentlyEditedProductIds.has(p.id))
+const nonEditedProducts = products.filter(p => !recentlyEditedProductIds.has(p.id))
+
+// 編集していない商品のみフィルタリング
+let filtered = nonEditedProducts
+// ... フィルター適用 ...
+
+// 編集済み商品を結合（フィルター対象外として常に表示）
+const allProducts = [...editedProducts, ...filtered]
+```
+
+**クリア条件**:
+- フィルター適用ボタンをクリック時
+- ページリロード時
+
+**利点**:
+- 編集結果を即座に確認可能
+- フィルター範囲外への移動でも編集した商品を見失わない
+- ユーザーが明示的に適用するまで編集済み商品を保持
+
+### 4.6 フィルター管理（useProductSearch）
+```typescript
+// hooks/products/useProductSearch.ts
+export function useProductSearch()
+```
+
+#### 4.6.1 一時フィルターパターン
+**目的**: フィルター変更を即座に反映せず、「適用」ボタンで確定する仕組み
+
+**実装手法**:
+```typescript
+const [isFilterExpanded, setIsFilterExpanded] = useState(false)
+const [tempFilters, setTempFilters] = useState<ProductFilters | null>(null)
+
+// フィルターパネルを開く際に一時フィルターを初期化
+const toggleFilterPanel = (currentFilters: ProductFilters, expanded: boolean) => {
+  if (!expanded) {
+    setTempFilters(currentFilters)
+  }
+  setIsFilterExpanded(!expanded)
+}
+
+// 一時フィルター値の変更（適用ボタンを押すまで反映されない）
+const handleTempFilterChange = (key: keyof ProductFilters, value: any) => {
+  setTempFilters(prev => {
+    if (!prev) return prev
+    return { ...prev, [key]: value }
+  })
+}
+
+// フィルター適用
+const applyFilters = (onFiltersChange: (filters: ProductFilters) => void) => {
+  if (tempFilters) {
+    onFiltersChange(tempFilters)
+  }
+}
+```
+
+**利点**:
+- ユーザーが複数のフィルターを調整してから一括適用できる
+- 適用前にキャンセルして元の状態に戻せる
+- パフォーマンス向上（適用時のみフィルタリング実行）
+
+#### 4.6.2 対応フィルター一覧
+1. **検索テキスト**: 商品名、ASIN、Amazon商品名で検索（即時反映）
+2. **価格範囲**: 最低価格、最高価格
+3. **利益率範囲**: 最低利益率、最高利益率
+4. **ROI範囲**: 最低ROI、最高ROI
+5. **月間売上ステータス**: すべて/データあり/データなし
+6. **月間売上範囲**: 最低月間売上、最高月間売上
+7. **ASINステータス**: すべて/設定済み/未設定
+8. **お気に入り**: すべて/お気に入りのみ/お気に入り以外
+9. **セール状況**: すべて/セール中のみ/通常価格のみ
+10. **表示状態**: すべて/表示中のみ/非表示のみ
+11. **Amazon販売**: すべて/ありのみ/なしのみ
+12. **公式販売**: すべて/ありのみ/なしのみ
+13. **クレーム数**: すべて/クレームあり/クレームなし
+14. **危険品**: すべて/該当のみ/非該当のみ
+15. **パーキャリNG**: すべて/該当のみ/非該当のみ
+
+#### 4.6.3 アクティブフィルター数カウント
+```typescript
+const getActiveFilterCount = (filters: ProductFilters): number => {
+  return Object.entries(filters).reduce((count, [key, value]) => {
+    if (key === "searchText" && value) return count + 1
+    if (key === "hiddenStatus" && value !== "visible_only") return count + 1
+    if (key === "monthlySalesStatus" && value !== "all") return count + 1
+    // ... 他のフィルター条件 ...
+    if (typeof value === "number" && value !== null) return count + 1
+    return count
+  }, 0)
+}
+```
+
+**表示**: フィルターボタン上にバッジとして表示
+
 ## 5. データベース仕様
 
 ### 5.1 Supabase設定
@@ -762,9 +873,18 @@ export interface ProductFilters {
   maxProfitRate: number | null
   minROI: number | null
   maxROI: number | null
+  minMonthlySales: number | null
+  maxMonthlySales: number | null
+  monthlySalesStatus: "all" | "with_data" | "without_data"  // 月間売上データ有無
   asinStatus: "all" | "with_asin" | "without_asin"
   favoriteStatus: "all" | "favorite_only" | "non_favorite_only"  // お気に入りフィルター
   saleStatus: "all" | "on_sale" | "regular_price"  // セール状況フィルター
+  hiddenStatus: "all" | "hidden_only" | "visible_only"  // 表示状態フィルター
+  amazonStatus: "all" | "available" | "unavailable"  // Amazon販売有無
+  officialStatus: "all" | "available" | "unavailable"  // 公式販売有無
+  complaintStatus: "all" | "with_complaints" | "without_complaints"  // クレーム有無
+  dangerousStatus: "all" | "dangerous" | "safe"  // 危険品判定
+  perCarryStatus: "all" | "ng" | "ok"  // パーキャリNG判定
 }
 
 // ProductTableコンポーネントProps
