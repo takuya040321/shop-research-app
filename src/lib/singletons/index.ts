@@ -73,6 +73,12 @@ function createProxyAwareFetch(): typeof fetch {
   const proxyUsername = process.env.PROXY_USERNAME
   const proxyPassword = process.env.PROXY_PASSWORD
 
+  console.log("[DEBUG] プロキシ環境変数:")
+  console.log("  PROXY_HOST:", proxyHost)
+  console.log("  PROXY_PORT:", proxyPort)
+  console.log("  PROXY_USERNAME:", proxyUsername)
+  console.log("  PROXY_PASSWORD:", proxyPassword ? `[設定済み: ${proxyPassword.length}文字]` : "[未設定]")
+
   if (!proxyHost || !proxyPort) {
     console.log("[Supabase] USE_PROXY=trueですが、PROXY_HOSTまたはPROXY_PORTが設定されていません - 標準fetchを使用")
     return fetch
@@ -84,14 +90,22 @@ function createProxyAwareFetch(): typeof fetch {
     // 認証情報をURLエンコード（パスワードに特殊文字が含まれる場合に対応）
     const encodedUsername = encodeURIComponent(proxyUsername)
     const encodedPassword = encodeURIComponent(proxyPassword)
+    console.log("[DEBUG] エンコード後の認証情報:")
+    console.log("  encodedUsername:", encodedUsername)
+    console.log("  encodedPassword:", `[エンコード済み: ${encodedPassword.length}文字]`)
+
     proxyUrl = `http://${encodedUsername}:${encodedPassword}@${proxyHost}:${proxyPort}`
-    console.log(`[Supabase] 認証付きプロキシを使用: ${proxyHost}:${proxyPort} (ユーザー: ${proxyUsername})`)
+    console.log(`[Supabase] 認証付きプロキシを使用: http://${proxyHost}:${proxyPort} (ユーザー: ${proxyUsername})`)
+    console.log("[DEBUG] 構築されたproxyURL:", proxyUrl.replace(/:([^:@]+)@/, ':***@')) // パスワード部分をマスク
   } else {
     proxyUrl = `http://${proxyHost}:${proxyPort}`
     console.log(`[Supabase] プロキシを使用: ${proxyHost}:${proxyPort}`)
+    console.log("[DEBUG] 構築されたproxyURL:", proxyUrl)
   }
 
+  console.log("[DEBUG] ProxyAgent作成開始...")
   const dispatcher = new ProxyAgent(proxyUrl)
+  console.log("[DEBUG] ProxyAgent作成完了")
 
   // ProxyAgentを使用したカスタムfetch関数を返す
   return (async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -293,16 +307,23 @@ class ProxyController {
    * コンストラクタ
    */
   constructor() {
+    console.log("[DEBUG] ProxyController コンストラクタ開始")
     // 環境変数からUSE_PROXYの値を取得
     const useProxyEnv = process.env.USE_PROXY
+    console.log("[DEBUG] USE_PROXY環境変数:", useProxyEnv)
     this.config = {
       useProxy: useProxyEnv === "true",
     }
+    console.log("[DEBUG] ProxyController config.useProxy:", this.config.useProxy)
 
     // USE_PROXY=trueの場合、SERVICE_ROLE_KEYでクライアントを作成
     if (this.config.useProxy) {
+      console.log("[DEBUG] USE_PROXY=true のため、ServiceRoleClientを初期化します")
       this.initializeServiceRoleClient()
+    } else {
+      console.log("[DEBUG] USE_PROXY=false のため、ServiceRoleClientは初期化しません")
     }
+    console.log("[DEBUG] ProxyController コンストラクタ完了")
   }
 
   /**
@@ -315,8 +336,12 @@ class ProxyController {
    * @private
    */
   private initializeServiceRoleClient(): void {
+    console.log("[DEBUG] initializeServiceRoleClient 開始")
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    console.log("[DEBUG] NEXT_PUBLIC_SUPABASE_URL:", url ? "[設定済み]" : "[未設定]")
+    console.log("[DEBUG] SUPABASE_SERVICE_ROLE_KEY:", serviceRoleKey ? "[設定済み]" : "[未設定]")
 
     if (!url || !serviceRoleKey) {
       throw new Error(
@@ -324,17 +349,24 @@ class ProxyController {
       )
     }
 
+    console.log("[DEBUG] createProxyAwareFetch() 呼び出し開始")
+    const proxyAwareFetch = createProxyAwareFetch()
+    console.log("[DEBUG] createProxyAwareFetch() 呼び出し完了")
+
     // SERVICE_ROLE_KEYでSupabaseクライアントを作成（プロキシ対応fetch使用）
     // 注意: このクライアントはRLSポリシーをバイパスし、全権限を持つ
+    console.log("[DEBUG] Supabaseクライアント作成開始")
     this.serviceRoleClient = createClient<Database>(url, serviceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       },
       global: {
-        fetch: createProxyAwareFetch(),
+        fetch: proxyAwareFetch,
       },
     })
+    console.log("[DEBUG] Supabaseクライアント作成完了")
+    console.log("[DEBUG] initializeServiceRoleClient 完了")
   }
 
   /**
@@ -347,12 +379,18 @@ class ProxyController {
    * @returns Supabaseクライアント
    */
   public getSupabaseClient(): ISupabaseClient {
+    console.log("[DEBUG] ProxyController.getSupabaseClient() 呼び出し")
+    console.log("[DEBUG] config.useProxy:", this.config.useProxy)
+    console.log("[DEBUG] serviceRoleClient:", this.serviceRoleClient ? "[作成済み]" : "[未作成]")
+
     if (this.config.useProxy && this.serviceRoleClient) {
       // USE_PROXY=trueの場合、SERVICE_ROLE_KEYクライアントを返す
+      console.log("[DEBUG] ServiceRoleClientを返します")
       return this.serviceRoleClient
     }
 
     // USE_PROXY=falseまたは未設定の場合、匿名キークライアントを返す
+    console.log("[DEBUG] 匿名キークライアントを返します")
     return SupabaseClientSingleton.getInstance().getClient()
   }
 
@@ -371,6 +409,7 @@ class ProxyController {
    * @returns USE_PROXY=trueの場合true、それ以外はfalse
    */
   public isProxyEnabled(): boolean {
+    console.log("[DEBUG] ProxyController.isProxyEnabled() 呼び出し:", this.config.useProxy)
     return this.config.useProxy
   }
 }
@@ -413,8 +452,14 @@ class Proxy {
    * @private
    */
   private static initializeController(): ProxyController {
+    console.log("[DEBUG] Proxy.initializeController() 呼び出し")
+    console.log("[DEBUG] Proxy.controller:", Proxy.controller ? "[作成済み]" : "[未作成]")
     if (!Proxy.controller) {
+      console.log("[DEBUG] 新しいProxyControllerを作成します")
       Proxy.controller = new ProxyController()
+      console.log("[DEBUG] ProxyController作成完了")
+    } else {
+      console.log("[DEBUG] 既存のProxyControllerを使用します")
     }
     return Proxy.controller
   }
@@ -435,8 +480,12 @@ class Proxy {
    * ```
    */
   public static getSupabase(): ISupabaseClient {
+    console.log("[DEBUG] Proxy.getSupabase() 呼び出し")
     const controller = Proxy.initializeController()
-    return controller.getSupabaseClient()
+    console.log("[DEBUG] ProxyController取得完了、getSupabaseClient()を呼び出します")
+    const client = controller.getSupabaseClient()
+    console.log("[DEBUG] Supabaseクライアント取得完了")
+    return client
   }
 
   /**
@@ -474,8 +523,11 @@ class Proxy {
    * ```
    */
   public static isProxyEnabled(): boolean {
+    console.log("[DEBUG] Proxy.isProxyEnabled() 呼び出し")
     const controller = Proxy.initializeController()
-    return controller.isProxyEnabled()
+    const enabled = controller.isProxyEnabled()
+    console.log("[DEBUG] プロキシ有効状態:", enabled)
+    return enabled
   }
 
   /**
