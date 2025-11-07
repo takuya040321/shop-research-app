@@ -219,7 +219,7 @@ export function useProductTable({
       )
     } else if (filters.monthlySalesStatus === "without_data") {
       filtered = filtered.filter(product =>
-        !product.asin?.monthly_sales || product.asin.monthly_sales === 0
+        product.asin?.monthly_sales == null
       )
     }
 
