@@ -84,6 +84,10 @@ function createProxyAwareFetch(): typeof fetch {
     return fetch
   }
 
+  // PROXY_HOSTからプロトコル部分を削除（http://やhttps://が含まれている場合）
+  const cleanProxyHost = proxyHost.replace(/^https?:\/\//, "")
+  console.log("[DEBUG] クリーン後のPROXY_HOST:", cleanProxyHost)
+
   // プロキシURLを構築（認証情報がある場合は含める）
   let proxyUrl: string
   if (proxyUsername && proxyPassword) {
@@ -94,12 +98,12 @@ function createProxyAwareFetch(): typeof fetch {
     console.log("  encodedUsername:", encodedUsername)
     console.log("  encodedPassword:", `[エンコード済み: ${encodedPassword.length}文字]`)
 
-    proxyUrl = `http://${encodedUsername}:${encodedPassword}@${proxyHost}:${proxyPort}`
-    console.log(`[Supabase] 認証付きプロキシを使用: http://${proxyHost}:${proxyPort} (ユーザー: ${proxyUsername})`)
+    proxyUrl = `http://${encodedUsername}:${encodedPassword}@${cleanProxyHost}:${proxyPort}`
+    console.log(`[Supabase] 認証付きプロキシを使用: http://${cleanProxyHost}:${proxyPort} (ユーザー: ${proxyUsername})`)
     console.log("[DEBUG] 構築されたproxyURL:", proxyUrl.replace(/:([^:@]+)@/, ':***@')) // パスワード部分をマスク
   } else {
-    proxyUrl = `http://${proxyHost}:${proxyPort}`
-    console.log(`[Supabase] プロキシを使用: ${proxyHost}:${proxyPort}`)
+    proxyUrl = `http://${cleanProxyHost}:${proxyPort}`
+    console.log(`[Supabase] プロキシを使用: ${cleanProxyHost}:${proxyPort}`)
     console.log("[DEBUG] 構築されたproxyURL:", proxyUrl)
   }
 
