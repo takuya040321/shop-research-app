@@ -571,6 +571,66 @@ export const supabaseServer = createServerSupabaseClient()
 ```
 
 #### 5.2.3 シングルトン+プロキシパターン（推奨）
+
+**プロキシ対応fetch関数**
+
+undiciのProxyAgentを使用して社内プロキシ環境でSupabaseへ接続するカスタムfetch実装。
+
+```typescript
+// lib/singletons/index.ts
+import { fetch as undiciFetch, ProxyAgent } from "undici"
+
+/**
+ * プロキシ対応のfetch関数を作成
+ * USE_PROXYがtrueかつプロキシ設定がある場合のみProxyAgentを使用
+ */
+function createProxyAwareFetch(): typeof fetch {
+  // USE_PROXYがtrueかつプロキシ設定がある場合のみプロキシを使用
+  const useProxy = process.env.USE_PROXY === "true"
+
+  if (!useProxy) {
+    console.log("[Supabase] USE_PROXY=false - 標準fetchを使用")
+    return fetch
+  }
+
+  const proxyHost = process.env.PROXY_HOST
+  const proxyPort = process.env.PROXY_PORT
+  const proxyUsername = process.env.PROXY_USERNAME
+  const proxyPassword = process.env.PROXY_PASSWORD
+
+  if (!proxyHost || !proxyPort) {
+    console.log("[Supabase] USE_PROXY=trueですが、PROXY_HOSTまたはPROXY_PORTが設定されていません - 標準fetchを使用")
+    return fetch
+  }
+
+  // PROXY_HOSTからプロトコル部分を削除（http://やhttps://が含まれている場合）
+  const cleanProxyHost = proxyHost.replace(/^https?:\/\//, "")
+
+  // プロキシURLを構築（認証情報がある場合は含める）
+  let proxyUrl: string
+  if (proxyUsername && proxyPassword) {
+    // 認証情報をURLエンコード（パスワードに特殊文字が含まれる場合に対応）
+    const encodedUsername = encodeURIComponent(proxyUsername)
+    const encodedPassword = encodeURIComponent(proxyPassword)
+    proxyUrl = `http://${encodedUsername}:${encodedPassword}@${cleanProxyHost}:${proxyPort}`
+    console.log(`[Supabase] 認証付きプロキシを使用: http://${cleanProxyHost}:${proxyPort} (ユーザー: ${proxyUsername})`)
+  } else {
+    proxyUrl = `http://${cleanProxyHost}:${proxyPort}`
+    console.log(`[Supabase] プロキシを使用: ${cleanProxyHost}:${proxyPort}`)
+  }
+
+  const dispatcher = new ProxyAgent(proxyUrl)
+
+  // ProxyAgentを使用したカスタムfetch関数を返す
+  return (async (url: RequestInfo | URL, init?: RequestInit) => {
+    const response = await undiciFetch(url as any, { ...init, dispatcher } as any)
+    return response as unknown as Response
+  }) as typeof fetch
+}
+```
+
+**SupabaseClientSingleton実装**
+
 ```typescript
 // lib/singletons/index.ts
 import { createClient, SupabaseClient } from "@supabase/supabase-js"
@@ -598,10 +658,14 @@ class SupabaseClientSingleton {
   private client: ISupabaseClient
 
   private constructor(config: SupabaseClientConfig) {
+    // 匿名キーでSupabaseクライアントを作成（プロキシ対応fetch使用）
     this.client = createClient<Database>(config.url, config.anonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+      },
+      global: {
+        fetch: createProxyAwareFetch(),
       },
     })
   }

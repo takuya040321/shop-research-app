@@ -583,6 +583,8 @@ class SupabaseClientSingleton {
 - 匿名キー（ANON_KEY）を使用したSupabaseクライアントのシングルトン管理
 - RLSポリシーによって制限されたクライアントサイドアクセス
 - ブラウザに公開されても安全な設計
+- プロキシ対応fetch（`createProxyAwareFetch()`）をglobal.fetchに設定
+- 社内プロキシ環境でのSupabase接続を実現
 
 #### ScraperSingleton
 ```typescript
@@ -837,10 +839,13 @@ const { data } = await supabase.from("products").select()
 - **プロキシ制御**: 環境変数による完全制御
   - **USE_PROXY**: プロキシ使用の有効/無効を制御（true/false）
   - **スクレイピング**: PuppeteerのプロキシサーバーとBasic認証に対応
-  - **Supabase接続**: フェッチカスタム実装でHTTPプロキシに対応
-    - クライアント（Anonキー）とサーバー（サービスロールキー）で個別設定
-    - `supabase.ts`: クライアント側、プロキシ有効時のみHTTPエージェント設定
-    - `supabase-server.ts`: サーバー側、プロキシ有効時のみHTTPエージェント設定
+  - **Supabase接続**: undiciのProxyAgentを使用したHTTPプロキシに対応
+    - `createProxyAwareFetch()`関数で社内プロキシ環境に対応したカスタムfetchを提供
+    - プロキシ認証情報のURLエンコード対応（特殊文字を含むパスワードに対応）
+    - USE_PROXY=trueの場合のみProxyAgentを使用、それ以外は標準fetchを使用
+    - PROXY_HOST、PROXY_PORT、PROXY_USERNAME、PROXY_PASSWORDの4つの環境変数で制御
+    - デバッグログでプロキシ設定の状態を詳細に出力（パスワードはマスク）
+    - シングルトンパターンによりSupabaseClientSingletonで一元管理
 - **エラーハンドリング**: 統一エラー処理
 - **レート制限**: アクセス間隔制御
 - **タイムアウト設定**: ブランド別に最適化（DHC: 30秒、他: 15秒）
