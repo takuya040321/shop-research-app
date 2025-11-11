@@ -59,10 +59,12 @@
   - Puppeteerへのプロキシ適用
   - エラーハンドリング
   - ✅ **Supabaseクライアントのプロキシ対応**:
-    - ✅ 汎用クライアント（supabase.ts）: Anonキー、プロキシ対応
-    - ✅ サーバー専用クライアント（supabase-server.ts）: サービスロールキー、プロキシ対応
-    - ✅ https-proxy-agent統合
-    - ✅ 詳細ログ出力
+    - ✅ シングルトンパターンによる一元管理（SupabaseClientSingleton）
+    - ✅ undiciのProxyAgentを使用したHTTPプロキシ対応
+    - ✅ createProxyAwareFetch()関数で社内プロキシ環境に対応
+    - ✅ プロキシ認証情報のURLエンコード対応（特殊文字含むパスワードに対応）
+    - ✅ USE_PROXY環境変数による動的制御
+    - ✅ 詳細デバッグログ出力（パスワードはマスク）
 
 #### 2.2.3 データベース設計・構築
 - **優先度**: 最高
@@ -547,6 +549,10 @@ Supabaseクライアントとスクレイパーの統一管理システムを実
    - ScraperSingleton クラス
    - ProxyController クラス（USE_PROXY判定）
    - Proxy クラス（統一インターフェース）
+   - ✅ **createProxyAwareFetch()関数** (2025-11-05追加)
+     - undiciのProxyAgentを使用した社内プロキシ対応
+     - プロキシ認証情報のURLエンコード対応
+     - 特殊文字を含むパスワードに対応
 
 2. `src/lib/singletons/README.md`
    - 完全なドキュメント
