@@ -30,10 +30,10 @@ export function DeleteConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-white">
         <DialogHeader>
-          <DialogTitle>商品を削除しますか？</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-gray-900">商品を削除しますか？</DialogTitle>
+          <DialogDescription className="text-gray-600">
             この操作は取り消せません。本当に削除しますか？
           </DialogDescription>
         </DialogHeader>
@@ -41,12 +41,12 @@ export function DeleteConfirmDialog({
         <div className="py-4">
           <div className="space-y-2">
             <div className="text-sm">
-              <span className="font-medium">商品名:</span>
+              <span className="font-medium text-gray-900">商品名:</span>
               <p className="text-gray-700 mt-1">{product.name}</p>
             </div>
             {product.asin && (
               <div className="text-sm">
-                <span className="font-medium">ASIN:</span>
+                <span className="font-medium text-gray-900">ASIN:</span>
                 <p className="text-gray-700 mt-1">{product.asin.asin}</p>
               </div>
             )}
@@ -57,15 +57,16 @@ export function DeleteConfirmDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
+            className="border-gray-300"
           >
             キャンセル
           </Button>
           <Button
-            variant="destructive"
             onClick={() => {
               onConfirm()
               onOpenChange(false)
             }}
+            className="bg-red-600 hover:bg-red-700 text-white border-0"
           >
             削除
           </Button>
