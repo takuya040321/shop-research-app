@@ -28,8 +28,11 @@ function getProxyConfigFromEnv(): ProxyConfig | null {
     return null
   }
 
+  // PROXY_HOSTからプロトコル部分を削除（http://やhttps://が含まれている場合）
+  const cleanHost = host.replace(/^https?:\/\//, "")
+
   const config: ProxyConfig = {
-    host,
+    host: cleanHost,
     port: parseInt(port, 10),
   }
 
@@ -100,8 +103,11 @@ export function validateProxyConfig(config: ProxyConfig): boolean {
  */
 export function logProxyStatus(settings: ProxySettings): void {
   if (settings.enabled && settings.config) {
-    console.log(`プロキシを使用します: ${settings.config.host}:${settings.config.port}`)
+    console.log("[プロキシ設定] プロキシを使用します")
+    console.log(`  ホスト: ${settings.config.host}`)
+    console.log(`  ポート: ${settings.config.port}`)
+    console.log(`  認証: ${settings.config.username ? `あり (ユーザー: ${settings.config.username})` : "なし"}`)
   } else {
-    console.log("プロキシを使用しません")
+    console.log("[プロキシ設定] プロキシを使用しません")
   }
 }

@@ -62,13 +62,24 @@ export class BaseScraper {
 
       // プロキシ設定の適用
       if (this.proxySettings.enabled && this.proxySettings.config) {
+        console.log("[Puppeteer] プロキシ設定を適用します")
+        console.log(`  ホスト: ${this.proxySettings.config.host}`)
+        console.log(`  ポート: ${this.proxySettings.config.port}`)
+        console.log(`  認証: ${this.proxySettings.config.username ? "あり" : "なし"}`)
+
         // プロキシサーバーのみを指定（認証情報は含めない）
         const proxyServer = `http://${this.proxySettings.config.host}:${this.proxySettings.config.port}`
+        console.log(`  プロキシサーバーURL: ${proxyServer}`)
         launchOptions.args?.push(`--proxy-server=${proxyServer}`)
+      } else {
+        console.log("[Puppeteer] プロキシを使用しません")
       }
 
+      console.log("[Puppeteer] ブラウザを起動中...")
       this.browser = await puppeteer.launch(launchOptions)
+      console.log("[Puppeteer] ブラウザ起動完了")
     } catch (error) {
+      console.error("[Puppeteer] ブラウザ起動エラー:", error)
       throw new Error(`ブラウザの起動に失敗しました: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
@@ -100,10 +111,13 @@ export class BaseScraper {
 
       // プロキシ認証の設定（Basic認証）
       if (this.proxySettings.enabled && this.proxySettings.config?.username && this.proxySettings.config?.password) {
+        console.log("[Puppeteer] プロキシ認証を設定します")
+        console.log(`  ユーザー名: ${this.proxySettings.config.username}`)
         await page.authenticate({
           username: this.proxySettings.config.username,
           password: this.proxySettings.config.password,
         })
+        console.log("[Puppeteer] プロキシ認証設定完了")
       }
 
       return page
