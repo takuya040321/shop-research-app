@@ -28,17 +28,51 @@ async function backupProducts() {
   try {
     console.log("🔄 productsテーブルのバックアップを開始します...");
 
-    // 全データを取得（ページングなし）
-    const { data, error, count } = await supabase
+    // まず総件数を取得
+    const { count: totalCount, error: countError } = await supabase
       .from("products")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: true });
+      .select("*", { count: "exact", head: true });
 
-    if (error) {
-      throw error;
+    if (countError) {
+      throw countError;
     }
 
-    console.log(`✅ ${count}件のデータを取得しました`);
+    console.log(`📊 総レコード数: ${totalCount}件`);
+
+    // 全データをページネーションで取得（1000件ずつ）
+    let allData = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      console.log(`🔄 ${from + 1}〜${Math.min(from + pageSize, totalCount)}件目を取得中...`);
+
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+      } else {
+        allData = allData.concat(data);
+        from += pageSize;
+
+        if (data.length < pageSize) {
+          hasMore = false;
+        }
+      }
+    }
+
+    const data = allData;
+    const count = totalCount;
+    console.log(`✅ ${allData.length}件のデータを取得しました`);
 
     // バックアップディレクトリを作成
     const backupDir = path.join(__dirname, "../backups");
