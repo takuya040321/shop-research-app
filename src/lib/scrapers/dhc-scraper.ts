@@ -294,6 +294,7 @@ export class DHCScraper extends BaseScraper {
 
       page = await this.createPage({ ...options, timeout: DHC_CONFIG.timeout })
       const allProducts: DHCProduct[] = []
+      const categoryErrors: string[] = []
 
       // 各カテゴリをスクレイピング
       for (const categoryPath of DHC_CONFIG.categoryUrls) {
@@ -315,14 +316,26 @@ export class DHCScraper extends BaseScraper {
           // カテゴリ間の待機（レート制限対策）
           await new Promise(resolve => setTimeout(resolve, 2000))
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
           console.error(
             `カテゴリ ${categoryPath} のスクレイピングでエラー:`,
             error
           )
+          categoryErrors.push(`${categoryPath}: ${errorMessage}`)
         }
       }
 
-      console.log(`合計 ${allProducts.length}件の商品を取得しました`)
+      // 全カテゴリがエラーの場合は失敗として扱う
+      if (categoryErrors.length === DHC_CONFIG.categoryUrls.length) {
+        console.error("全てのカテゴリでスクレイピングに失敗しました")
+        return {
+          success: false,
+          error: `全カテゴリでエラー: ${categoryErrors.join(", ")}`,
+          proxyUsed: this.getProxySettings().enabled,
+        }
+      }
+
+      console.log(`合計 ${allProducts.length}件の商品を取得しました（${categoryErrors.length}/${DHC_CONFIG.categoryUrls.length}カテゴリでエラー）`)
 
       return {
         success: true,
@@ -426,6 +439,19 @@ export class DHCScraper extends BaseScraper {
 
       const products = scrapingResult.data
       console.log(`合計 ${products.length}件の商品データを取得しました`)
+
+      // 商品が0件の場合はエラーとして扱う（データ削除を防ぐ）
+      if (products.length === 0) {
+        console.error("スクレイピングで商品が1件も取得できませんでした。データベースへの保存をスキップします。")
+        return {
+          success: false,
+          totalProducts: 0,
+          savedProducts: 0,
+          skippedProducts: 0,
+          errors: ["商品が1件も取得できませんでした"],
+          proxyUsed: scrapingResult.proxyUsed,
+        }
+      }
 
       // 全カテゴリのスクレイピング完了後、商品を一括保存
       console.log("商品データをデータベースに保存中...")
